@@ -1,5 +1,7 @@
 <?php foreach($notifications->result_array() as $notification): ?>
-    <div class="dropdown-item notify-item cursor-pointer <?php if($notification['status'] == 0) echo 'unread' ?>">
+    <a href="<?php echo site_url('admin/get_my_notification/open/'.$notification['id']); ?>"
+       class="dropdown-item notify-item cursor-pointer <?php if($notification['status'] == 0) echo 'unread'; ?>"
+       style="text-decoration:none; display:block;">
         <?php if($notification['type'] == 'signup'): ?>
             <div class="notify-icon">
                 <img src="<?php echo $this->user_model->get_user_image_url($notification['from_user']); ?>" class="img-fluid rounded-circle" alt="User image" />
@@ -14,9 +16,9 @@
             <small class="text-muted"><?php echo get_past_time($notification['created_at']); ?></small>
         </p>
         <div class="text-muted mb-0 user-msg text-13">
-            <?php echo ($notification['description']); ?>
+            <?php echo $notification['description']; ?>
         </div>
-    </div>
+    </a>
 <?php endforeach; ?>
 
 <?php if($notifications->num_rows() == 0): ?>

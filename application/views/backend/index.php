@@ -25,10 +25,29 @@
             <!-- PAGE CONTAINER-->
             <div class="content-page">
                 <div class="content">
-                    <!-- BEGIN PlACE PAGE CONTENT HERE -->
-                    <?php include $logged_in_user_role.'/'.$page_name.'.php';?>
-                    <!-- END PLACE PAGE CONTENT HERE -->
-                </div>
+
+				<?php if ($this->session->flashdata('flash_message')): ?>
+					<div class="alert alert-success alert-dismissible fade show" role="alert">
+						<?php echo $this->session->flashdata('flash_message'); ?>
+						<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+				<?php endif; ?>
+
+				<?php if ($this->session->flashdata('error_message')): ?>
+					<div class="alert alert-danger alert-dismissible fade show" role="alert">
+						<?php echo $this->session->flashdata('error_message'); ?>
+						<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+				<?php endif; ?>
+
+				<!-- BEGIN PlACE PAGE CONTENT HERE -->
+				<?php include $logged_in_user_role.'/'.$page_name.'.php';?>
+				<!-- END PLACE PAGE CONTENT HERE -->
+			</div>
             </div>
             <!-- END CONTENT -->
         </div>

@@ -16,6 +16,262 @@ class Crud_model extends CI_Model
         $this->output->set_header('Pragma: no-cache');
     }
 
+    private function tutor_master_tables_ready()
+    {
+        return $this->db->table_exists('tutor_categories')
+            && $this->db->table_exists('tutor_classes')
+            && $this->db->table_exists('tutor_subject_master');
+    }
+
+    private function tutor_now()
+    {
+        return date('Y-m-d H:i:s');
+    }
+
+    private function tutor_find_category_by_legacy_row($legacy_row)
+    {
+        if (empty($legacy_row) || (int) $legacy_row['parent'] !== 0 || !$this->db->table_exists('tutor_categories')) {
+            return array();
+        }
+
+        $this->db->group_start()
+            ->where('slug', $legacy_row['slug'])
+            ->or_where('name', $legacy_row['name'])
+            ->group_end();
+        return (array) $this->db->get('tutor_categories', 1)->row_array();
+    }
+
+    private function tutor_find_class_by_legacy_row($legacy_row)
+    {
+        if (empty($legacy_row) || (int) $legacy_row['parent'] === 0 || !$this->db->table_exists('tutor_classes')) {
+            return array();
+        }
+
+        $parent_legacy = $this->get_category_details_by_id($legacy_row['parent'])->row_array();
+        $parent_master = $this->sync_tutor_category_from_legacy($legacy_row['parent'], $parent_legacy);
+        if (empty($parent_master)) {
+            return array();
+        }
+
+        $this->db->where('category_id', (int) $parent_master['id']);
+        $this->db->group_start()
+            ->where('slug', $legacy_row['slug'])
+            ->or_where('name', $legacy_row['name'])
+            ->group_end();
+        return (array) $this->db->get('tutor_classes', 1)->row_array();
+    }
+
+    private function sync_tutor_category_from_legacy($legacy_category_id, $legacy_row = array())
+    {
+        if (!$this->tutor_master_tables_ready()) {
+            return array();
+        }
+
+        if (empty($legacy_row)) {
+            $legacy_row = $this->get_category_details_by_id($legacy_category_id)->row_array();
+        }
+
+        if (empty($legacy_row) || (int) $legacy_row['parent'] !== 0) {
+            return array();
+        }
+
+        $payload = array(
+            'name' => $legacy_row['name'],
+            'slug' => !empty($legacy_row['slug']) ? $legacy_row['slug'] : slugify($legacy_row['name']),
+            'status' => 1
+        );
+
+        if ($this->db->field_exists('updated_at', 'tutor_categories')) {
+            $payload['updated_at'] = $this->tutor_now();
+        }
+
+        $existing = $this->tutor_find_category_by_legacy_row($legacy_row);
+        if (!empty($existing)) {
+            $this->db->where('id', (int) $existing['id']);
+            $this->db->update('tutor_categories', $payload);
+            return (array) $this->db->get_where('tutor_categories', array('id' => (int) $existing['id']), 1)->row_array();
+        }
+
+        if ($this->db->field_exists('sort_order', 'tutor_categories')) {
+            $payload['sort_order'] = (int) $legacy_category_id;
+        }
+        if ($this->db->field_exists('created_at', 'tutor_categories')) {
+            $payload['created_at'] = $this->tutor_now();
+        }
+
+        $this->db->insert('tutor_categories', $payload);
+        return (array) $this->db->get_where('tutor_categories', array('id' => (int) $this->db->insert_id()), 1)->row_array();
+    }
+
+    private function sync_tutor_class_from_legacy($legacy_class_id, $legacy_row = array(), $old_legacy_row = array())
+    {
+        if (!$this->tutor_master_tables_ready()) {
+            return array();
+        }
+
+        if (empty($legacy_row)) {
+            $legacy_row = $this->get_category_details_by_id($legacy_class_id)->row_array();
+        }
+
+        if (empty($legacy_row) || (int) $legacy_row['parent'] === 0) {
+            return array();
+        }
+
+        $parent_legacy = $this->get_category_details_by_id($legacy_row['parent'])->row_array();
+        $parent_master = $this->sync_tutor_category_from_legacy($legacy_row['parent'], $parent_legacy);
+        if (empty($parent_master)) {
+            return array();
+        }
+
+        $payload = array(
+            'category_id' => (int) $parent_master['id'],
+            'name' => $legacy_row['name'],
+            'slug' => !empty($legacy_row['slug']) ? $legacy_row['slug'] : slugify($legacy_row['name']),
+            'status' => 1
+        );
+
+        if ($this->db->field_exists('updated_at', 'tutor_classes')) {
+            $payload['updated_at'] = $this->tutor_now();
+        }
+
+        $existing = $this->tutor_find_class_by_legacy_row($legacy_row);
+        if (empty($existing) && !empty($old_legacy_row)) {
+            $existing = $this->tutor_find_class_by_legacy_row($old_legacy_row);
+        }
+
+        if (!empty($existing)) {
+            $this->db->where('id', (int) $existing['id']);
+            $this->db->update('tutor_classes', $payload);
+            return (array) $this->db->get_where('tutor_classes', array('id' => (int) $existing['id']), 1)->row_array();
+        }
+
+        if ($this->db->field_exists('sort_order', 'tutor_classes')) {
+            $payload['sort_order'] = (int) $legacy_class_id;
+        }
+        if ($this->db->field_exists('created_at', 'tutor_classes')) {
+            $payload['created_at'] = $this->tutor_now();
+        }
+
+        $this->db->insert('tutor_classes', $payload);
+        return (array) $this->db->get_where('tutor_classes', array('id' => (int) $this->db->insert_id()), 1)->row_array();
+    }
+
+    private function sync_tutor_subject_master_from_course($course_id, $course_row = array(), $old_course_row = array())
+    {
+        if (!$this->tutor_master_tables_ready()) {
+            return array();
+        }
+
+        if (empty($course_row)) {
+            $course_row = $this->get_course_by_id($course_id)->row_array();
+        }
+
+        if (empty($course_row) || empty($course_row['title']) || empty($course_row['sub_category_id'])) {
+            return array();
+        }
+
+        $legacy_class = $this->get_category_details_by_id($course_row['sub_category_id'])->row_array();
+        $class_master = $this->sync_tutor_class_from_legacy($course_row['sub_category_id'], $legacy_class);
+        if (empty($class_master)) {
+            return array();
+        }
+
+        $payload = array(
+            'class_id' => (int) $class_master['id'],
+            'name' => $course_row['title'],
+            'slug' => slugify($course_row['title']),
+            'status' => 1
+        );
+
+        if ($this->db->field_exists('updated_at', 'tutor_subject_master')) {
+            $payload['updated_at'] = $this->tutor_now();
+        }
+
+        $this->db->where('class_id', (int) $class_master['id']);
+        $this->db->group_start()
+            ->where('slug', $payload['slug'])
+            ->or_where('name', $payload['name'])
+            ->group_end();
+        $existing = (array) $this->db->get('tutor_subject_master', 1)->row_array();
+
+        if (empty($existing) && !empty($old_course_row) && !empty($old_course_row['title']) && !empty($old_course_row['sub_category_id'])) {
+            $old_legacy_class = $this->get_category_details_by_id($old_course_row['sub_category_id'])->row_array();
+            $old_class_master = $this->sync_tutor_class_from_legacy($old_course_row['sub_category_id'], $old_legacy_class);
+            if (!empty($old_class_master)) {
+                $this->db->where('class_id', (int) $old_class_master['id']);
+                $this->db->group_start()
+                    ->where('slug', slugify($old_course_row['title']))
+                    ->or_where('name', $old_course_row['title'])
+                    ->group_end();
+                $existing = (array) $this->db->get('tutor_subject_master', 1)->row_array();
+            }
+        }
+
+        if (!empty($existing)) {
+            $this->db->where('id', (int) $existing['id']);
+            $this->db->update('tutor_subject_master', $payload);
+            return (array) $this->db->get_where('tutor_subject_master', array('id' => (int) $existing['id']), 1)->row_array();
+        }
+
+        if ($this->db->field_exists('sort_order', 'tutor_subject_master')) {
+            $payload['sort_order'] = (int) $course_id;
+        }
+        if ($this->db->field_exists('created_at', 'tutor_subject_master')) {
+            $payload['created_at'] = $this->tutor_now();
+        }
+
+        $this->db->insert('tutor_subject_master', $payload);
+        return (array) $this->db->get_where('tutor_subject_master', array('id' => (int) $this->db->insert_id()), 1)->row_array();
+    }
+
+
+    private function delete_tutor_sync_for_legacy_category($legacy_row = array())
+    {
+        if (!$this->tutor_master_tables_ready() || empty($legacy_row)) {
+            return;
+        }
+
+        if ((int) $legacy_row['parent'] === 0) {
+            $master = $this->tutor_find_category_by_legacy_row($legacy_row);
+            if (!empty($master)) {
+                $this->db->where('id', (int) $master['id']);
+                $this->db->delete('tutor_categories');
+            }
+            return;
+        }
+
+        $master = $this->tutor_find_class_by_legacy_row($legacy_row);
+        if (!empty($master)) {
+            $this->db->where('id', (int) $master['id']);
+            $this->db->delete('tutor_classes');
+        }
+    }
+
+    private function delete_tutor_sync_for_course($course_row = array())
+    {
+        if (!$this->tutor_master_tables_ready() || empty($course_row) || empty($course_row['title']) || empty($course_row['sub_category_id'])) {
+            return;
+        }
+
+        $legacy_class = $this->get_category_details_by_id($course_row['sub_category_id'])->row_array();
+        $class_master = $this->tutor_find_class_by_legacy_row($legacy_class);
+        if (empty($class_master)) {
+            return;
+        }
+
+        $this->db->where('class_id', (int) $class_master['id']);
+        $this->db->group_start()
+            ->where('slug', slugify($course_row['title']))
+            ->or_where('name', $course_row['title'])
+            ->group_end();
+        $subject_master = (array) $this->db->get('tutor_subject_master', 1)->row_array();
+
+        if (!empty($subject_master)) {
+            $this->db->where('id', (int) $subject_master['id']);
+            $this->db->delete('tutor_subject_master');
+        }
+    }
+
     public function get_categories($param1 = "")
     {
         if ($param1 != "") {
@@ -38,6 +294,10 @@ class Crud_model extends CI_Model
 
     public function add_category()
     {
+		log_message('error', 'add_category() started');
+log_message('error', 'POST: ' . print_r($_POST, true));
+log_message('error', 'FILES: ' . print_r($_FILES, true));
+		
         $data['code']   = html_escape($this->input->post('code'));
         $data['name']   = html_escape($this->input->post('name'));
         $data['parent'] = html_escape($this->input->post('parent'));
@@ -68,8 +328,20 @@ class Crud_model extends CI_Model
                     move_uploaded_file($_FILES['category_thumbnail']['tmp_name'], 'uploads/thumbnails/category_thumbnails/' . $data['thumbnail']);
                 }
             }
+			
+			log_message('error', 'Before category insert: ' . print_r($data, true));
+			
             $data['date_added'] = strtotime(date('D, d-M-Y'));
             $this->db->insert('category', $data);
+            $inserted_category_id = $this->db->insert_id();
+			
+			log_message('error', 'After category insert, last query: ' . $this->db->last_query());
+
+            if ((int) $data['parent'] === 0) {
+                $this->sync_tutor_category_from_legacy($inserted_category_id);
+            } else {
+                $this->sync_tutor_class_from_legacy($inserted_category_id);
+            }
             return true;
         }
 
@@ -78,6 +350,7 @@ class Crud_model extends CI_Model
 
     public function edit_category($param1)
     {
+        $old_category = $this->get_category_details_by_id($param1)->row_array();
         $data['name']   = html_escape($this->input->post('name'));
         $data['parent'] = html_escape($this->input->post('parent'));
         $data['slug']   = slugify(html_escape($this->input->post('name')));
@@ -117,6 +390,13 @@ class Crud_model extends CI_Model
             $this->db->where('id', $param1);
             $this->db->update('category', $data);
 
+            $updated_category = $this->get_category_details_by_id($param1)->row_array();
+            if ((int) $updated_category['parent'] === 0) {
+                $this->sync_tutor_category_from_legacy($param1, $updated_category);
+            } else {
+                $this->sync_tutor_class_from_legacy($param1, $updated_category, $old_category);
+            }
+
             return true;
         }
         return false;
@@ -124,6 +404,14 @@ class Crud_model extends CI_Model
 
     public function delete_category($category_id)
     {
+        $legacy_row = $this->get_category_details_by_id($category_id)->row_array();
+        $legacy_children = $this->db->get_where('category', array('parent' => $category_id))->result_array();
+
+        foreach ($legacy_children as $child_row) {
+            $this->delete_tutor_sync_for_legacy_category($child_row);
+        }
+        $this->delete_tutor_sync_for_legacy_category($legacy_row);
+
         $this->db->where('id', $category_id);
         $this->db->delete('category');
 
@@ -657,6 +945,7 @@ class Crud_model extends CI_Model
         $this->db->insert('course', $data);
 
         $course_id = $this->db->insert_id();
+        $this->sync_tutor_subject_master_from_course($course_id);
 
         // Create folder if does not exist
         if (!file_exists('uploads/thumbnails/course_thumbnails')) {
@@ -769,6 +1058,7 @@ class Crud_model extends CI_Model
     public function update_course($course_id, $type = "")
     {
         $course_details = $this->get_course_by_id($course_id)->row_array();
+        $old_course_details = $course_details;
 
         $faqs = array();
         if (!empty($this->input->post('faqs'))) :
@@ -879,7 +1169,8 @@ class Crud_model extends CI_Model
         $this->db->where('id', $course_id);
         $this->db->update('course', $data);
 
-
+        $updated_course = $this->get_course_by_id($course_id)->row_array();
+        $this->sync_tutor_subject_master_from_course($course_id, $updated_course, $old_course_details);
 
         if ($data['status'] == 'active') {
             $this->session->set_flashdata('flash_message', get_phrase('course_updated_successfully'));
@@ -1004,7 +1295,10 @@ class Crud_model extends CI_Model
 
     public function delete_course($course_id = "")
     {
-        $course_type = $this->get_course_by_id($course_id)->row('course_type');
+        $course_row = $this->get_course_by_id($course_id)->row_array();
+        $course_type = isset($course_row['course_type']) ? $course_row['course_type'] : '';
+
+        $this->delete_tutor_sync_for_course($course_row);
 
         $this->db->where('id', $course_id);
         $this->db->delete('course');

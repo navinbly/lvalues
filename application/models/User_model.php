@@ -4,6 +4,106 @@ defined('BASEPATH') or exit('No direct script access allowed');
 class User_model extends CI_Model
 {
 
+    /**
+     * Upsert tutor profile + subjects for a given user.
+     * This keeps the tutoring module decoupled from existing LMS logic:
+     * - Instructor application still goes to `applications`
+     * - Tutor searchable fields go to `tutor_profiles` + `tutor_subjects`
+     */
+    
+private function upsert_tutor_profile_from_post($user_id)
+    {
+        if (!$this->db->table_exists('tutor_profiles')) {
+            return;
+        }
+
+        $fee_type = $this->input->post('fee_type');
+        if (!in_array($fee_type, ['per_hour', 'per_subject'], true)) {
+            $fee_type = 'per_hour';
+        }
+
+        $subject_fees = [];
+        $fee_names = $this->input->post('subject_fee_name');
+        $fee_amounts = $this->input->post('subject_fee_amount');
+        if (is_array($fee_names) && is_array($fee_amounts)) {
+            $count = max(count($fee_names), count($fee_amounts));
+            for ($i = 0; $i < $count; $i++) {
+                $name = html_escape(trim((string)($fee_names[$i] ?? '')));
+                $amount = trim((string)($fee_amounts[$i] ?? ''));
+                if ($name !== '' && $amount !== '' && is_numeric($amount) && (float)$amount >= 0) {
+                    $subject_fees[] = ['subject_name' => $name, 'fee' => (float)$amount];
+                }
+            }
+        }
+
+        $profile = [
+            'user_id'          => (int)$user_id,
+            'headline'         => html_escape((string)$this->input->post('tutor_headline')),
+            'bio'              => $this->input->post('tutor_bio'),
+            'qualification'    => html_escape((string)$this->input->post('tutor_qualification')),
+            'experience_years' => is_numeric($this->input->post('tutor_experience_years')) ? (int)$this->input->post('tutor_experience_years') : null,
+            'teaching_mode'    => in_array($this->input->post('tutor_teaching_mode'), ['online','offline','both'], true) ? $this->input->post('tutor_teaching_mode') : 'both',
+            'city'             => html_escape((string)$this->input->post('tutor_city')),
+            'state'            => html_escape((string)$this->input->post('tutor_state')),
+            'country'          => html_escape((string)$this->input->post('tutor_country')),
+            'pincode'          => html_escape((string)$this->input->post('tutor_pincode')),
+            'hourly_fee'       => ($fee_type === 'per_hour' && is_numeric($this->input->post('tutor_hourly_fee'))) ? (float)$this->input->post('tutor_hourly_fee') : null,
+            'lat'              => is_numeric($this->input->post('tutor_lat')) ? (float)$this->input->post('tutor_lat') : null,
+            'lng'              => is_numeric($this->input->post('tutor_lng')) ? (float)$this->input->post('tutor_lng') : null,
+            'status'           => 'pending',
+        ];
+
+        if ($this->db->field_exists('fee_type', 'tutor_profiles')) {
+            $profile['fee_type'] = $fee_type;
+        }
+        if ($this->db->field_exists('subject_fees_json', 'tutor_profiles')) {
+            $profile['subject_fees_json'] = !empty($subject_fees) ? json_encode($subject_fees) : null;
+        }
+
+        foreach ($profile as $k => $v) {
+            if ($v === '') unset($profile[$k]);
+        }
+
+        $existing = $this->db->get_where('tutor_profiles', ['user_id' => (int)$user_id], 1);
+        if ($existing->num_rows() > 0) {
+            $this->db->where('user_id', (int)$user_id)->update('tutor_profiles', $profile);
+            $tutor_profile_id = (int)$existing->row('id');
+        } else {
+            $this->db->insert('tutor_profiles', $profile);
+            $tutor_profile_id = (int)$this->db->insert_id();
+        }
+
+        if ($this->db->table_exists('tutor_subjects')) {
+            $category_ids = array_values(array_unique(array_filter(array_map('intval', (array)$this->input->post('tutor_category_ids')))));
+            $class_ids = array_values(array_unique(array_filter(array_map('intval', (array)$this->input->post('tutor_class_ids')))));
+            $subject_ids = array_values(array_unique(array_filter(array_map('intval', (array)$this->input->post('tutor_subject_ids')))));
+
+            $details = [];
+            if (!empty($subject_ids) && $this->db->table_exists('tutor_subject_master') && $this->db->table_exists('tutor_classes') && $this->db->table_exists('tutor_categories')) {
+                $rows = $this->db->select('s.id AS subject_id, s.class_id, c.category_id')
+                    ->from('tutor_subject_master s')
+                    ->join('tutor_classes c', 'c.id = s.class_id', 'inner')
+                    ->where_in('s.id', $subject_ids)
+                    ->get()->result_array();
+                foreach ($rows as $row) {
+                    $details[(int)$row['subject_id']] = ['category_id' => (int)$row['category_id'], 'class_id' => (int)$row['class_id']];
+                }
+            }
+
+            $this->db->where('tutor_profile_id', $tutor_profile_id)->delete('tutor_subjects');
+            foreach ($subject_ids as $sid) {
+                $category_id = $details[$sid]['category_id'] ?? (!empty($category_ids) ? (int)$category_ids[0] : null);
+                $class_id = $details[$sid]['class_id'] ?? (!empty($class_ids) ? (int)$class_ids[0] : null);
+                $this->db->insert('tutor_subjects', [
+                    'tutor_profile_id' => $tutor_profile_id,
+                    'category_id'      => $category_id,
+                    'class_id'         => $class_id,
+                    'subject_id'       => $sid,
+                ]);
+            }
+        }
+    }
+
     function __construct()
     {
         parent::__construct();
@@ -232,17 +332,34 @@ class User_model extends CI_Model
         return $user_id;
     }
 
+	/*
     public function register_user_update_code($data, $status = "")
-    {
+	{
+		$update_code['status'] = $status;
+		$update_code['verification_code'] = $data['verification_code'];
+		$update_code['password'] = $data['password'];
 
-        //If get back disabled user and again signup
-        $update_code['status'] = $status;
+		// ✅ Track when code was generated (for 30-min expiry)
+		$update_code['last_modified'] = time();
 
-        $update_code['verification_code'] = $data['verification_code'];
-        $update_code['password'] = $data['password'];
-        $this->db->where('email', $data['email']);
-        $this->db->update('users', $update_code);
-    }
+		$this->db->where('email', $data['email']);
+		$this->db->update('users', $update_code);
+	}*/
+	public function register_user_update_code($data, $status = "")
+	{
+		$update_code = array(
+			'first_name'        => $data['first_name'],
+			'last_name'         => $data['last_name'],
+			'phone'             => isset($data['phone']) ? $data['phone'] : '',
+			'status'            => $status,
+			'verification_code' => $data['verification_code'],
+			'password'          => $data['password'],
+			'last_modified'     => time()
+		);
+
+		$this->db->where('email', $data['email']);
+		$this->db->update('users', $update_code);
+	}
 
     public function my_courses($user_id = "")
     {
@@ -462,6 +579,11 @@ class User_model extends CI_Model
                 }
             }
             $this->db->insert('applications', $data);
+
+            // ✅ NEW: store tutor searchable/profile fields for the tutoring marketplace
+            // This ensures tutor search filters (subject/location/mode/fee/rating) have data.
+            $this->upsert_tutor_profile_from_post($user_id);
+
             $this->session->set_flashdata('flash_message', site_phrase('You have successfully submitted your application.').' '.get_phrase('We will review it and notify you via email notification'));
             redirect(site_url('user/become_an_instructor'), 'refresh');
         } else {
@@ -470,8 +592,7 @@ class User_model extends CI_Model
         }
     }
 
-    function instructor_application(){
-        // FIRST GET THE USER DETAILS
+    /*function instructor_application(){
         $user = $this->db->get_where('users', ['email' => $this->input->post('email')]);
         if($user->num_rows() > 0){
             $user_details = $user->row_array();
@@ -480,18 +601,83 @@ class User_model extends CI_Model
                 if (!file_exists('uploads/document')) {
                     mkdir('uploads/document', 0777, true);
                 }
+                $address_parts = array_filter([
+                    trim((string)$this->input->post('tutor_address_line1')),
+                    trim((string)$this->input->post('tutor_city')),
+                    trim((string)$this->input->post('tutor_state')),
+                    trim((string)$this->input->post('tutor_country')),
+                    trim((string)$this->input->post('tutor_pincode')),
+                ]);
+
                 $data['user_id'] = $user_details['id'];
-                $data['address'] = $user_details['address'];
+                $data['address'] = html_escape(!empty($address_parts) ? implode(', ', $address_parts) : (string)$this->input->post('tutor_location'));
                 $data['phone'] = $this->input->post('phone');
                 $data['message'] = $this->input->post('message');
 
-                $document_custom_name =random(15).'.'.pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION);
+                $document_custom_name = random(15).'.'.pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION);
                 $data['document'] = $document_custom_name;
                 move_uploaded_file($_FILES['document']['tmp_name'], 'uploads/document/' . $document_custom_name);
                 $this->db->insert('applications', $data);
+
+                $this->upsert_tutor_profile_from_post($user_details['id']);
             }
         }
+    }*/
+	
+	function instructor_application(){
+    $user = $this->db->get_where('users', ['email' => $this->input->post('email')]);
+    if($user->num_rows() > 0){
+        $user_details = $user->row_array();
+        $previous_data = $this->get_applications($user_details['id'], 'user')->num_rows();
+        if ($previous_data == 0) {
+            if (!file_exists('uploads/document')) {
+                mkdir('uploads/document', 0777, true);
+            }
+            $address_parts = array_filter([
+                trim((string)$this->input->post('tutor_address_line1')),
+                trim((string)$this->input->post('tutor_city')),
+                trim((string)$this->input->post('tutor_state')),
+                trim((string)$this->input->post('tutor_country')),
+                trim((string)$this->input->post('tutor_pincode')),
+            ]);
+
+            $data['user_id'] = $user_details['id'];
+            $data['address'] = html_escape(!empty($address_parts) ? implode(', ', $address_parts) : (string)$this->input->post('tutor_location'));
+            $data['phone'] = $this->input->post('phone');
+            $data['message'] = $this->input->post('message');
+
+            $document_custom_name = random(15).'.'.pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION);
+            $data['document'] = $document_custom_name;
+            move_uploaded_file($_FILES['document']['tmp_name'], 'uploads/document/' . $document_custom_name);
+
+            $this->db->insert('applications', $data);
+
+            // Create admin notification for tutor approval request
+            $this->load->model('email_model');
+
+            $admin = $this->db->get_where('users', ['role_id' => 1])->row_array();
+            if (!empty($admin)) {
+                $full_name = trim(($user_details['first_name'] ?? '') . ' ' . ($user_details['last_name'] ?? ''));
+                $full_name = $full_name !== '' ? $full_name : ($user_details['email'] ?? 'New user');
+
+                $subject = 'Tutor approval request';
+                $description = 'New tutor registration submitted by ' . $full_name .
+                               '<br>User email: ' . html_escape($user_details['email']) .
+                               '<br>Please review and approve/reject the application.';
+
+                $this->email_model->notify(
+                    'tutor_approval_request',
+                    (int)$admin['id'],
+                    $subject,
+                    $description,
+                    (int)$user_details['id']
+                );
+            }
+
+            $this->upsert_tutor_profile_from_post($user_details['id']);
+        }
     }
+}
 
 
     // GET INSTRUCTOR APPLICATIONS
@@ -527,7 +713,7 @@ class User_model extends CI_Model
     }
 
     //UPDATE STATUS OF INSTRUCTOR APPLICATION
-    public function update_status_of_application($status, $application_id)
+    /*public function update_status_of_application($status, $application_id)
     {
         $application_details = $this->get_applications($application_id, 'application');
         if ($application_details->num_rows() > 0) {
@@ -541,6 +727,21 @@ class User_model extends CI_Model
                 $this->db->where('id', $application_details['user_id']);
                 $this->db->update('users', $instructor_data);
 
+                // ✅ NEW: activate tutor profile so tutor becomes searchable
+                if ($this->db->table_exists('tutor_profiles')) {
+                    $exists = $this->db->get_where('tutor_profiles', ['user_id' => (int)$application_details['user_id']], 1);
+                    if ($exists->num_rows() > 0) {
+                        $this->db->where('user_id', (int)$application_details['user_id'])->update('tutor_profiles', ['status' => 'active']);
+                    } else {
+                        // If profile wasn't created for some reason, create minimal active profile.
+                        $this->db->insert('tutor_profiles', [
+                            'user_id' => (int)$application_details['user_id'],
+                            'status'  => 'active',
+                            'teaching_mode' => 'both'
+                        ]);
+                    }
+                }
+
                 $this->session->set_flashdata('flash_message', get_phrase('application_approved_successfully'));
                 redirect(site_url('admin/instructor_application'), 'refresh');
             } else {
@@ -553,7 +754,102 @@ class User_model extends CI_Model
             $this->session->set_flashdata('error_message', get_phrase('invalid_application'));
             redirect(site_url('admin/instructor_application'), 'refresh');
         }
-    }
+    }*/
+	
+	//UPDATE STATUS OF INSTRUCTOR APPLICATION
+	public function update_status_of_application($status, $application_id)
+	{
+		$application_details = $this->get_applications($application_id, 'application');
+
+		if ($application_details->num_rows() <= 0) {
+			$this->session->set_flashdata('error_message', get_phrase('invalid_application'));
+			redirect(site_url('admin/instructor_application'), 'refresh');
+		}
+
+		$application_details = $application_details->row_array();
+		$user_id = (int) $application_details['user_id'];
+		$user_details = $this->db->get_where('users', ['id' => $user_id])->row_array();
+		$admin_user_id = (int) $this->session->userdata('user_id');
+	
+		if (!is_array($user_details) || empty($user_details)) {
+			log_message('error', 'Application approval failed: linked user record missing. application_id = ' . $application_id . ', user_id = ' . $user_id);
+			//$this->session->set_flashdata('error_message', 'Cannot approve application because linked user record was not found.');
+			$this->session->set_flashdata(
+				'error_message',
+				'Approval failed: User not found for this application. 
+				Application ID: '.$application_id.' | Missing User ID: '.$user_id.'. 
+				This usually happens if the user record was deleted or not created properly.'
+			);
+			
+			
+			redirect(site_url('admin/instructor_application'), 'refresh');
+		}
+
+		$this->load->model('email_model');
+
+		if ($status == 'approve') {
+			// 1. Approve application
+			$application_data['status'] = 1;
+			$this->db->where('id', $application_id);
+			$this->db->update('applications', $application_data);
+
+			// 2. Mark user as instructor/tutor approved
+			$instructor_data['is_instructor'] = 1;
+			$this->db->where('id', $user_id);
+			$this->db->update('users', $instructor_data);
+
+			// 3. Activate tutor profile
+			if ($this->db->table_exists('tutor_profiles')) {
+				$exists = $this->db->get_where('tutor_profiles', ['user_id' => $user_id], 1);
+				if ($exists->num_rows() > 0) {
+					$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => 'active']);
+				} else {
+					$this->db->insert('tutor_profiles', [
+						'user_id'       => $user_id,
+						'status'        => 'active',
+						'teaching_mode' => 'both'
+					]);
+				}
+			}
+
+			// 4. Notify tutor
+			if (!empty($user_details)) {
+				$this->email_model->notify(
+					'tutor_application_approved',
+					$user_id,
+					'Tutor application approved',
+					'Your tutor application has been approved by admin. You can now log in and continue.',
+					$admin_user_id
+				);
+			}
+
+			$this->session->set_flashdata('flash_message', get_phrase('application_approved_successfully'));
+			redirect(site_url('admin/instructor_application'), 'refresh');
+		}
+
+		// Reject / delete application
+		if (!empty($user_details)) {
+			$this->email_model->notify(
+				'tutor_application_rejected',
+				$user_id,
+				'Tutor application rejected',
+				'Your tutor application has been rejected by admin. Please contact support or apply again with the required details.',
+				$admin_user_id
+			);
+		}
+
+		// Keep record deleted as per your current app logic
+		$this->db->where('id', $application_id);
+		$this->db->delete('applications');
+
+		// Also deactivate tutor profile if exists
+		if ($this->db->table_exists('tutor_profiles')) {
+			$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => 'inactive']);
+		}
+
+		$this->session->set_flashdata('flash_message', get_phrase('application_deleted_successfully'));
+		redirect(site_url('admin/instructor_application'), 'refresh');
+	}
 
     // ASSIGN PERMISSION
     public function assign_permission()

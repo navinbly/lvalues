@@ -101,6 +101,7 @@ class User extends CI_Controller
     // This function is responsible for loading the course data from server side for datatable SILENTLY
     public function get_courses()
     {
+        $this->output->set_content_type('application/json');
         if ($this->session->userdata('user_login') != true) {
             redirect(site_url('login'), 'refresh');
         }
@@ -148,6 +149,7 @@ class User extends CI_Controller
             foreach ($courses as $key => $row) {
                 $instructor_details = $this->user_model->get_all_user($row->user_id)->row_array();
                 $category_details = $this->crud_model->get_category_details_by_id($row->sub_category_id)->row_array();
+                $category_name = (!empty($category_details) && isset($category_details['name'])) ? $category_details['name'] : 'Unmapped';
                 $sections = $this->crud_model->get_section('course', $row->id);
                 $lessons = $this->crud_model->get_lessons('course', $row->id);
                 $enroll_history = $this->crud_model->enrol_history($row->id);
@@ -237,7 +239,7 @@ class User extends CI_Controller
                 <small class="text-muted">' . get_phrase('instructor') . ': <b>' . $instructor_names . '</b></small>';
 
 
-                $nestedData['category'] = '<span class="badge badge-dark-lighten">' . $category_details['name'] . '</span>';
+                $nestedData['category'] = '<span class="badge badge-dark-lighten">' . html_escape($category_name) . '</span>';
 
                 if ($row->course_type == 'scorm') {
                     $nestedData['lesson_and_section'] = '<span class="badge badge-info-lighten">' . get_phrase('scorm_course') . '</span>';

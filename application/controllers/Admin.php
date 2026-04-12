@@ -11,6 +11,13 @@ class Admin extends CI_Controller
 
         $this->load->database();
         $this->load->library('session');
+		
+		// ✅ Load Content Docs model here
+        $this->load->model('Content_docs_model', 'content_docs_model');
+		
+		// ✅ Content Exam model (MCQ)
+		$this->load->model('Exam_model', 'exam_model');
+		
         /*cache control*/
         $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
         $this->output->set_header('Pragma: no-cache');
@@ -886,6 +893,7 @@ class Admin extends CI_Controller
     // This function is responsible for loading the course data from server side for datatable SILENTLY
     public function get_courses()
     {
+        $this->output->set_content_type('application/json');
         $data = array();
         //mentioned all with colum of database table that related with html table
         $columns = array('id', 'title', 'sub_category_id', 'section', 'id', 'status', 'price', 'id');
@@ -976,6 +984,7 @@ class Admin extends CI_Controller
             foreach ($courses as $key => $row) {
                 $instructor_details = $this->user_model->get_all_user($row['creator'])->row_array();
                 $category_details = $this->crud_model->get_category_details_by_id($row['sub_category_id'])->row_array();
+                $category_name = (!empty($category_details) && isset($category_details['name'])) ? $category_details['name'] : 'Unmapped';
                 $sections = $this->crud_model->get_section('course', $row['id']);
                 $lessons = $this->crud_model->get_lessons('course', $row['id']);
                 $enroll_history = $this->crud_model->enrol_history($row['id']);
@@ -1077,7 +1086,7 @@ class Admin extends CI_Controller
                 $nestedData['title'] = '<strong><a href="' . site_url('admin/course_form/course_edit/' . $row['id']) . '">' . $row['title'] . '</a></strong><br>
                 <small class="text-muted">' . get_phrase('instructor') . ': <b>' . $instructor_names . '</b></small>';
 
-                $nestedData['category'] = '<span class="badge badge-dark-lighten">' . $category_details['name'] . '</span>';
+                $nestedData['category'] = '<span class="badge badge-dark-lighten">' . html_escape($category_name) . '</span>';
 
                 if ($row['course_type'] == 'scorm') {
                     $nestedData['lesson_and_section'] = '<span class="badge badge-info-lighten">' . get_phrase('scorm_course') . '</span>';
@@ -2184,6 +2193,263 @@ class Admin extends CI_Controller
     }
     //End blog
 
+	// =======================
+// Start Content (Docs)
+// =======================
+
+public function content_nodes($param1 = "", $param2 = "")
+{
+    // Load model (safe even if already loaded elsewhere)
+    $this->load->model('Content_docs_model', 'content_docs_model');
+
+    // Admin login check
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    $user_id   = (int) $this->session->userdata('user_id');
+    $user_role = strtolower($this->session->userdata('role')); // admin / instructor / tutor etc
+
+    // ======================================================
+    // ✅ ADD ROOT TREE (Admin only)
+    // URL: /admin/content_nodes/add_root   (POST)
+    // ======================================================
+    if ($param1 === 'add_root') {
+
+        if ($user_role !== 'admin') {
+            $this->session->set_flashdata('error_message', 'Only admin can add a root tree.');
+            redirect(site_url('admin/content_nodes'), 'refresh');
+        }
+
+        $root_key   = trim($this->input->post('root_key'));
+        $root_title = trim($this->input->post('root_title'));
+        $max_depth  = (int) $this->input->post('max_depth');
+
+        $res = $this->content_docs_model->add_root_rule($root_key, $root_title, $max_depth);
+
+        if (!empty($res['ok'])) {
+            // Create missing root nodes dynamically from rules
+            $this->content_docs_model->ensure_root_nodes_exist($user_id);
+            $this->session->set_flashdata('flash_message', $res['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $res['message']);
+        }
+
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    // ======================================================
+    // ✅ Always ensure default ROOT nodes exist (from rules)
+    // ======================================================
+    $this->content_docs_model->ensure_root_nodes_exist($user_id);
+
+    // ======================================================
+    // ✅ ADD CHILD NODE
+    // URL: /admin/content_nodes/add   (POST)
+    // ======================================================
+    if ($param1 === 'add') {
+
+        $parent_id = $this->input->post('parent_id');
+        $title     = $this->input->post('title');
+
+        $res = $this->content_docs_model->add_node($user_id, $user_role, $parent_id, $title);
+
+        if (!empty($res['ok'])) {
+            $this->session->set_flashdata('flash_message', $res['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $res['message']);
+        }
+
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    // ======================================================
+    // ✅ UPDATE NODE TITLE (Fix for /admin/content_nodes/update)
+    // URL: /admin/content_nodes/update   (POST)
+    // ======================================================
+    if ($param1 === 'update') {
+
+        $node_id = (int) $this->input->post('node_id');
+        $title   = (string) $this->input->post('title');
+
+        $res = $this->content_docs_model->update_node_title($user_id, $user_role, $node_id, $title);
+
+        if (!empty($res['ok'])) {
+            $this->session->set_flashdata('flash_message', $res['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $res['message']);
+        }
+
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    // ======================================================
+    // ✅ DELETE NODE (non-root only)
+    // URL: /admin/content_nodes/delete/{node_id}   (GET)
+    // ======================================================
+    if ($param1 === 'delete') {
+
+        $node_id = (int) $param2;
+
+        $res = $this->content_docs_model->delete_node($user_id, $user_role, $node_id);
+
+        if (!empty($res['ok'])) {
+            $this->session->set_flashdata('flash_message', $res['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $res['message']);
+        }
+
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    // ======================================================
+    // ✅ Render page
+    // ======================================================
+    $page_data['page_title'] = 'Content (Docs) - Nodes';
+    $page_data['page_name']  = 'content_nodes'; // keep your current working view name
+
+    $page_data['root_rules'] = $this->content_docs_model->get_root_rules();
+    $page_data['nodes']      = $this->content_docs_model->get_all_nodes_for_admin();
+
+    $this->load->view('backend/index', $page_data);
+}
+
+
+public function content_nodes_pending($action = "", $node_id = "")
+{
+    // Only admin can approve/reject
+    if ($this->session->userdata('role') != 'admin') {
+        $this->session->set_flashdata('error_message', 'Only admin can approve/reject nodes.');
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    // actions
+    if ($action === 'approve' && $node_id) {
+        $resp = $this->content_docs_model->approve_node($node_id, $this->session->userdata('user_id'));
+        if ($resp['ok']) {
+            $this->session->set_flashdata('flash_message', $resp['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $resp['message']);
+        }
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
+    if ($action === 'reject' && $node_id) {
+        $resp = $this->content_docs_model->reject_node($node_id, $this->session->userdata('user_id'));
+        if ($resp['ok']) {
+            $this->session->set_flashdata('flash_message', $resp['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $resp['message']);
+        }
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
+    // load page
+    $page_data['pending_nodes'] = $this->content_docs_model->get_pending_nodes();
+    $page_data['page_title'] = 'Content (Docs) - Pending Nodes';
+    //$page_data['page_name']  = 'content/content_nodes_pending';
+	$page_data['page_name'] = 'content_nodes_pending';
+    $this->load->view('backend/index', $page_data);
+}
+
+
+public function content_pages($param1 = "", $param2 = "")
+{
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    // Step 3 will implement pages editor + save + SEO fields.
+    $page_data['page_title'] = 'Content (Docs) - Pages';
+    //$page_data['page_name']  = 'content_pages';
+	//$page_data['page_name'] = 'content/content_pages';
+	$page_data['page_name'] = 'content_pages';
+    $this->load->view('backend/index', $page_data);
+}
+
+
+public function content_nodes_add_root()
+{
+    $this->load->model('Content_docs_model', 'content_docs_model');
+
+    // Only admin should add root trees
+    if ($this->session->userdata('role') !== 'admin') {
+        $this->session->set_flashdata('error_message', 'Only admin can add root trees.');
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    $root_key   = $this->input->post('root_key');
+    $root_title = $this->input->post('root_title');
+    $max_depth  = $this->input->post('max_depth');
+
+    $resp = $this->content_docs_model->add_root_rule($root_key, $root_title, $max_depth);
+
+    if ($resp['ok']) {
+        // create root nodes if missing
+        $this->content_docs_model->ensure_root_nodes_exist($this->session->userdata('user_id'));
+        $this->session->set_flashdata('flash_message', $resp['message']);
+    } else {
+        $this->session->set_flashdata('error_message', $resp['message']);
+    }
+
+    redirect(site_url('admin/content_nodes'), 'refresh');
+}
+
+// Delete a node (admin only). Safe delete: blocks delete if node has children or pages.
+function content_nodes_delete($node_id = 0)
+{
+    $this->user_model->check_session_data('admin'); // ensure admin session
+
+    $node_id = (int)$node_id;
+    $force   = ($this->input->get('force') == '1');
+
+    // Always return JSON (because frontend uses fetch)
+    if ($node_id <= 0) {
+        header('Content-Type: application/json');
+        echo json_encode(['ok' => false, 'needs_force' => false, 'message' => 'Invalid node.']);
+        exit;
+    }
+
+    // Load model with correct class name + alias
+    $this->load->model('Content_docs_model', 'content_docs_model');
+
+    $resp = $this->content_docs_model->delete_node_safe($node_id, $force);
+
+    header('Content-Type: application/json');
+    echo json_encode($resp);
+    exit;
+}
+
+public function update_node_order()
+{
+    $this->user_model->check_session_data('admin'); // admin only
+
+    $payload = json_decode($this->input->raw_input_stream, true);
+    $parent_id = isset($payload['parent_id']) ? (int)$payload['parent_id'] : 0;
+    $ordered_ids = $payload['ordered_ids'] ?? [];
+
+    header('Content-Type: application/json');
+
+    if (!is_array($ordered_ids) || empty($ordered_ids)) {
+        echo json_encode(['ok' => false, 'message' => 'Invalid order payload']);
+        return;
+    }
+
+    $this->load->model('Content_docs_model', 'content_docs_model');
+    $resp = $this->content_docs_model->update_node_order($parent_id, $ordered_ids);
+
+    echo json_encode($resp);
+    return;
+}
+
+
+
+
+
+// =======================
+// End Content (Docs)
+// =======================
+
 
     //Don't remove this code for security reasons
     function save_valid_purchase_code($param1 = "")
@@ -2409,7 +2675,7 @@ class Admin extends CI_Controller
     }
 
     //Start Notification
-    function get_my_notification($type = "")
+    /*function get_my_notification($type = "")
     {
         $user_id = $this->session->userdata('user_id');
 
@@ -2437,8 +2703,59 @@ class Admin extends CI_Controller
         $response['rendered_view'] = $this->load->view('backend/header_notification', $page_data, true);
 
         echo json_encode($response);
-    }
+    }*/
     //End notification
+
+	//Start Notification
+	function get_my_notification($type = "", $id = 0)
+	{
+		$user_id = $this->session->userdata('user_id');
+
+		if ($type == 'mark_all_as_read') {
+			$this->db->where('to_user', $user_id);
+			$this->db->update('notifications', ['status' => 1]);
+		}
+
+		if ($type == 'remove_all') {
+			$this->db->where('to_user', $user_id);
+			$this->db->delete('notifications');
+		}
+
+		if ($type == 'open' && (int)$id > 0) {
+			$notification = $this->db
+				->where('id', (int)$id)
+				->where('to_user', $user_id)
+				->get('notifications')
+				->row_array();
+
+			if (!empty($notification)) {
+				$this->db->where('id', (int)$id)->update('notifications', ['status' => 1]);
+
+				if (in_array($notification['type'], ['tutor_approval_request', 'signup'])) {
+					redirect(site_url('admin/instructor_application'), 'refresh');
+				}
+
+				redirect(site_url('admin/dashboard'), 'refresh');
+			}
+
+			redirect(site_url('admin/dashboard'), 'refresh');
+		}
+
+		$this->db->where('to_user', $user_id);
+		$this->db->limit(50);
+		$query = $this->db->order_by('status ASC, id desc');
+		$page_data['notifications'] = $query->get('notifications');
+
+		if ($query->where('status', 0)->get('notifications')->num_rows() > 0) {
+			$response['notification_icon_class'] = 'noti-icon-badge';
+		} else {
+			$response['notification_icon_class'] = '';
+		}
+
+		$response['rendered_view'] = $this->load->view('backend/header_notification', $page_data, true);
+		echo json_encode($response);
+	}
+	//End notification
 
 
     function language_import()
@@ -3288,4 +3605,414 @@ class Admin extends CI_Controller
             $this->load->view('backend/admin/change_course_author', $page_data);
         }
     }
+	
+	
+	function content_page_save()
+{
+    // Load model (no alias)
+    $this->load->model('Content_pages_model');
+
+    // Security: admin login check
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    $node_id   = (int)$this->input->post('node_id');
+    $user_id   = (int)$this->session->userdata('user_id');
+    $role      = strtolower($this->session->userdata('role')); // "admin" / "tutor" / "instructor"
+
+    // CKEditor content
+    $html = $this->input->post('html', false); // false = do not XSS filter (CKEditor HTML)
+
+    // meta fields
+    $meta = [
+        'meta_title'       => $this->input->post('meta_title'),
+        'meta_description' => $this->input->post('meta_description'),
+        'meta_keywords'    => $this->input->post('meta_keywords'),
+        'canonical_url'    => $this->input->post('canonical_url'),
+        // og_image will be set below (file upload)
+        'og_image'         => null
+    ];
+
+    // ---- OG Image upload handling ----
+    // Save to: /uploads/blog/
+    if (!empty($_FILES['og_image']) && !empty($_FILES['og_image']['name'])) {
+
+        $upload_dir = FCPATH . 'uploads/blog/';
+        if (!is_dir($upload_dir)) {
+            @mkdir($upload_dir, 0755, true);
+        }
+
+        $config = [
+            'upload_path'   => $upload_dir,
+            'allowed_types' => 'jpg|jpeg|png|webp|gif',
+            'max_size'      => 2048, // 2MB
+            'encrypt_name'  => true
+        ];
+
+        $this->load->library('upload', $config);
+
+        if (!$this->upload->do_upload('og_image')) {
+            $this->session->set_flashdata('error_message', 'OG Image upload failed: ' . $this->upload->display_errors('', ''));
+            redirect(site_url('admin/content_nodes'), 'refresh');
+            return;
+        }
+
+        $up = $this->upload->data();
+        // store relative path in DB
+        $meta['og_image'] = 'uploads/blog/' . $up['file_name'];
+    }
+
+    // Save using model signature: save_page($node_id, $html, $meta, $user_id, $user_role)
+    $res = $this->Content_pages_model->save_page($node_id, $html, $meta, $user_id, $role);
+
+    if (!empty($res['ok'])) {
+        $this->session->set_flashdata('flash_message', $res['message']);
+    } else {
+        $this->session->set_flashdata('error_message', $res['message'] ?? 'Unable to save content');
+    }
+
+    redirect(site_url('admin/content_nodes'), 'refresh');
+}
+
+
+
+public function content_page_get($node_id = 0)
+{
+    // login check
+    if ($this->session->userdata('admin_login') != true) {
+        show_error('Unauthorized', 401);
+    }
+
+    $this->load->model('Content_pages_model');
+
+    $node_id = (int)$node_id;
+    $row = $this->Content_pages_model->get_page_by_node_id($node_id);
+
+    // Return JSON
+    header('Content-Type: application/json');
+
+    if ($row) {
+        echo json_encode([
+            'ok' => true,
+            'data' => [
+                'node_id' => (int)$row['node_id'],
+                'html' => $row['html'],
+                'status' => $row['status'],
+                'meta_title' => $row['meta_title'],
+                'meta_description' => $row['meta_description'],
+                'meta_keywords' => $row['meta_keywords'],
+            ]
+        ]);
+    } else {
+        echo json_encode([
+            'ok' => true,
+            'data' => null
+        ]);
+    }
+}
+
+private function ckeditor_upload_response($funcNum, $url = '', $message = '')
+{
+    $funcNum = (int)$funcNum;
+
+    // escape single quotes to avoid breaking JS
+    $url = str_replace("'", "\\'", $url);
+    $message = str_replace("'", "\\'", $message);
+
+    echo "<script>window.parent.CKEDITOR.tools.callFunction($funcNum, '$url', '$message');</script>";
+    exit;
+}
+
+
+
+public function content_page_upload()
+{
+    // CKEditor callback function number
+    $funcNum = $this->input->get('CKEditorFuncNum');
+    if (!$funcNum) $funcNum = 1;
+
+    // Auth
+    if ($this->session->userdata('admin_login') != true) {
+        return $this->ckeditor_upload_response($funcNum, '', 'Unauthorized. Please login again and retry upload.');
+    }
+
+    $upload_path = FCPATH . 'uploads/content_pages/';
+    if (!is_dir($upload_path)) {
+        @mkdir($upload_path, 0755, true);
+    }
+
+    // Validate upload input
+    if (!isset($_FILES['upload'])) {
+        return $this->ckeditor_upload_response($funcNum, '', "No file selected. Please choose an image and click 'Send it to the Server'.");
+    }
+
+    if ($_FILES['upload']['error'] != 0) {
+        $err = (int)$_FILES['upload']['error'];
+
+        // More friendly messages
+        $friendly = 'Upload failed.';
+        if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) $friendly = 'Image too large. Max 2MB allowed.';
+        elseif ($err === UPLOAD_ERR_NO_FILE) $friendly = 'No file selected.';
+        elseif ($err === UPLOAD_ERR_PARTIAL) $friendly = 'Upload was interrupted. Please retry.';
+        elseif ($err === UPLOAD_ERR_NO_TMP_DIR) $friendly = 'Server temp folder missing. Contact admin.';
+        elseif ($err === UPLOAD_ERR_CANT_WRITE) $friendly = 'Server cannot write file. Check folder permissions.';
+        elseif ($err === UPLOAD_ERR_EXTENSION) $friendly = 'Upload blocked by server extension. Contact admin.';
+
+        return $this->ckeditor_upload_response($funcNum, '', $friendly . " (Error code: $err)");
+    }
+
+    $tmp  = $_FILES['upload']['tmp_name'];
+    $name = $_FILES['upload']['name'];
+
+    // Allow only image extensions
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    $allowed_ext = ['jpg','jpeg','png','gif','webp'];
+    if (!in_array($ext, $allowed_ext)) {
+        return $this->ckeditor_upload_response($funcNum, '', 'Only image files are allowed: JPG, JPEG, PNG, GIF, WEBP.');
+    }
+
+    // Validate mime type
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime  = finfo_file($finfo, $tmp);
+    finfo_close($finfo);
+
+    $allowed_mimes = ['image/jpeg','image/png','image/gif','image/webp'];
+    if (!in_array($mime, $allowed_mimes)) {
+        return $this->ckeditor_upload_response($funcNum, '', 'Invalid image type detected. Please upload a valid JPG/PNG/GIF/WEBP.');
+    }
+
+    // Size limit 2MB
+    $max = 2 * 1024 * 1024;
+    if ((int)$_FILES['upload']['size'] > $max) {
+        return $this->ckeditor_upload_response($funcNum, '', 'Image too large. Max 2MB allowed.');
+    }
+
+    // Build safe filename
+    $safeBase = preg_replace('/[^a-zA-Z0-9\-_]/', '_', pathinfo($name, PATHINFO_FILENAME));
+    $newName  = $safeBase . '_' . date('Ymd_His') . '_' . mt_rand(1000,9999) . '.' . $ext;
+
+    if (!move_uploaded_file($tmp, $upload_path . $newName)) {
+        return $this->ckeditor_upload_response($funcNum, '', 'Failed to save uploaded file. Please check folder permissions: uploads/content_pages/');
+    }
+
+    $url = base_url('uploads/content_pages/' . $newName);
+
+    return $this->ckeditor_upload_response($funcNum, $url, 'Upload successful ✅');
+}
+
+
+
+
+public function content_comment_pending()
+{
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    $this->load->model('Content_comments_model', 'content_comments_model');
+
+    $page_data['page_title'] = 'Pending Comments';
+    $page_data['page_name']  = 'content_comments_pending';
+    $page_data['comments']   = $this->content_comments_model->get_pending_comments();
+
+    $this->load->view('backend/index', $page_data);
+}
+
+public function content_comment_action($action = '', $comment_id = 0)
+{
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    $admin_id = (int)$this->session->userdata('user_id');
+    $this->load->model('Content_comments_model', 'content_comments_model');
+
+    if ($action === 'approve') {
+        $this->content_comments_model->approve_comment($comment_id, $admin_id);
+        $this->session->set_flashdata('flash_message', 'Comment approved.');
+    } elseif ($action === 'reject') {
+        $this->content_comments_model->reject_comment($comment_id, $admin_id);
+        $this->session->set_flashdata('flash_message', 'Comment rejected.');
+    }
+
+    redirect(site_url('admin/content_comment_pending'), 'refresh');
+}
+
+
+public function content_comment_add()
+{
+    // Allow public (later we can move this to Learn controller)
+    $this->load->model('Content_comments_model', 'content_comments_model');
+
+    $node_id = (int)$this->input->post('node_id');
+    $comment = trim($this->input->post('comment_text'));
+    $name    = trim($this->input->post('name'));
+    $email   = trim($this->input->post('email'));
+
+    if (!$node_id || $comment === '') {
+        $this->session->set_flashdata('error_message', 'Comment is required.');
+        redirect($_SERVER['HTTP_REFERER']);
+        return;
+    }
+
+    $user_id = $this->session->userdata('user_id'); // if logged in
+    $this->content_comments_model->add_comment($node_id, $user_id, $name, $email, $comment);
+
+    $this->session->set_flashdata('flash_message', 'Thanks! Your comment is submitted for approval.');
+    redirect($_SERVER['HTTP_REFERER']);
+}
+
+
+public function content_page_pdf_upload()
+{
+    if ($this->session->userdata('admin_login') != true) {
+        show_error('Unauthorized', 401);
+    }
+
+    $upload_path = FCPATH . 'uploads/content_pages_pdfs/';
+    if (!is_dir($upload_path)) {
+        @mkdir($upload_path, 0755, true);
+    }
+
+    if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] != 0) {
+        $this->output->set_content_type('application/json')
+          ->set_output(json_encode(['ok'=>false,'message'=>'No PDF uploaded.']));
+        return;
+    }
+
+    $tmp  = $_FILES['pdf']['tmp_name'];
+    $name = $_FILES['pdf']['name'];
+
+    $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+    if ($ext !== 'pdf') {
+        $this->output->set_content_type('application/json')
+          ->set_output(json_encode(['ok'=>false,'message'=>'Only PDF allowed.']));
+        return;
+    }
+
+    // Size limit 10MB (change as you like)
+    $max = 10 * 1024 * 1024;
+    if ((int)$_FILES['pdf']['size'] > $max) {
+        $this->output->set_content_type('application/json')
+          ->set_output(json_encode(['ok'=>false,'message'=>'PDF too large. Max 10MB.']));
+        return;
+    }
+
+    $safeBase = preg_replace('/[^a-zA-Z0-9\-_]/', '_', pathinfo($name, PATHINFO_FILENAME));
+    $newName  = $safeBase . '_' . date('Ymd_His') . '_' . mt_rand(1000,9999) . '.pdf';
+
+    if (!move_uploaded_file($tmp, $upload_path . $newName)) {
+        $this->output->set_content_type('application/json')
+          ->set_output(json_encode(['ok'=>false,'message'=>'Failed to save PDF.']));
+        return;
+    }
+
+    $url = base_url('uploads/content_pages_pdfs/' . $newName);
+
+    $this->output->set_content_type('application/json')
+      ->set_output(json_encode(['ok'=>true,'url'=>$url,'file'=>$newName]));
+}
+
+
+ // ===================== Content Exams (MCQ) =====================
+    // Builder UI for a given content node
+    public function content_exam_builder($node_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $node_id = (int)$node_id;
+        if ($node_id <= 0) {
+            show_error('Invalid node id');
+            return;
+        }
+
+        // Load node basic info
+        $node = $this->db->get_where('content_nodes', ['node_id' => $node_id])->row_array();
+        if (!$node) {
+            show_404();
+            return;
+        }
+
+        $exam = $this->exam_model->get_exam_by_node($node_id, false);
+        $questions = [];
+        if ($exam) {
+            $questions = $this->exam_model->get_questions_with_options((int)$exam['id']);
+        }
+
+        $page_data['page_name']  = 'content_exam_builder';
+        $page_data['page_title'] = 'Content Exam Builder';
+        $page_data['node'] = $node;
+        $page_data['exam'] = $exam;
+        $page_data['questions'] = $questions;
+
+        $this->load->view('backend/index', $page_data);
+    }
+
+    // Save exam + questions for node
+    public function content_exam_save($node_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $node_id = (int)$node_id;
+        if ($node_id <= 0) {
+            show_error('Invalid node id');
+            return;
+        }
+
+        $title = trim((string)$this->input->post('title'));
+        $description = (string)$this->input->post('description');
+        $policy = (string)$this->input->post('policy');
+        $passing_marks = (float)$this->input->post('passing_marks');
+        $is_published = (int)$this->input->post('is_published') ? 1 : 0;
+
+        if ($title === '') {
+            $this->session->set_flashdata('error_message', 'Exam title is required.');
+            redirect(site_url('admin/content_exam_builder/'.$node_id), 'refresh');
+            return;
+        }
+
+        $raw_questions = $this->input->post('questions');
+        $questions = [];
+        if (is_array($raw_questions)) {
+            foreach ($raw_questions as $rq) {
+                $qtext = trim((string)($rq['text'] ?? ''));
+                if ($qtext === '') continue;
+                $marks = (float)($rq['marks'] ?? 1);
+                $opts  = $rq['options'] ?? [];
+                $correct = (int)($rq['correct_index'] ?? 0);
+                $questions[] = [
+                    'text' => $qtext,
+                    'marks' => $marks,
+                    'options' => is_array($opts) ? array_values($opts) : [],
+                    'correct_index' => $correct,
+                ];
+            }
+        }
+
+        if (count($questions) === 0) {
+            $this->session->set_flashdata('error_message', 'Please add at least one question.');
+            redirect(site_url('admin/content_exam_builder/'.$node_id), 'refresh');
+            return;
+        }
+
+        $exam_data = [
+            'title' => $title,
+            'description' => $description,
+            'policy' => $policy,
+            'passing_marks' => $passing_marks,
+            'is_published' => $is_published,
+            'created_by' => (int)$this->session->userdata('user_id'),
+        ];
+
+        $this->exam_model->save_exam_with_questions($node_id, $exam_data, $questions);
+        $this->session->set_flashdata('flash_message', 'Exam saved successfully.');
+        redirect(site_url('admin/content_exam_builder/'.$node_id), 'refresh');
+    }
+
+
 }

@@ -21,6 +21,7 @@ class Home extends CI_Controller
 
         // CHECK CUSTOM SESSION DATA
         $this->user_model->check_session_data();
+        $this->load->model('Tutor_master_model', 'tutor_master_model');
 
 
         //CHECKING COURSE ACCESSIBILITY STATUS
@@ -74,12 +75,30 @@ class Home extends CI_Controller
         echo $response;
     }
 
-    public function home()
-    {
-        $page_data['page_name'] = "home";
-        $page_data['page_title'] = site_phrase('home');
-        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
-    }
+	public function home()
+	{
+		$page_data['page_name']  = "home";
+		$page_data['page_title'] = site_phrase('home');
+		
+		// Latest published content pages for the "Latest blogs" section on homepage.
+		// Kept lightweight (single query + small limit).
+		if ((int)get_frontend_settings('blog_visibility_on_the_home_page') === 1) {
+			$this->load->model('content_docs_model');
+			$page_data['latest_docs'] = $this->content_docs_model->get_latest_published_pages(3);
+		}
+
+		// Upcoming tutor sessions for homepage
+		//$this->load->model('Tutor_session_model');
+		//$page_data['upcoming_tutor_sessions'] = $this->tutor_session_model->get_upcoming_published(10);
+		
+		// Upcoming tutor sessions for homepage (tutoring module)
+		$this->load->model('Tutor_session_model', 'tutor_session_model');
+		$page_data['upcoming_tutor_sessions'] = $this->tutor_session_model->get_upcoming_published(10);
+
+
+		$this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+	}
+
 
     //send gift
     public function shopping_cart($gift_status = "")
@@ -898,10 +917,24 @@ class Home extends CI_Controller
 
     public function search($search_string = "")
     {
+        // Support both GET (home page) and POST (header search) without breaking existing behaviour.
+        $incoming_query = $this->input->get('query', true);
+        if ($incoming_query === null || $incoming_query === '') {
+            $incoming_query = $this->input->post('query', true);
+        }
 
+        // course | tutor (default course)
+        $search_for = $this->input->get('search_for', true);
+        if ($search_for === null || $search_for === '') {
+            $search_for = $this->input->post('search_for', true);
+        }
+        $search_for = $search_for ? strtolower(trim($search_for)) : 'course';
+        if (!in_array($search_for, ['course', 'tutor'], true)) {
+            $search_for = 'course';
+        }
 
-        if (isset($_GET['query']) && !empty($_GET['query'])) {
-            $search_string = $_GET['query'];
+        if (!empty($incoming_query)) {
+            $search_string = $incoming_query;
 
             //check double quote and script text in the search string
             if (preg_match('/"/', $search_string) >= 1 && strpos($search_string, "script") >= 1) {
@@ -910,16 +943,71 @@ class Home extends CI_Controller
             }
 
 
-            $all_rows = $this->crud_model->get_courses_by_search_string($search_string)->num_rows();
-            $config = array();
-            $config = pagintaion($all_rows, 9);
-            $config['base_url']  = site_url('home/search/');
-            $config['suffix']  = '?query=' . $search_string;
-            $config['first_url']  = site_url('home/search') . '?query=' . $search_string;
-            $this->pagination->initialize($config);
+            // =============================
+            // Search for COURSES (existing)
+            // =============================
+            if ($search_for === 'course') {
+                $all_rows = $this->crud_model->get_courses_by_search_string($search_string)->num_rows();
+                $config = array();
+                $config = pagintaion($all_rows, 9);
+                $config['base_url']  = site_url('home/search/');
+                $config['suffix']  = '?query=' . urlencode($search_string) . '&search_for=course';
+                $config['first_url']  = site_url('home/search') . '?query=' . urlencode($search_string) . '&search_for=course';
+                $this->pagination->initialize($config);
 
-            $page_data['courses'] = $this->crud_model->get_courses_by_search_string($search_string, $config['per_page'], $this->uri->segment(3))->result_array();
-            $page_data['total_result'] = $all_rows;
+                $page_data['courses'] = $this->crud_model->get_courses_by_search_string($search_string, $config['per_page'], $this->uri->segment(3))->result_array();
+                $page_data['total_result'] = $all_rows;
+                $page_data['search_for'] = 'course';
+
+            // =============================
+            // Search for TUTORS (new)
+            // =============================
+            } else {
+                // Filters for tutor search
+                $category_id   = (int) $this->input->get('category_id', true);
+                $class_id      = (int) $this->input->get('class_id', true);
+                $subject_id    = (int) $this->input->get('subject_id', true);
+                $mode          = $this->input->get('mode', true);
+                $location      = $this->input->get('location', true);
+                $distance_km   = (int)$this->input->get('distance_km', true);
+                $lat           = $this->input->get('lat', true);
+                $lng           = $this->input->get('lng', true);
+                $min_rating    = (int)$this->input->get('min_rating', true);
+                $fee_min       = $this->input->get('fee_min', true);
+                $fee_max       = $this->input->get('fee_max', true);
+                $sort_by       = $this->input->get('sort_by', true);
+
+                $filters = [
+                    'query'        => $search_string,
+                    'category_id'  => $category_id > 0 ? $category_id : null,
+                    'class_id'     => $class_id > 0 ? $class_id : null,
+                    'subject_id'   => $subject_id > 0 ? $subject_id : null,
+                    'mode'         => $mode ?: 'all',
+                    'location'     => $location ?: '',
+                    'distance_km'  => $distance_km ?: 0,
+                    'lat'          => is_numeric($lat) ? (float)$lat : null,
+                    'lng'          => is_numeric($lng) ? (float)$lng : null,
+                    'min_rating'   => $min_rating ?: 0,
+                    'fee_min'      => is_numeric($fee_min) ? (float)$fee_min : null,
+                    'fee_max'      => is_numeric($fee_max) ? (float)$fee_max : null,
+                    'sort_by'      => $sort_by ?: 'best_match',
+                ];
+
+				$this->load->model('Tutor_search_model', 'tutor_search_model');
+				$all_rows = $this->tutor_search_model->count_filtered($filters);
+				$config = pagintaion($all_rows, 9);
+				$config['base_url']  = site_url('home/search/');
+				$suffix_params = $_GET;
+				$suffix_params['query'] = $search_string;
+				$suffix_params['search_for'] = 'tutor';
+				$config['suffix'] = '?' . http_build_query($suffix_params);
+				$config['first_url'] = site_url('home/search') . '?' . http_build_query($suffix_params);
+				$this->pagination->initialize($config);
+				$page_data['tutors'] = $this->tutor_search_model->get_filtered($filters, $config['per_page'], (int)$this->uri->segment(3));
+				$page_data['total_result'] = $all_rows;
+				$page_data['search_for'] = 'tutor';
+				$page_data['tutor_filters'] = $filters;
+            }
         } else {
             $this->session->set_flashdata('error_message', site_phrase('no_search_value_found'));
             redirect(site_url(), 'refresh');
@@ -1225,6 +1313,7 @@ class Home extends CI_Controller
         }
         $page_data['page_name'] = 'sign_up';
         $page_data['page_title'] = site_phrase('sign_up');
+        $page_data['tutor_registration_tree'] = $this->tutor_master_model->get_registration_tree();
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
     }
 
@@ -1819,7 +1908,7 @@ class Home extends CI_Controller
 
 
     //Start Notification
-    function get_my_notification($type = "")
+    /*function get_my_notification($type = "")
     {
         $user_id = $this->session->userdata('user_id');
 
@@ -1845,8 +1934,57 @@ class Home extends CI_Controller
         ];
 
         echo json_encode($response);
-    }
+    }*/
     //End notification
+	
+	//Start Notification
+	function get_my_notification($type = "", $id = 0)
+	{
+		$user_id = $this->session->userdata('user_id');
+
+		if ($type == 'mark_all_as_read') {
+			$this->db->where('to_user', $user_id);
+			$this->db->update('notifications', ['status' => 1]);
+		}
+
+		if ($type == 'remove_all') {
+			$this->db->where('to_user', $user_id);
+			$this->db->delete('notifications');
+		}
+
+		if ($type == 'open' && (int)$id > 0) {
+			$notification = $this->db
+				->where('id', (int)$id)
+				->where('to_user', $user_id)
+				->get('notifications')
+				->row_array();
+
+			if (!empty($notification)) {
+				$this->db->where('id', (int)$id)->update('notifications', ['status' => 1]);
+
+				if (in_array($notification['type'], ['tutor_application_approved', 'tutor_application_rejected'])) {
+					redirect(site_url('user/become_an_instructor'), 'refresh');
+				}
+
+				redirect(site_url('home'), 'refresh');
+			}
+
+			redirect(site_url('home'), 'refresh');
+		}
+
+		$this->db->where('to_user', $user_id);
+		$this->db->limit(50);
+		$query = $this->db->order_by('status ASC, id desc');
+		$page_data['notifications'] = $query->get('notifications');
+
+		$response['html'] = [
+			'elem'    => '#headerNotification',
+			'content' => $this->load->view('frontend/' . get_frontend_settings('theme') . '/notifications', [], true)
+		];
+
+		echo json_encode($response);
+	}
+	//End notification
 
 
     function course_playing_page_layout()

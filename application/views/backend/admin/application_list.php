@@ -43,15 +43,21 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($pending_applications->result_array() as $key => $pending_application):
-                                        $user_data = $this->user_model->get_all_user($pending_application['user_id'])->row_array();?>
-                                        <tr class="gradeU">
-                                            <td>
-                                                <?php echo ++$key; ?>
-                                            </td>
-                                            <td>
-                                                <?php echo $user_data['first_name'].' '.$user_data['last_name']; ?>
-                                            </td>
+									<?php foreach ($pending_applications->result_array() as $key => $pending_application):
+										$user_data = $this->user_model->get_all_user($pending_application['user_id'])->row_array();
+										$user_data = is_array($user_data) ? $user_data : array();
+
+										$first_name = isset($user_data['first_name']) ? $user_data['first_name'] : '';
+										$last_name  = isset($user_data['last_name']) ? $user_data['last_name'] : '';
+										$full_name  = trim($first_name . ' ' . $last_name);
+									   ?>
+										<tr class="gradeU">
+											<td>
+												<?php echo ++$key; ?>
+											</td>
+											<td>
+												<?php echo $full_name !== '' ? html_escape($full_name) : 'N/A'; ?>
+											</td>
                                             <td>
                                                 <a href="javascript:;" class="btn btn-primary" onclick="showAjaxModal('<?php echo site_url('modal/popup/application_details/'.$pending_application['id']); ?>', '<?php echo get_phrase('applicant_details'); ?>')">
                                                     <i class="fa fa-info-circle"></i> <?php echo get_phrase('application_details'); ?>
@@ -109,15 +115,21 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($approved_applications->result_array() as $key => $approved_application):
-                                        $user_data = $this->user_model->get_all_user($approved_application['user_id'])->row_array();?>
-                                        <tr class="gradeU">
-                                            <td>
-                                                <?php echo ++$key; ?>
-                                            </td>
-                                            <td>
-                                                <?php echo $user_data['first_name'].' '.$user_data['last_name']; ?>
-                                            </td>
+									<?php foreach ($approved_applications->result_array() as $key => $approved_application):
+										$user_data = $this->user_model->get_all_user($approved_application['user_id'])->row_array();
+										$user_data = is_array($user_data) ? $user_data : array();
+
+										$first_name = isset($user_data['first_name']) ? $user_data['first_name'] : '';
+										$last_name  = isset($user_data['last_name']) ? $user_data['last_name'] : '';
+										$full_name  = trim($first_name . ' ' . $last_name);
+										?>
+										<tr class="gradeU">
+											<td>
+												<?php echo ++$key; ?>
+											</td>
+											<td>
+												<?php echo $full_name !== '' ? html_escape($full_name) : 'N/A'; ?>
+											</td>
                                             <td>
                                                 <a href="javascript:;" class="btn btn-primary" onclick="showAjaxModal('<?php echo site_url('modal/popup/application_details/'.$approved_application['id']); ?>', '<?php echo get_phrase('applicant_details'); ?>')">
                                                     <i class="fa fa-info-circle"></i> <?php echo get_phrase('application_details'); ?>

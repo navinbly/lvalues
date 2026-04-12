@@ -695,7 +695,12 @@
             </div>
             <div class="col-lg-6">
                 <div class="h-3-banner-button text-center">
+                    
                     <a href="<?php echo site_url('blog'); ?>" class="btn btn-primary"><?php echo get_phrase('See All') ?></a>
+                       
+                     <?php
+                    /*<a href="<?php echo site_url('learn'); ?>" class="btn btn-primary"><?php echo get_phrase('See All') ?></a>*/
+                    ?>
                 </div>
             </div>
         </div>

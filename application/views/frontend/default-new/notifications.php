@@ -21,7 +21,9 @@ $number_of_unread_notification = $this->db->order_by('status ASC, id desc')->lim
     </div>
     <div class="overflow-control" id="notifications">
         <?php foreach($notifications->result_array() as $notification): ?>
-            <div class="notify-item cursor-pointer d-flex py-2 px-3 <?php if($notification['status'] == 0) echo 'unread' ?>" style="width: 275px;">
+            <a href="<?php echo site_url('home/get_my_notification/open/'.$notification['id']); ?>"
+               class="notify-item cursor-pointer d-flex py-2 px-3 <?php if($notification['status'] == 0) echo 'unread'; ?>"
+               style="width: 275px; text-decoration:none; color:inherit;">
                 <?php if($notification['type'] == 'signup'): ?>
                     <div class="notify-icon">
                         <i class="fas fa-user-plus"></i>
@@ -37,10 +39,10 @@ $number_of_unread_notification = $this->db->order_by('status ASC, id desc')->lim
                       <small class="text-muted float-end"><?php echo get_past_time($notification['created_at']); ?></small>
                   </p>
                   <div class="text-muted mb-0 user-msg text-13px">
-                      <?php echo ($notification['description']); ?>
+                      <?php echo $notification['description']; ?>
                   </div>
                 </div>
-            </div>
+            </a>
         <?php endforeach; ?>
 
         <?php if($notifications->num_rows() == 0): ?>

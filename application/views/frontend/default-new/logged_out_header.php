@@ -85,6 +85,7 @@
                     </div>
                     <div class=" search-control">
                         <form action="<?php echo site_url('home/search'); ?>" method="POST">
+                            <input type="hidden" name="search_for" value="course">
                             <button class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
                             <input type="text" name = 'query' value="<?php echo isset($_GET['query']) ? $_GET['query'] : ""; ?>" class="form-control" placeholder="<?php echo site_phrase('search_for_courses'); ?>">
                             </form>
@@ -173,6 +174,7 @@
             </div>
             <!-- Mobile Device Form -->
             <form action="<?php echo site_url('home/search'); ?>" method="POST" class="inline-form">
+                <input type="hidden" name="search_for" value="course">
                 <div class="mobile-search">
                     <button class="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
                     <input type="text" name = 'query' value="<?php echo isset($_GET['query']) ? $_GET['query'] : ""; ?>" class="form-control" placeholder="<?php echo site_phrase('search_for_courses'); ?>">

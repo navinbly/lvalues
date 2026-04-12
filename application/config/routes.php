@@ -49,6 +49,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 | Examples:	my-controller/index	-> my_controller/index
 |		my-controller/my-method	-> my_controller/my_method
 */
+
 $route['default_controller'] = 'home';
 $route['404_override'] = 'home/page_not_found';
 $route['certificate/(:any)']        = "addons/certificate/generate_certificate/$1";
@@ -76,10 +77,48 @@ $route['ebook/buy/(:any)'] = "addons/ebook/buy/$1";
 $route['home/my_ebooks'] = "addons/ebook/my_ebooks";
 //end ebook
 
-//BLog
+// Docs UI should open on /blog
+$route['blog'] = "blog/content";
+
+// exam pretty (must be before blog catch-all)
+$route['blog/(.+)-exam'] = 'exam/by_pretty/$1';
+
+// blog catch-all (unlimited)
+$route['blog/(.+)'] = 'blog/content/$1';
+
+// plural pages (if you use them)
 $route['blogs'] = "blog/blogs";
 $route['blogs/(:any)'] = "blog/blogs/$1";
 //End blog
+
+// ===================== Content Exams (MCQ) =====================
+// Frontend exam flow (by content node id)
+$route['exam/(:num)']                  = 'exam/intro/$1';
+$route['exam/start/(:num)']            = 'exam/start/$1';
+$route['exam/attempt/(:num)/q/(:num)'] = 'exam/question/$1/$2';
+$route['exam/result/(:num)']           = 'exam/result/$1';
+
+// Admin builder shortcut
+$route['admin/content-exam/(:num)']    = 'admin/content_exam_builder/$1';
+
+// ----------------------------------------------------
+// LEARN (CONTENT / BOOK-STYLE BLOG) ROUTES
+// Added on: 2026-01-25
+// Purpose:
+// - Enable clean, SEO-friendly URLs for learning content
+// - Support hierarchical structure:
+//   /learn/course/track/topic/page
+// - Static for now, DB-backed later
+// Controller: Learn.php
+// ----------------------------------------------------
+
+$route['learn'] = 'learn/index';
+$route['learn/(:any)'] = 'learn/index/$1';
+$route['learn/(:any)/(:any)'] = 'learn/index/$1/$2';
+$route['learn/(:any)/(:any)/(:any)'] = 'learn/index/$1/$2/$3';
+$route['learn/(:any)/(:any)/(:any)/(:any)'] = 'learn/index/$1/$2/$3/$4';
+
+// ----------------------------------------------------
 
 
 //Custom page
@@ -95,3 +134,20 @@ $route['my_bookings'] = "addons/tutor_booking/booked_schedules_student";
 //End tutor booking
 
 $route['translate_uri_dashes'] = FALSE;
+
+// ----------------------------------------------------
+// DOCX IMPORT (CKEditor) ROUTES
+// Added on: 2026-02-07
+// Purpose: CKEditor "Import DOCX" calls this endpoint and expects JSON
+// Controller: AdminDocImport.php
+// ----------------------------------------------------
+$route['admin/doc-import/upload-docx'] = 'AdminDocImport/upload_docx';
+
+
+
+// Tutor signup hierarchy
+$route['sign_up'] = 'Sign_up/index';
+$route['sign_up/verification_code'] = 'Sign_up/verification_code';
+$route['tutor-api/registration-tree'] = 'Tutor_api/registration_tree';
+$route['tutor-api/classes-by-category'] = 'Tutor_api/classes_by_category';
+$route['tutor-api/subjects-by-class'] = 'Tutor_api/subjects_by_class';

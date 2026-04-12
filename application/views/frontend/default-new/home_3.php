@@ -21,12 +21,208 @@
                     </h1>
                     <p><?php echo site_phrase(get_frontend_settings('banner_sub_title')); ?></p>
                 </div>
-                <div class="search-option">
-                    <form action="<?php echo site_url('home/search'); ?>" method="get">
-                        <input class="form-control" type="text" placeholder="<?php echo get_phrase('What do you want to learn'); ?>" name="query">
-                        <button class="submit-cls" type="submit"><i class="fa fa-search"></i><?php echo get_phrase('Search') ?></button>
-                    </form>
-                </div>
+                <div class="search-option lvalues-hero-search">
+    <div class="search-box p-4 rounded shadow-sm bg-white">
+	  <h4 class="fw-bold mb-2">What are you looking for?</h4>
+	  <p class="text-muted mb-3">
+		Search <strong>courses</strong> to build skills or find an expert <strong>tutor</strong> for personalized learning.
+	  </p>
+    </div>
+    <form action="<?php echo site_url('home/search'); ?>" method="get" class="lvalues-hero-search-form">
+        <div class="lvalues-hero-search-row">
+            <div class="lvalues-search-type">
+                <label for="lvalues_search_for_home_3">Search for</label>
+                <select class="form-control" name="search_for" id="lvalues_search_for_home_3">
+                    <option value="course" selected><?php echo get_phrase('Courses'); ?></option>
+                    <option value="tutor"><?php echo get_phrase('Tutors'); ?></option>
+                </select>
+            </div>
+            <div class="lvalues-search-input-wrap">
+                <label for="lvalues_search_query_home_3">Enter keyword</label>
+                <input class="form-control lvalues-search-input" type="text" id="lvalues_search_query_home_3" name="query" placeholder="Search courses like Data Science, AWS, Python">
+                <small id="lvalues_search_hint_home_3" class="lvalues-search-hint">Example: Data Science, DevOps, Python, Java tutor, Home tutor</small>
+            </div>
+            <div class="d-flex gap-2 align-items-center mt-2">
+
+				<input class="form-control hero-search-input"
+					   type="text"
+					   id="searchQuery"
+					   name="query"
+					   placeholder="Search courses like Data Science, AWS, Python">
+
+				<button class="btn btn-primary px-4 py-2" type="submit">
+					<i class="fa fa-search"></i> Search
+				</button>
+
+			</div>
+        </div>
+        <div class="lvalues-search-tags">
+            <span class="lvalues-search-tags-label">Popular:</span>
+            <button type="button" class="lvalues-search-tag" data-target="home_3" data-type="course" data-value="Python">Python</button>
+            <button type="button" class="lvalues-search-tag" data-target="home_3" data-type="course" data-value="Data Science">Data Science</button>
+            <button type="button" class="lvalues-search-tag" data-target="home_3" data-type="course" data-value="AWS">AWS</button>
+            <button type="button" class="lvalues-search-tag" data-target="home_3" data-type="tutor" data-value="Math tutor">Math tutor</button>
+            <button type="button" class="lvalues-search-tag" data-target="home_3" data-type="tutor" data-value="English tutor">English tutor</button>
+        </div>
+    </form>
+</div>
+
+<style>
+.lvalues-hero-search{
+    margin-top: 24px;
+    background: #ffffff;
+    border: 1px solid #ececf5;
+    border-radius: 18px;
+    padding: 22px;
+    box-shadow: 0 14px 35px rgba(33, 43, 99, 0.08);
+}
+.lvalues-search-heading h5{
+    margin-bottom: 6px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d2746;
+}
+.lvalues-search-heading p{
+    margin-bottom: 18px;
+    color: #6b7280;
+    font-size: 15px;
+    line-height: 1.7;
+}
+.lvalues-hero-search-row{
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    flex-wrap: wrap;
+}
+.lvalues-search-type{
+    min-width: 180px;
+    flex: 0 0 180px;
+}
+.lvalues-search-input-wrap{
+    flex: 1 1 360px;
+}
+.lvalues-search-button-wrap{
+    flex: 0 0 auto;
+}
+.lvalues-search-type label,
+.lvalues-search-input-wrap label{
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #4b5563;
+}
+.lvalues-search-input,
+.lvalues-search-type select{
+    height: 56px;
+    border-radius: 12px;
+    border: 1px solid #dfe3f0;
+    box-shadow: none;
+    font-size: 16px;
+}
+.lvalues-search-input:focus,
+.lvalues-search-type select:focus{
+    border-color: #6c4df6;
+    box-shadow: 0 0 0 0.15rem rgba(108, 77, 246, 0.15);
+}
+.lvalues-search-hint{
+    display: block;
+    margin-top: 8px;
+    color: #7b8190;
+    font-size: 13px;
+}
+.lvalues-search-button{
+    min-width: 150px;
+    height: 56px;
+    border-radius: 12px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 700;
+}
+.lvalues-search-tags{
+    margin-top: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+.lvalues-search-tags-label{
+    font-size: 14px;
+    font-weight: 700;
+    color: #4b5563;
+}
+.lvalues-search-tag{
+    border: none;
+    background: #f4f1ff;
+    color: #6c4df6;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+.lvalues-search-tag:hover{
+    background: #6c4df6;
+    color: #ffffff;
+}
+@media (max-width: 767px){
+    .lvalues-hero-search{
+        padding: 16px;
+    }
+    .lvalues-search-type,
+    .lvalues-search-input-wrap,
+    .lvalues-search-button-wrap{
+        flex: 1 1 100%;
+        min-width: 100%;
+    }
+    .lvalues-search-button{
+        width: 100%;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var searchType = document.getElementById('lvalues_search_for_home_3');
+    var searchQuery = document.getElementById('lvalues_search_query_home_3');
+    var searchHint = document.getElementById('lvalues_search_hint_home_3');
+    var tags = document.querySelectorAll('.lvalues-search-tag[data-target="home_3"]');
+
+    function updateLvaluesHeroSearch() {
+        if (!searchType || !searchQuery || !searchHint) return;
+
+        if (searchType.value === 'tutor') {
+            searchQuery.placeholder = 'Search tutors like Math tutor, Java tutor, IELTS tutor';
+            searchHint.textContent = 'Example: Math tutor, English tutor, Home tutor, Online tutor';
+        } else {
+            searchQuery.placeholder = 'Search courses like Data Science, AWS, Python';
+            searchHint.textContent = 'Example: Data Science, DevOps, Python, Cloud Computing';
+        }
+    }
+
+    if (searchType) {
+        searchType.addEventListener('change', updateLvaluesHeroSearch);
+        updateLvaluesHeroSearch();
+    }
+
+    tags.forEach(function(tag) {
+        tag.addEventListener('click', function() {
+            var type = this.getAttribute('data-type');
+            var value = this.getAttribute('data-value');
+            if (searchType) {
+                searchType.value = type;
+                updateLvaluesHeroSearch();
+            }
+            if (searchQuery) {
+                searchQuery.value = value;
+                searchQuery.focus();
+            }
+        });
+    });
+});
+</script>
                 <div class="students-rating">
                     <div class="row">
                         <div class="col-auto">
@@ -597,8 +793,13 @@
             </div>
             <div class="col-lg-6">
                 <div class="h-3-banner-button text-center">
-                    <a href="<?php echo site_url('blog'); ?>" class="btn btn-primary"><?php echo get_phrase('See All') ?></a>
-                </div>
+                    
+                    <a href="<?php echo site_url('blog'); ?>" class="btn btn-primary"><?php echo get_phrase('See All') ?></a> 
+                      
+                    <?php
+                    /*<a href="<?php echo site_url('learn'); ?>" class="btn btn-primary"><?php echo get_phrase('See All') ?></a> */                
+                    ?> 
+                    </div>
             </div>
         </div>
         <div class="h-3-blog-card-full-body latest-blog">

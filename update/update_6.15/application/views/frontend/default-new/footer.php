@@ -36,7 +36,12 @@
                     <?php if (get_settings('allow_instructor') == 1) : ?>
                         <li> <a href="<?php echo site_url('home/become_an_instructor'); ?>"><?php echo site_phrase('Become an instructor'); ?></a></li>
                     <?php endif; ?>
-                    <li> <a href="<?php echo site_url('blog'); ?>"><?php echo site_phrase('blog'); ?></a></li>
+                    
+                    <li> <a href="<?php echo site_url('blog'); ?>"><?php echo site_phrase('blog'); ?></a></li> 
+                       
+                    <?php 
+                    /*<li> <a href="<?php echo site_url('learn'); ?>"><?php echo site_phrase('blog'); ?></a></li> */
+                    ?>
                     <li><a href="<?php echo site_url('home/courses'); ?>"><?php echo site_phrase('all_courses'); ?></a></li>
                     <?php if(get_settings('public_signup') == 'enable'): ?>  
                     <li><a href="<?php echo site_url('sign_up'); ?>"><?php echo site_phrase('sign_up'); ?></a></li>

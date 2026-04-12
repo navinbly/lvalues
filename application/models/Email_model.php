@@ -10,35 +10,87 @@ class Email_model extends CI_Model
 
 	public function send_email_verification_mail($to = "", $verification_code = "")
 	{
-		//Editable
+		if (empty($to) || empty($verification_code)) {
+			return false;
+		}
+
 		$type = 'email_verification';
-		//End editable
 
+		// Build verification link
+		$verification_link = site_url('login/verify_email_link?email=' . rawurlencode($to) . '&code=' . rawurlencode($verification_code));
+
+		// Try notification template config (if exists)
 		$notification = $this->db->where('type', $type)->get('notification_settings')->row_array();
-		foreach(json_decode($notification['user_types'], true) as $user_type){
-			
-			//Editable
-			if($user_type == 'user'){
+
+		// If notification row exists + has user_types JSON
+		if (!empty($notification) && !empty($notification['user_types'])) {
+
+			$user_types = json_decode($notification['user_types'], true);
+			$email_flags = json_decode($notification['email_notification'], true);
+			$subject_json = json_decode($notification['subject'], true);
+
+			if (is_array($user_types) && in_array('user', $user_types)) {
+
 				$to_user = $this->db->get_where('users', array('email' => $to))->row_array();
-				$replaces['email_verification_code'] = $verification_code;
-			}
-			//End editable
+				if (!empty($to_user)) {
 
-			$template_data['replaces'] = isset($replaces) ? $replaces:array();
-			$template_data['to_user'] = $to_user;
-			$template_data['notification'] = $notification;
-			$template_data['user_type'] = $user_type;
-			$subject = json_decode($notification['subject'], true)[$user_type];
-			$email_template = $this->load->view('email/common_template',  $template_data, TRUE);
+					$replaces = array(
+						'email_verification_code' => $verification_code,
+						'email_verification_link' => $verification_link
+					);
 
-			if(json_decode($notification['system_notification'], true)[$user_type] == 1){
-				$this->notify($type, $to_user['id'], $subject, $email_template);
-			}
-			if(json_decode($notification['email_notification'], true)[$user_type] == 1){
-				$this->send_smtp_mail($email_template, $subject, $to_user['email']);
+					$template_data = array(
+						'replaces' => $replaces,
+						'to_user' => $to_user,
+						'notification' => $notification,
+						'user_type' => 'user'
+					);
+
+					$subject = isset($subject_json['user']) ? $subject_json['user'] : 'Verify your email address';
+					$email_template = $this->load->view('email/common_template', $template_data, TRUE);
+
+					// Only send via template system if enabled
+					if (isset($email_flags['user']) && (int)$email_flags['user'] === 1) {
+						$ok = $this->send_smtp_mail($email_template, $subject, $to_user['email']);
+						if ($ok) return true;
+					}
+				}
 			}
 		}
+
+		// FALLBACK: send direct email even if notification_settings missing/disabled
+		$subject = 'Verify your email address';
+		$html = $this->_build_email_verification_fallback_html($verification_code, $verification_link);
+
+		return $this->send_smtp_mail($html, $subject, $to);
 	}
+
+	/**
+	 * Fallback HTML email template (code + link)
+	 */
+	/*private function _build_email_verification_fallback_html($code, $link)
+	{
+		$system_name = get_settings('system_name');
+		if (empty($system_name)) $system_name = 'Lvalues';
+
+		$safeLink = htmlspecialchars($link, ENT_QUOTES, 'UTF-8');
+		$safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+
+		return '
+		  <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+			<h2 style="margin:0 0 10px 0;">' . $system_name . ' - Email Verification</h2>
+			<p>Thanks for signing up. Please verify your email address using one of the options below:</p>
+
+			<p><b>Verification Code:</b> <span style="font-size: 18px;">' . $safeCode . '</span></p>
+
+			<p><b>Verification Link:</b><br>
+			  <a href="' . $safeLink . '">' . $safeLink . '</a>
+			</p>
+
+			<p>If you did not request this, you can ignore this email.</p>
+		  </div>
+		';
+	}*/
 
 	function signup_mail($new_user_id = ""){
 		//Editable
@@ -812,62 +864,106 @@ class Email_model extends CI_Model
 	public function send_smtp_mail($msg = NULL, $sub = NULL, $to = NULL, $from = NULL)
 	{
 		ini_set('max_execution_time', 300);
-		
-		if(!is_array($to)){
+
+		// Normalize $to
+		if (!is_array($to)) {
 			$to = array($to);
 		}
-		//Load email library
+
+		// Load email library
 		$this->load->library('email');
+		$this->email->clear(TRUE); // TRUE clears attachments too
 
-		// Send emails for each chunk
-		$this->email->clear(); // Clear previous settings
+		// From fallback
+		$from = get_settings('smtp_from_email');
+		if (empty($from)) {
+			$from = 'no-reply@localhost';
+		}
 
-		$from		=	get_settings('smtp_from_email');
+		// Decide protocol
+		$protocol = get_settings('protocol');
+		if (empty($protocol)) {
+			// For localhost: 'mail' works only if PHP mail() is configured.
+			// For MailHog: set protocol='smtp' and host/port accordingly.
+			$protocol = 'mail';
+		}
 
-		//SMTP & mail configuration
+		// Base config (works for both mail and smtp)
 		$config = array(
-			'protocol'  => get_settings('protocol'),
-			'smtp_host' => get_settings('smtp_host'),
-			'smtp_port' => get_settings('smtp_port'),
-			'smtp_user' => get_settings('smtp_user'),
-			'smtp_pass' => get_settings('smtp_pass'),
-			'smtp_crypto' => get_settings('smtp_crypto'), //can be 'ssl' or 'tls' for example
-			'mailtype'  => 'html',
-			'newline'   => "\r\n",
-			'charset'   => 'utf-8',
-			'smtp_timeout' => '30', //in seconds
+			'protocol'      => $protocol,
+			'mailtype'      => 'html',
+			'newline'       => "\r\n",
+			'crlf'          => "\r\n",
+			'charset'       => 'utf-8',
+			'smtp_timeout'  => '30', // seconds
 		);
-		$this->email->set_header('MIME-Version', 1.0);
-		$this->email->set_header('Content-type', 'text/html');
-		$this->email->set_header('charset', 'UTF-8');
-		$this->email->set_crlf( "\r\n" );
+
+		// Add SMTP config only when protocol is smtp
+		if ($protocol === 'smtp') {
+			$config['smtp_host'] = get_settings('smtp_host');
+			$config['smtp_port'] = get_settings('smtp_port');
+			$config['smtp_user'] = get_settings('smtp_user');
+			$config['smtp_pass'] = get_settings('smtp_pass');
+
+			$crypto = get_settings('smtp_crypto'); // 'ssl' or 'tls' or empty
+			if (!empty($crypto)) {
+				$config['smtp_crypto'] = $crypto;
+			}
+		}
 
 		$this->email->initialize($config);
 
-		//for showing "to me" in gmail inbox To: users own email
-		
+		// Headers
+		$this->email->set_header('MIME-Version', '1.0');
+		$this->email->set_header('Content-type', 'text/html; charset=UTF-8');
+
+		// Compose
 		$this->email->from($from, get_settings('system_name'));
 		$this->email->subject($sub);
 		$this->email->message($msg);
 
-		if(count($to) == 1){
+		// Recipients
+		if (count($to) === 1) {
 			$this->email->to($to[0]);
-		}else{
+		} else {
 			$this->email->bcc($to);
 		}
 
-		if($this->email->send()){
+		// Send
+		if ($this->email->send()) {
 			return true;
-		}else{
-			return false;
-			// echo $this->email->print_debugger();
-			// die();
 		}
-		
+
+		// Helpful debug logging (check application/logs/)
+		log_message('error', 'Email send failed: ' . $this->email->print_debugger(array('headers')));
+
+		return false;
 	}
 
 
+	private function _build_email_verification_fallback_html($code, $link)
+	{
+		$system_name = get_settings('system_name');
+		if (empty($system_name)) $system_name = 'Lvalues';
 
+		$safeLink = htmlspecialchars($link, ENT_QUOTES, 'UTF-8');
+		$safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+
+		return '
+		  <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #222;">
+			<h2 style="margin:0 0 10px 0;">' . $system_name . ' - Email Verification</h2>
+			<p>Thanks for signing up. Please verify your email address using one of the options below:</p>
+
+			<p><b>Verification Code:</b> <span style="font-size: 18px;">' . $safeCode . '</span></p>
+
+			<p><b>Verification Link:</b><br>
+			  <a href="' . $safeLink . '">' . $safeLink . '</a>
+			</p>
+
+			<p>If you did not request this, you can ignore this email.</p>
+		  </div>
+		';
+	}
 
 
 	

@@ -75,11 +75,16 @@ $query_builder = TRUE;
 
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => 'localhost',
+	'hostname' => '127.0.0.1', // localhost also works
+	/*'hostname' => 'localhost',
 	'username' => 'u854944287_academy_usr',
-	'password' => '4Om$3Bs;y',
-	'database' => 'u854944287_academy',
+	'password' => '4Om$3Bs;y',*/
+	'username' => 'root',
+	'password' => '12345',
+	/*'database' => 'u854944287_academy',*/
+	'database' => 'lvalues_database',
 	'dbdriver' => 'mysqli',
+	'port'     => 3307,  	
 	'dbprefix' => '',
 	'pconnect' => FALSE,
 	'db_debug' => (ENVIRONMENT !== 'production'),

@@ -137,4 +137,65 @@ class Blog extends CI_Controller
         $this->session->set_flashdata('flash_message', site_phrase('your_comment_has_been_deleted_successfully'));
         redirect(site_url('blog/details/'.slugify($blog_details['title']).'/'.$blog_id), 'refresh');
     }
+    /**
+     * Content Book Page
+     * Purpose : Book-style hierarchical content (Course → Topic → Subtopic)
+     * URL     : /blog/content
+     * Author  : Custom Enhancement
+     */
+    /*public function content()
+    {
+        // Optional: restrict access to logged-in users
+        // if (!$this->session->userdata('user_login')) {
+        //     redirect(site_url('login'), 'refresh');
+        // }
+
+        $page_data['page_name']  = 'content_page';
+        $page_data['page_title'] = 'Content';
+
+        $this->load->view(
+            'frontend/' . get_frontend_settings('theme') . '/index',
+            $page_data
+        );
+    }*/
+	
+public function content($a=null, $b=null, $c=null, $d=null)
+{
+    $this->load->model('content_docs_model');
+
+    // 1) Build full_path from URL segments
+    $parts = array_filter([$a,$b,$c,$d]);
+    $full_path = implode('/', $parts);
+
+    // 2) Load tree
+    $nodes = $this->content_docs_model->get_published_nodes();
+
+    // 3) Find selected node + page
+    $selected_node = null;
+    $selected_page = null;
+
+    if ($full_path) {
+        $selected_node = $this->content_docs_model->get_node_by_full_path($full_path);
+        if ($selected_node) {
+            $selected_page = $this->content_docs_model->get_published_page_by_node($selected_node['node_id']);
+        }
+    }
+
+    $page_data['page_name']  = 'content_page';
+    $page_data['page_title'] = 'Docs';
+
+    // data for views
+    $page_data['nodes'] = $nodes;
+    $page_data['active_full_path'] = $full_path;
+
+    $page_data['selected_node'] = $selected_node;
+    $page_data['selected_page'] = $selected_page;
+
+    // base route so links become /blog/...
+    $page_data['base_route'] = 'blog';
+
+    $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+}
+
+
 }
