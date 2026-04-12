@@ -255,6 +255,32 @@ $status_wise_courses = $this->crud_model->get_status_wise_courses();
 		<?php endif;
 		//course_addon end 
 		?>
+		
+		<?php if ($this->session->userdata('is_instructor')) : ?>
+		<li class="side-nav-item <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
+			<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
+				<i class="mdi mdi-file-document-outline"></i>
+				<span><?php echo get_phrase('Content (Docs)'); ?></span>
+				<span class="menu-arrow"></span>
+			</a>
+
+			<ul class="side-nav-second-level" aria-expanded="false">
+
+				<li class="<?php if ($page_name == 'content_nodes' || $page_name == 'content_add_node' || $page_name == 'content_edit_node') echo 'active'; ?>">
+					<a href="<?php echo site_url('user/content_nodes'); ?>">
+						<?php echo get_phrase('Nodes (Tree)'); ?>
+					</a>
+				</li>
+
+				<li class="<?php if ($page_name == 'content_pages' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') echo 'active'; ?>">
+					<a href="<?php echo site_url('user/content_pages'); ?>">
+						<?php echo get_phrase('Pages'); ?>
+					</a>
+				</li>
+
+			</ul>
+		</li>
+		<?php endif; ?>
 
 		<li class="side-nav-item">
 			<a href="<?php echo site_url('home/my_messages'); ?>" class="side-nav-link">

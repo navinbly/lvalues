@@ -834,6 +834,204 @@ class User extends CI_Controller
     }
 
     //End Blog
+	
+	private function _require_tutor_docs_access()
+	{
+		if ($this->session->userdata('user_login') != true) {
+			redirect(site_url('login'), 'refresh');
+		}
+
+		if (!$this->session->userdata('is_instructor')) {
+			$this->session->set_flashdata('error_message', 'Only tutors can access Content (Docs).');
+			redirect(site_url('user/dashboard'), 'refresh');
+		}
+	}
+
+	private function _ckeditor_upload_response($funcNum, $url = '', $message = '')
+	{
+		$funcNum = (int)$funcNum;
+		$url = str_replace("'", "\\'", $url);
+		$message = str_replace("'", "\\'", $message);
+		echo "<script>window.parent.CKEDITOR.tools.callFunction($funcNum, '$url', '$message');</script>";
+		exit;
+	}
+
+	public function content_docs_readme()
+	{
+		$this->_require_tutor_docs_access();
+		$page_data['page_name']  = 'content_docs_readme';
+		$page_data['page_title'] = 'Content (Docs) Documentation';
+		$this->load->view('backend/index', $page_data);
+	}
+
+	public function content_nodes($param1 = "", $param2 = "")
+	{
+		$this->_require_tutor_docs_access();
+		$this->load->model('content_docs_model');
+
+		$user_id = (int) $this->session->userdata('user_id');
+		$user_role = strtolower((string)$this->session->userdata('role')) ?: 'tutor';
+
+		$this->content_docs_model->ensure_root_nodes_exist($user_id);
+
+		if ($param1 === 'add') {
+			$res = $this->content_docs_model->add_node($user_id, $user_role, $this->input->post('parent_id'), $this->input->post('title'));
+			$this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+			redirect(site_url('user/content_nodes'), 'refresh');
+		}
+
+		if ($param1 === 'update') {
+			$res = $this->content_docs_model->update_node_title($user_id, $user_role, (int)$this->input->post('node_id'), (string)$this->input->post('title'));
+			$this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+			redirect(site_url('user/content_nodes'), 'refresh');
+		}
+
+		if ($param1 === 'delete') {
+			$res = $this->content_docs_model->delete_node($user_id, $user_role, (int)$param2);
+			$this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+			redirect(site_url('user/content_nodes'), 'refresh');
+		}
+
+		$page_data['page_name']  = 'content_nodes';
+		$page_data['page_title'] = get_phrase('nodes_(tree)');
+		$this->load->view('backend/index', $page_data);
+	}
+
+	public function content_pages($param1 = "", $param2 = "")
+	{
+		$this->_require_tutor_docs_access();
+		$page_data['page_name']  = 'content_pages';
+		$page_data['page_title'] = get_phrase('pages');
+		$this->load->view('backend/index', $page_data);
+	}
+
+	public function content_page_save()
+	{
+		$this->_require_tutor_docs_access();
+		$this->load->model('Content_pages_model');
+		$this->load->model('email_model');
+
+		$node_id = (int)$this->input->post('node_id');
+		$user_id = (int)$this->session->userdata('user_id');
+		$user_role = strtolower((string)$this->session->userdata('role')) ?: 'tutor';
+		$html = $this->input->post('html', false);
+
+		$meta = [
+			'meta_title'       => $this->input->post('meta_title'),
+			'meta_description' => $this->input->post('meta_description'),
+			'meta_keywords'    => $this->input->post('meta_keywords'),
+			'canonical_url'    => $this->input->post('canonical_url'),
+			'og_image'         => null,
+		];
+
+		if (!empty($_FILES['og_image']) && !empty($_FILES['og_image']['name'])) {
+			$upload_dir = FCPATH . 'uploads/blog/';
+			if (!is_dir($upload_dir)) { @mkdir($upload_dir, 0755, true); }
+			$config = [
+				'upload_path'   => $upload_dir,
+				'allowed_types' => 'jpg|jpeg|png|webp|gif',
+				'max_size'      => 2048,
+				'encrypt_name'  => true,
+			];
+			$this->load->library('upload', $config);
+			if (!$this->upload->do_upload('og_image')) {
+				$this->session->set_flashdata('error_message', 'OG Image upload failed: ' . $this->upload->display_errors('', ''));
+				redirect(site_url('user/content_nodes'), 'refresh');
+				return;
+			}
+			$up = $this->upload->data();
+			$meta['og_image'] = 'uploads/blog/' . $up['file_name'];
+		}
+
+		$res = $this->Content_pages_model->save_page($node_id, $html, $meta, $user_id, $user_role);
+
+		if (!empty($res['ok'])) {
+			$sync = $this->crud_model->sync_pending_blog_from_content_node($node_id, $user_id, $html, $meta, $user_role);
+			if (empty($sync['ok'])) {
+				log_message('error', 'CONTENT->BLOG SYNC FAILED node_id=' . (int)$node_id . ' user_id=' . (int)$user_id . ' error=' . json_encode($sync));
+			}
+
+			// Notify all admins for review
+			$admins = $this->db->get_where('users', ['role_id' => 1])->result_array();
+			foreach ($admins as $admin) {
+				$this->email_model->notify('content_page_approval_request', (int)$admin['id'], 'Content page approval request', 'A tutor has submitted content for approval.', $user_id);
+			}
+
+			if (!empty($sync['ok'])) {
+				$this->session->set_flashdata('flash_message', $res['message'] . ' It has been sent for admin approval.');
+			} else {
+				$this->session->set_flashdata('error_message', $res['message'] . ' But pending review entry could not be synced to blog queue.');
+			}
+		} else {
+			$this->session->set_flashdata('error_message', $res['message'] ?? 'Unable to save content');
+		}
+
+		redirect(site_url('user/content_nodes'), 'refresh');
+	}
+
+	public function content_page_get($node_id = 0)
+	{
+		$this->_require_tutor_docs_access();
+		$this->load->model('Content_pages_model');
+		$row = $this->Content_pages_model->get_page_by_node_id((int)$node_id);
+		$this->output->set_content_type('application/json')
+			->set_output(json_encode(['ok' => !empty($row), 'data' => $row ?: null]));
+	}
+
+	public function content_page_upload()
+	{
+		$this->_require_tutor_docs_access();
+		$funcNum = $this->input->get('CKEditorFuncNum');
+		if (!$funcNum) $funcNum = 1;
+		$upload_path = FCPATH . 'uploads/content_pages/';
+		if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
+		if (!isset($_FILES['upload'])) {
+			return $this->_ckeditor_upload_response($funcNum, '', 'No file selected.');
+		}
+		if ($_FILES['upload']['error'] != 0) {
+			return $this->_ckeditor_upload_response($funcNum, '', 'Upload failed.');
+		}
+		$tmp = $_FILES['upload']['tmp_name'];
+		$name = $_FILES['upload']['name'];
+		$ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+		if (!in_array($ext, ['jpg','jpeg','png','gif','webp'])) {
+			return $this->_ckeditor_upload_response($funcNum, '', 'Only image files are allowed.');
+		}
+		$finfo = finfo_open(FILEINFO_MIME_TYPE);
+		$mime = finfo_file($finfo, $tmp);
+		finfo_close($finfo);
+		if (!in_array($mime, ['image/jpeg','image/png','image/gif','image/webp'])) {
+			return $this->_ckeditor_upload_response($funcNum, '', 'Invalid image type detected.');
+		}
+		$safeBase = preg_replace('/[^a-zA-Z0-9\-_]/', '_', pathinfo($name, PATHINFO_FILENAME));
+		$newName  = $safeBase . '_' . date('Ymd_His') . '_' . mt_rand(1000,9999) . '.' . $ext;
+		if (!move_uploaded_file($tmp, $upload_path . $newName)) {
+			return $this->_ckeditor_upload_response($funcNum, '', 'Failed to save uploaded file.');
+		}
+		return $this->_ckeditor_upload_response($funcNum, base_url('uploads/content_pages/' . $newName), 'Upload successful ✅');
+	}
+
+	public function content_page_pdf_upload()
+	{
+		$this->_require_tutor_docs_access();
+		$upload_path = FCPATH . 'uploads/content_pages_pdfs/';
+		if (!is_dir($upload_path)) { @mkdir($upload_path, 0755, true); }
+		if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] != 0) {
+			return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'message'=>'No PDF uploaded.']));
+		}
+		$tmp = $_FILES['pdf']['tmp_name'];
+		$name = $_FILES['pdf']['name'];
+		$ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+		if ($ext !== 'pdf') {
+			return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'message'=>'Only PDF allowed.']));
+		}
+		$safeBase = preg_replace('/[^a-zA-Z0-9\-_]/', '_', pathinfo($name, PATHINFO_FILENAME));
+		$newName  = $safeBase . '_' . date('Ymd_His') . '_' . mt_rand(1000,9999) . '.pdf';
+		if (!move_uploaded_file($tmp, $upload_path . $newName)) {
+			return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>false,'message'=>'Failed to save PDF.']));
+		}
+		return $this->output->set_content_type('application/json')->set_output(json_encode(['ok'=>true,'url'=>base_url('uploads/content_pages_pdfs/' . $newName),'file'=>$newName]));
+	}
 
 
     function start_quiz($quiz_id = "", $retake = "")
@@ -1222,4 +1420,39 @@ class User extends CI_Controller
             redirect(site_url('home/my_courses'), 'refresh');
         }
     }
+	
+	/*public function content_nodes($param1 = "", $param2 = "")
+	{
+		if ($this->session->userdata('user_login') != true) {
+			redirect(site_url('login'), 'refresh');
+		}
+
+		if (!$this->session->userdata('is_instructor')) {
+			$this->session->set_flashdata('error_message', 'Only tutors can access Content (Docs).');
+			redirect(site_url('user/dashboard'), 'refresh');
+		}
+
+		$page_data['page_name']  = 'content_nodes';
+		$page_data['page_title'] = get_phrase('nodes_(tree)');
+		$this->load->view('backend/index', $page_data);
+	}
+
+	public function content_pages($param1 = "", $param2 = "")
+	{
+		if ($this->session->userdata('user_login') != true) {
+			redirect(site_url('login'), 'refresh');
+		}
+
+		if (!$this->session->userdata('is_instructor')) {
+			$this->session->set_flashdata('error_message', 'Only tutors can access Content (Docs).');
+			redirect(site_url('user/dashboard'), 'refresh');
+		}
+
+		$page_data['page_name']  = 'content_pages';
+		$page_data['page_title'] = get_phrase('pages');
+		$this->load->view('backend/index', $page_data);
+	}*/
+
+	
+	
 }

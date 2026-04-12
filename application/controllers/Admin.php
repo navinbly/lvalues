@@ -2096,117 +2096,42 @@ class Admin extends CI_Controller
 
     function blog_category($param1 = "", $param2 = "")
     {
-        if ($param1 == 'add') {
-            $response = $this->crud_model->add_blog_category();
-            if ($response == true) {
-                $this->session->set_flashdata('flash_message', get_phrase('blog_category_added_successfully'));
-            } else {
-                $this->session->set_flashdata('error_message', get_phrase('there_is_already_a_blog_with_this_name'));
-            }
-            redirect(site_url('admin/blog_category'), 'refresh');
-        } elseif ($param1 == 'update') {
-            $response = $this->crud_model->update_blog_category($param2);
-            if ($response == true) {
-                $this->session->set_flashdata('flash_message', get_phrase('blog_category_updated_successfully'));
-            } else {
-                $this->session->set_flashdata('error_message', get_phrase('there_is_already_a_blog_with_this_name'));
-            }
-            redirect(site_url('admin/blog_category'), 'refresh');
-        } elseif ($param1 == 'delete') {
-            $this->crud_model->delete_blog_category($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('blog_category_deleted_successfully'));
-            redirect(site_url('admin/blog_category'), 'refresh');
-        }
-        $page_data['categories'] = $this->crud_model->get_blog_categories();
-        $page_data['page_title'] = get_phrase('blog_category');
-        $page_data['page_name'] = 'blog_category';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please use Content (Docs).');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     function add_blog()
     {
-        $page_data['page_title'] = get_phrase('add_blog');
-        $page_data['page_name'] = 'blog_add';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please use Content (Docs).');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     function edit_blog($blog_id = "")
     {
-        $page_data['blog'] = $this->crud_model->get_blogs($blog_id)->row_array();
-        $page_data['page_title'] = get_phrase('edit_blog');
-        $page_data['page_name'] = 'blog_edit';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please use Content (Docs).');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     function blog($param1 = "", $param2 = "")
     {
-        if ($param1 == 'add') {
-            $this->crud_model->add_blog();
-            $this->session->set_flashdata('flash_message', get_phrase('blog_added_successfully'));
-            redirect(site_url('admin/blog'), 'refresh');
-        } elseif ($param1 == 'update') {
-            $this->crud_model->update_blog($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('blog_updated_successfully'));
-            redirect(site_url('admin/blog'), 'refresh');
-        } elseif ($param1 == 'status') {
-            $this->crud_model->update_blog_status($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('blog_status_has_been_updated'));
-            redirect(site_url('admin/blog'), 'refresh');
-        } elseif ($param1 == 'delete') {
-            $this->crud_model->blog_delete($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('blog_deleted_successfully'));
-            redirect(site_url('admin/blog'), 'refresh');
-        }
-        $page_data['blogs'] = $this->crud_model->get_blogs();
-        $page_data['page_title'] = get_phrase('blog');
-        $page_data['page_name'] = 'blog';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please review tutor blog requests from Pending Nodes.');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     function instructors_pending_blog($param1 = "", $param2 = "")
     {
-        if ($param1 == 'approval_request') {
-            $this->crud_model->approve_blog($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('the_blog_has_been_approved'));
-            redirect(site_url('admin/instructors_pending_blog'), 'refresh');
-        } elseif ($param1 == 'delete') {
-            $this->crud_model->blog_delete($param2);
-            $this->session->set_flashdata('flash_message', get_phrase('blog_deleted_successfully'));
-            redirect(site_url('admin/instructors_pending_blog'), 'refresh');
-        }
-        $page_data['pending_blogs'] = $this->crud_model->get_instructors_pending_blog();
-        $page_data['page_title'] = get_phrase('instructors_pending_blog');
-        $page_data['page_name'] = 'instructors_pending_blog';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please review tutor blog requests from Pending Nodes.');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     function blog_settings($param1 = "")
     {
-        if ($param1 == 'update') {
-            $this->crud_model->update_blog_settings();
-            $this->session->set_flashdata('flash_message', get_phrase('blog_settings_updated_successfully'));
-            redirect(site_url('admin/blog_settings'), 'refresh');
-        }
-        $page_data['page_title'] = get_phrase('blog_settings');
-        $page_data['page_name'] = 'blog_settings';
-        $this->load->view('backend/index', $page_data);
+        $this->session->set_flashdata('error_message', 'Old Blog admin section is disabled. Please use Content (Docs).');
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
-    //End blog
-
-	// =======================
-// Start Content (Docs)
-// =======================
 
 public function content_nodes($param1 = "", $param2 = "")
 {
-    // Load model (safe even if already loaded elsewhere)
-    $this->load->model('Content_docs_model', 'content_docs_model');
-
-    // Admin login check
-    if ($this->session->userdata('admin_login') != true) {
-        redirect(site_url('login'), 'refresh');
-    }
-
     $user_id   = (int) $this->session->userdata('user_id');
     $user_role = strtolower($this->session->userdata('role')); // admin / instructor / tutor etc
 
@@ -2317,41 +2242,125 @@ public function content_nodes($param1 = "", $param2 = "")
 
 public function content_nodes_pending($action = "", $node_id = "")
 {
-    // Only admin can approve/reject
-    if ($this->session->userdata('role') != 'admin') {
-        $this->session->set_flashdata('error_message', 'Only admin can approve/reject nodes.');
-        redirect(site_url('admin/content_nodes'), 'refresh');
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
     }
 
-    // actions
+    $admin_user_id = (int) $this->session->userdata('user_id');
+    $this->load->model('email_model');
+
     if ($action === 'approve' && $node_id) {
-        $resp = $this->content_docs_model->approve_node($node_id, $this->session->userdata('user_id'));
-        if ($resp['ok']) {
-            $this->session->set_flashdata('flash_message', $resp['message']);
-        } else {
-            $this->session->set_flashdata('error_message', $resp['message']);
+        $resp = $this->content_docs_model->approve_node($node_id, $admin_user_id);
+        if (!empty($resp['ok'])) {
+            $this->crud_model->sync_blog_status_from_node((int)$node_id, 'published', $admin_user_id);
+            $node = $this->db->get_where('content_nodes', ['node_id' => (int)$node_id])->row_array();
+            if (!empty($node['created_by'])) {
+                $this->email_model->notify(
+                    'content_page_approved',
+                    (int)$node['created_by'],
+                    'Content approved',
+                    'Your content node "' . html_escape($node['title'] ?? ('Node #' . (int)$node_id)) . '" has been approved by admin.',
+                    $admin_user_id
+                );
+            }
         }
+        $this->session->set_flashdata(!empty($resp['ok']) ? 'flash_message' : 'error_message', $resp['message']);
         redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     if ($action === 'reject' && $node_id) {
-        $resp = $this->content_docs_model->reject_node($node_id, $this->session->userdata('user_id'));
-        if ($resp['ok']) {
-            $this->session->set_flashdata('flash_message', $resp['message']);
+        $node = $this->db->get_where('content_nodes', ['node_id' => (int)$node_id])->row_array();
+        $resp = $this->content_docs_model->reject_node($node_id, $admin_user_id);
+        if (!empty($resp['ok'])) {
+            $this->crud_model->sync_blog_status_from_node((int)$node_id, 'rejected', $admin_user_id);
+            if (!empty($node['created_by'])) {
+                $this->email_model->notify(
+                    'content_page_rejected',
+                    (int)$node['created_by'],
+                    'Content rejected',
+                    'Your content node "' . html_escape($node['title'] ?? ('Node #' . (int)$node_id)) . '" has been rejected by admin.',
+                    $admin_user_id
+                );
+            }
+        }
+        $this->session->set_flashdata(!empty($resp['ok']) ? 'flash_message' : 'error_message', $resp['message']);
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
+    if ($action === 'approve_blog' && $node_id) {
+        $blog_id = (int) $node_id;
+        $blog = $this->crud_model->get_all_blogs($blog_id)->row_array();
+        $pending_statuses = ['pending', '0', 0, '', null];
+        if (empty($blog) || !in_array($blog['status'], $pending_statuses, true)) {
+            $this->session->set_flashdata('error_message', 'Pending blog not found.');
+            redirect(site_url('admin/content_nodes_pending'), 'refresh');
+        }
+
+        if ($this->crud_model->approve_blog($blog_id)) {
+            $creator = $this->db->get_where('users', ['id' => (int)$blog['user_id']])->row_array();
+            if (!empty($creator)) {
+                $this->email_model->notify(
+                    'blog_approved',
+                    (int) $creator['id'],
+                    'Blog approved',
+                    'Your blog "' . html_escape($blog['title']) . '" has been approved by admin.',
+                    $admin_user_id
+                );
+            }
+            $this->session->set_flashdata('flash_message', 'Blog approved successfully.');
         } else {
-            $this->session->set_flashdata('error_message', $resp['message']);
+            $this->session->set_flashdata('error_message', 'Unable to approve blog.');
         }
         redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
-    // load page
+    if ($action === 'reject_blog' && $node_id) {
+        $blog_id = (int) $node_id;
+        $blog = $this->crud_model->get_all_blogs($blog_id)->row_array();
+        $pending_statuses = ['pending', '0', 0, '', null];
+        if (empty($blog) || !in_array($blog['status'], $pending_statuses, true)) {
+            $this->session->set_flashdata('error_message', 'Pending blog not found.');
+            redirect(site_url('admin/content_nodes_pending'), 'refresh');
+        }
+
+        $creator = $this->db->get_where('users', ['id' => (int)$blog['user_id']])->row_array();
+        $title = $blog['title'];
+        $ok = $this->crud_model->blog_delete($blog_id);
+        if ($ok) {
+            if (!empty($creator)) {
+                $this->email_model->notify(
+                    'blog_rejected',
+                    (int) $creator['id'],
+                    'Blog rejected',
+                    'Your blog "' . html_escape($title) . '" has been rejected by admin.',
+                    $admin_user_id
+                );
+            }
+            $this->session->set_flashdata('flash_message', 'Blog rejected successfully.');
+        } else {
+            $this->session->set_flashdata('error_message', 'Unable to reject blog.');
+        }
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
     $page_data['pending_nodes'] = $this->content_docs_model->get_pending_nodes();
-    $page_data['page_title'] = 'Content (Docs) - Pending Nodes';
-    //$page_data['page_name']  = 'content/content_nodes_pending';
-	$page_data['page_name'] = 'content_nodes_pending';
+    $page_data['pending_blogs'] = $this->crud_model->get_instructors_pending_blog();
+    $page_data['page_title']    = 'Content (Docs) - Pending Nodes';
+    $page_data['page_name']     = 'content_nodes_pending';
     $this->load->view('backend/index', $page_data);
 }
 
+
+public function content_docs_readme()
+{
+    if ($this->session->userdata('admin_login') != true) {
+        redirect(site_url('login'), 'refresh');
+    }
+
+    $page_data['page_name']  = 'content_docs_readme';
+    $page_data['page_title'] = 'Content (Docs) Documentation';
+    $this->load->view('backend/index', $page_data);
+}
 
 public function content_pages($param1 = "", $param2 = "")
 {
@@ -2733,6 +2742,10 @@ public function update_node_order()
 
 				if (in_array($notification['type'], ['tutor_approval_request', 'signup'])) {
 					redirect(site_url('admin/instructor_application'), 'refresh');
+				}
+
+				if (in_array($notification['type'], ['blog_approval_request', 'blog_approved', 'blog_rejected'])) {
+					redirect(site_url('admin/content_nodes_pending'), 'refresh');
 				}
 
 				redirect(site_url('admin/dashboard'), 'refresh');

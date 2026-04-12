@@ -4645,7 +4645,18 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         if ($user_id > 0) {
             $this->db->where('user_id', $user_id);
         }
+
+        // Support older schemas where pending may be stored as
+        // 'pending', 0, '0', empty string or NULL.
+        $this->db->group_start();
         $this->db->where('status', 'pending');
+        $this->db->or_where('status', 0);
+        $this->db->or_where('status', '0');
+        $this->db->or_where('status', '');
+        $this->db->or_where('status IS NULL', null, false);
+        $this->db->group_end();
+
+        $this->db->order_by('blog_id', 'DESC');
         return $this->db->get('blogs');
     }
 
@@ -4677,7 +4688,20 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
     {
         $this->db->where('user_id', $user_id);
         if ($status == '') {
+            $this->db->group_start();
             $this->db->where('status !=', 'pending');
+            $this->db->where('status !=', 0);
+            $this->db->where('status !=', '0');
+            $this->db->where('status !=', '');
+            $this->db->group_end();
+        } elseif ($status === 'pending') {
+            $this->db->group_start();
+            $this->db->where('status', 'pending');
+            $this->db->or_where('status', 0);
+            $this->db->or_where('status', '0');
+            $this->db->or_where('status', '');
+            $this->db->or_where('status IS NULL', null, false);
+            $this->db->group_end();
         } else {
             $this->db->where('status', $status);
         }
@@ -4745,6 +4769,8 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
     //Start for admin panel
     function add_blog()
     {
+		log_message('error', 'DEBUG add_blog START user_id=' . $this->session->userdata('user_id'));
+		
         $data['title'] = htmlspecialchars_($this->input->post('title'));
         $data['blog_category_id'] = htmlspecialchars_($this->input->post('blog_category_id'));
         $data['keywords'] = htmlspecialchars_($this->input->post('keywords'));
@@ -4756,20 +4782,45 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
             $data['is_popular'] = htmlspecialchars_($this->input->post('is_popular'));
             $data['status'] = 1;
         } else {
+            // Use a portable pending value so old and new schemas both work.
+            // Some installations use VARCHAR('pending'), while others keep
+            // a numeric status column where pending is stored as 0.
             $data['status'] = 'pending';
             $data['is_popular'] = 0;
         }
 
-        if ($_FILES['thumbnail']['name'] != "") {
+        if (!empty($_FILES['thumbnail']['name'])) {
             $data['thumbnail'] = md5(rand(10000000, 20000000)) . '.png';
             move_uploaded_file($_FILES['thumbnail']['tmp_name'], 'uploads/blog/thumbnail/' . $data['thumbnail']);
         }
-        if ($_FILES['banner']['name'] != "") {
+        if (!empty($_FILES['banner']['name'])) {
             $data['banner'] = md5(rand(10000000, 20000000)) . '.png';
             move_uploaded_file($_FILES['banner']['tmp_name'], 'uploads/blog/banner/' . $data['banner']);
         }
 
+		log_message('error', 'DEBUG add_blog BEFORE INSERT title=' . $data['title'] . ' user_id=' . $data['user_id'] . ' status=' . $data['status']);
         $this->db->insert('blogs', $data);
+		log_message('error', 'DEBUG add_blog AFTER INSERT blog_id=' . $this->db->insert_id() . ' db_error=' . json_encode($this->db->error()));
+        $blog_id = (int) $this->db->insert_id();
+
+        if (!$this->session->userdata('admin_login')) {
+            $this->load->model('email_model');
+            $admin = $this->db->get_where('users', ['role_id' => 1])->row_array();
+            $creator = $this->db->get_where('users', ['id' => (int)$data['user_id']])->row_array();
+            if (!empty($admin) && !empty($creator)) {
+                $full_name = trim(($creator['first_name'] ?? '') . ' ' . ($creator['last_name'] ?? ''));
+                if ($full_name === '') {
+                    $full_name = $creator['email'] ?? 'Tutor';
+                }
+                $subject = 'Blog approval request';
+                $description = 'New blog submitted by ' . html_escape($full_name)
+                    . '<br>Title: ' . html_escape($data['title'])
+                    . '<br>Please review and approve or reject this blog request.';
+                $this->email_model->notify('blog_approval_request', (int)$admin['id'], $subject, $description, (int)$data['user_id']);
+            }
+        }
+
+        return $blog_id;
     }
 
     function update_blog($blog_id = "")
@@ -4815,23 +4866,320 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         endif;
     }
 
+
+    private function _safe_blog_value($value, $default = '')
+    {
+        if ($value === null) {
+            return $default;
+        }
+        return is_string($value) ? $value : (string)$value;
+    }
+
+    private function _blog_table_has_column($column)
+    {
+        return $this->db->field_exists($column, 'blogs');
+    }
+
+    private function _mapping_table_has_column($column)
+    {
+        return $this->db->table_exists('content_node_blog_map') && $this->db->field_exists($column, 'content_node_blog_map');
+    }
+
+    private function _get_default_blog_category_id()
+    {
+        if (!$this->db->table_exists('blog_category')) {
+            return null;
+        }
+        $row = $this->db->order_by('blog_category_id', 'ASC')->get('blog_category')->row_array();
+        return !empty($row['blog_category_id']) ? (int)$row['blog_category_id'] : null;
+    }
+
+    private function _get_mapped_blog_id_by_node($node_id)
+    {
+        $node_id = (int)$node_id;
+        if ($node_id <= 0 || !$this->db->table_exists('content_node_blog_map')) {
+            return 0;
+        }
+        if (!$this->db->field_exists('node_id', 'content_node_blog_map') || !$this->db->field_exists('blog_id', 'content_node_blog_map')) {
+            return 0;
+        }
+
+        $row = $this->db->get_where('content_node_blog_map', ['node_id' => $node_id])->row_array();
+        return !empty($row['blog_id']) ? (int)$row['blog_id'] : 0;
+    }
+
+    private function _upsert_content_node_blog_map($node_id, $blog_id, $user_id = 0)
+    {
+        $node_id = (int)$node_id;
+        $blog_id = (int)$blog_id;
+        $user_id = (int)$user_id;
+
+        if ($node_id <= 0 || $blog_id <= 0 || !$this->db->table_exists('content_node_blog_map')) {
+            return false;
+        }
+        if (!$this->db->field_exists('node_id', 'content_node_blog_map') || !$this->db->field_exists('blog_id', 'content_node_blog_map')) {
+            return false;
+        }
+
+        $now_dt = date('Y-m-d H:i:s');
+        $now_ts = time();
+        $save = [
+            'node_id' => $node_id,
+            'blog_id' => $blog_id,
+        ];
+
+        foreach (['user_id', 'created_by', 'updated_by'] as $col) {
+            if ($user_id > 0 && $this->_mapping_table_has_column($col)) {
+                $save[$col] = $user_id;
+            }
+        }
+        if ($this->_mapping_table_has_column('created_at')) {
+            $save['created_at'] = $now_dt;
+        }
+        if ($this->_mapping_table_has_column('updated_at')) {
+            $save['updated_at'] = $now_dt;
+        }
+        if ($this->_mapping_table_has_column('added_date')) {
+            $save['added_date'] = $now_ts;
+        }
+        if ($this->_mapping_table_has_column('updated_date')) {
+            $save['updated_date'] = $now_ts;
+        }
+
+        $existing = $this->db->get_where('content_node_blog_map', ['node_id' => $node_id])->row_array();
+        if (!empty($existing)) {
+            if ($this->_mapping_table_has_column('created_at')) {
+                unset($save['created_at']);
+            }
+            if ($this->_mapping_table_has_column('added_date')) {
+                unset($save['added_date']);
+            }
+            $this->db->where('node_id', $node_id)->update('content_node_blog_map', $save);
+        } else {
+            $this->db->insert('content_node_blog_map', $save);
+        }
+
+        return $this->db->affected_rows() >= 0;
+    }
+
+    function sync_pending_blog_from_content_node($node_id, $user_id, $html, $meta = [], $user_role = 'tutor')
+    {
+        $node_id   = (int)$node_id;
+        $user_id   = (int)$user_id;
+        $user_role = strtolower((string)$user_role);
+
+        if ($node_id <= 0 || $user_id <= 0) {
+            return ['ok' => false, 'message' => 'Invalid node/user'];
+        }
+
+        $node = $this->db->get_where('content_nodes', ['node_id' => $node_id])->row_array();
+        if (empty($node)) {
+            return ['ok' => false, 'message' => 'Content node not found'];
+        }
+
+        $title = trim((string)($meta['meta_title'] ?? ''));
+        if ($title === '') {
+            $title = trim((string)($node['title'] ?? 'Untitled content'));
+        }
+
+        $description = htmlspecialchars_(remove_js((string)$html));
+        $keywords    = htmlspecialchars_((string)($meta['meta_keywords'] ?? ''));
+        $status      = ($user_role === 'admin') ? '1' : 'pending';
+        $category_id = $this->_get_default_blog_category_id();
+        $existing_blog_id = $this->_get_mapped_blog_id_by_node($node_id);
+
+        $data = [];
+        if ($this->_blog_table_has_column('title')) {
+            $data['title'] = htmlspecialchars_($title);
+        }
+        if ($this->_blog_table_has_column('description')) {
+            $data['description'] = $description;
+        }
+        if ($this->_blog_table_has_column('keywords')) {
+            $data['keywords'] = $keywords;
+        }
+        if ($this->_blog_table_has_column('user_id')) {
+            $data['user_id'] = $user_id;
+        }
+        if ($this->_blog_table_has_column('status')) {
+            $data['status'] = $status;
+        }
+        if ($this->_blog_table_has_column('is_popular')) {
+            $data['is_popular'] = 0;
+        }
+        if ($this->_blog_table_has_column('blog_category_id')) {
+            $data['blog_category_id'] = $category_id;
+        }
+        if ($this->_blog_table_has_column('updated_date')) {
+            $data['updated_date'] = time();
+        }
+
+        $blog = [];
+        if ($existing_blog_id > 0) {
+            $blog = $this->db->get_where('blogs', ['blog_id' => $existing_blog_id])->row_array();
+        }
+
+        if (!empty($blog)) {
+            if ($this->_blog_table_has_column('thumbnail') && empty($data['thumbnail']) && array_key_exists('thumbnail', $blog)) {
+                unset($data['thumbnail']);
+            }
+            if ($this->_blog_table_has_column('banner') && empty($data['banner']) && array_key_exists('banner', $blog)) {
+                unset($data['banner']);
+            }
+            $this->db->where('blog_id', $existing_blog_id)->update('blogs', $data);
+            if ($this->db->error()['code']) {
+                return ['ok' => false, 'message' => 'Blog update failed', 'db_error' => $this->db->error()];
+            }
+            $blog_id = $existing_blog_id;
+        } else {
+            if ($this->_blog_table_has_column('added_date')) {
+                $data['added_date'] = time();
+            }
+            $this->db->insert('blogs', $data);
+            if ($this->db->error()['code']) {
+                return ['ok' => false, 'message' => 'Blog insert failed', 'db_error' => $this->db->error()];
+            }
+            $blog_id = (int)$this->db->insert_id();
+        }
+
+        if ($blog_id <= 0) {
+            return ['ok' => false, 'message' => 'No blog id generated'];
+        }
+
+        $this->_upsert_content_node_blog_map($node_id, $blog_id, $user_id);
+
+        return ['ok' => true, 'blog_id' => $blog_id];
+    }
+
+    function sync_blog_status_from_node($node_id, $target_status, $admin_user_id = 0)
+    {
+        $node_id = (int)$node_id;
+        $admin_user_id = (int)$admin_user_id;
+        if ($node_id <= 0) {
+            return false;
+        }
+
+        $blog_id = $this->_get_mapped_blog_id_by_node($node_id);
+        if ($blog_id <= 0) {
+            return true;
+        }
+
+        $blog = $this->db->get_where('blogs', ['blog_id' => $blog_id])->row_array();
+        if (empty($blog)) {
+            return false;
+        }
+
+        if ($target_status === 'published' || $target_status === 1 || $target_status === '1') {
+            $update = ['status' => 1];
+            if ($this->_blog_table_has_column('updated_date')) {
+                $update['updated_date'] = time();
+            }
+            $this->db->where('blog_id', $blog_id)->update('blogs', $update);
+            return !$this->db->error()['code'];
+        }
+
+        if ($target_status === 'rejected') {
+            return $this->blog_delete($blog_id);
+        }
+
+        return false;
+    }
+
     function approve_blog($blog_id = "")
     {
+        $blog = $this->get_all_blogs($blog_id)->row_array();
+        if (empty($blog)) {
+            return false;
+        }
+
+        $this->db->trans_start();
+
+        $blog_update = array('status' => 1);
+        if ($this->_blog_table_has_column('updated_date')) {
+            $blog_update['updated_date'] = time();
+        }
         $this->db->where('blog_id', $blog_id);
-        $this->db->update('blogs', array('status' => 1));
+        $this->db->update('blogs', $blog_update);
+
+        $node_id = 0;
+        if ($this->db->table_exists('content_node_blog_map') && $this->db->field_exists('blog_id', 'content_node_blog_map') && $this->db->field_exists('node_id', 'content_node_blog_map')) {
+            $map = $this->db->get_where('content_node_blog_map', ['blog_id' => (int)$blog_id])->row_array();
+            $node_id = !empty($map['node_id']) ? (int)$map['node_id'] : 0;
+        }
+
+        if ($node_id > 0) {
+            $now = date('Y-m-d H:i:s');
+            if ($this->db->table_exists('content_node_pages')) {
+                $page_update = [
+                    'status'      => 'published',
+                    'approved_by' => (int)$this->session->userdata('user_id'),
+                    'approved_at' => $now,
+                    'updated_at'  => $now,
+                ];
+                $this->db->where('node_id', $node_id)->update('content_node_pages', $page_update);
+            }
+            if ($this->db->table_exists('content_nodes')) {
+                $node_update = [
+                    'status'      => 'published',
+                    'approved_by' => (int)$this->session->userdata('user_id'),
+                    'approved_at' => $now,
+                    'updated_at'  => $now,
+                ];
+                $this->db->where('node_id', $node_id)->update('content_nodes', $node_update);
+            }
+        }
+
+        $this->db->trans_complete();
+        return ($this->db->trans_status() !== false);
     }
 
     function blog_delete($blog_id = "")
     {
-        $blog = $this->get_blogs()->row_array();
-        unlink('uploads/blog/banner/' . $blog['banner']);
-        unlink('uploads/blog/thumbnail/' . $blog['thumbnail']);
+        $node_id = 0;
+        if ($this->db->table_exists('content_node_blog_map') && $this->db->field_exists('blog_id', 'content_node_blog_map') && $this->db->field_exists('node_id', 'content_node_blog_map')) {
+            $map = $this->db->get_where('content_node_blog_map', ['blog_id' => (int)$blog_id])->row_array();
+            $node_id = !empty($map['node_id']) ? (int)$map['node_id'] : 0;
+        }
+
+        $blog = $this->get_all_blogs($blog_id)->row_array();
+        if (!empty($blog)) {
+            $banner_path = 'uploads/blog/banner/' . ($blog['banner'] ?? '');
+            $thumb_path  = 'uploads/blog/thumbnail/' . ($blog['thumbnail'] ?? '');
+
+            if (!empty($blog['banner']) && file_exists($banner_path) && is_file($banner_path)) {
+                @unlink($banner_path);
+            }
+            if (!empty($blog['thumbnail']) && file_exists($thumb_path) && is_file($thumb_path)) {
+                @unlink($thumb_path);
+            }
+        }
 
         $this->db->where('blog_id', $blog_id);
         $this->db->delete('blogs');
 
         $this->db->where('blog_id', $blog_id);
         $this->db->delete('blog_comments');
+
+        if ($node_id > 0) {
+            $now = date('Y-m-d H:i:s');
+            if ($this->db->table_exists('content_node_pages')) {
+                $this->db->where('node_id', $node_id)->update('content_node_pages', [
+                    'status' => 'rejected',
+                    'updated_at' => $now,
+                ]);
+            }
+            if ($this->db->table_exists('content_nodes')) {
+                $this->db->where('node_id', $node_id)->update('content_nodes', [
+                    'status' => 'rejected',
+                    'updated_at' => $now,
+                ]);
+            }
+            if ($this->db->table_exists('content_node_blog_map')) {
+                $this->db->where('blog_id', (int)$blog_id)->delete('content_node_blog_map');
+            }
+        }
+
+        return true;
     }
 
     function update_blog_settings()

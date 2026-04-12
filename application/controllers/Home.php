@@ -1966,6 +1966,10 @@ class Home extends CI_Controller
 					redirect(site_url('user/become_an_instructor'), 'refresh');
 				}
 
+				if (in_array($notification['type'], ['blog_approved', 'blog_rejected'])) {
+					redirect(site_url('user/pending_blog'), 'refresh');
+				}
+
 				redirect(site_url('home'), 'refresh');
 			}
 

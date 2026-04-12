@@ -302,34 +302,7 @@ $status_wise_courses = $this->crud_model->get_status_wise_courses();
             <!-- ... your existing Contact menu continues ... -->
 		<?php endif; ?>
 
-		<?php if (has_permission('blog')) : ?>
-			<li class="side-nav-item <?php if ($page_name == 'blog' || $page_name == 'blog_add' || $page_name == 'blog_edit' || $page_name == 'blog_category' || $page_name == 'blog_settings' || $page_name == 'instructors_pending_blog') : ?> active <?php endif; ?>">
-				<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'blog' || $page_name == 'blog_add' || $page_name == 'blog_edit' || $page_name == 'blog_category' || $page_name == 'blog_settings' || $page_name == 'instructors_pending_blog') : ?> active <?php endif; ?>">
-					<i class="dripicons-blog"></i>
-					<span> <?php echo get_phrase('blog'); ?> </span>
-					<span class="menu-arrow"></span>
-				</a>
-				<ul class="side-nav-second-level" aria-expanded="false">
-					<li class="<?php if ($page_name == 'blog') echo 'active'; ?>">
-						<a href="<?php echo site_url('admin/blog'); ?>"><?php echo get_phrase('all_blogs'); ?></a>
-					</li>
-
-					<li class="<?php if ($page_name == 'instructors_pending_blog') echo 'active'; ?>">
-						<a href="<?php echo site_url('admin/instructors_pending_blog'); ?>">
-							<?php echo get_phrase('pending_blog'); ?>
-							<span class="badge badge-danger-lighten"><?php echo $this->crud_model->get_instructors_pending_blog()->num_rows(); ?></span>
-						</a>
-					</li>
-
-					<li class="<?php if ($page_name == 'blog_category') echo 'active'; ?>">
-						<a href="<?php echo site_url('admin/blog_category'); ?>"><?php echo get_phrase('blog_category'); ?></a>
-					</li>
-
-					<li class="<?php if ($page_name == 'blog_settings') echo 'active'; ?>">
-						<a href="<?php echo site_url('admin/blog_settings'); ?>"><?php echo get_phrase('blog_settings'); ?></a>
-					</li>
-				</ul>
-			</li>
+		<?php if (false && has_permission('blog')) : ?>
 		<?php endif; ?>
 
 		<!-- ✅ NEW: Content (Docs) menu -->
@@ -345,7 +318,7 @@ $status_wise_courses = $this->crud_model->get_status_wise_courses();
 						<a href="<?php echo site_url('admin/content_nodes'); ?>">Nodes (Tree)</a>
 					</li>
 					<li class="<?php if ($page_name == 'content_nodes_pending') echo 'active'; ?>">
-						<a href="<?php echo site_url('admin/content_nodes_pending'); ?>">Pending Nodes</a>
+						<a href="<?php echo site_url('admin/content_nodes_pending'); ?>">Pending Nodes <span class="badge badge-danger-lighten"><?php echo count($this->content_docs_model->get_pending_nodes()) + $this->crud_model->get_instructors_pending_blog()->num_rows(); ?></span></a>
 					</li>
 					<li class="<?php if ($page_name == 'content_pages') echo 'active'; ?>">
 						<a href="<?php echo site_url('admin/content_pages'); ?>">Pages</a>
