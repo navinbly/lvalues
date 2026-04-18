@@ -23,46 +23,53 @@
                 </div>
                 <div class="search-option lvalues-hero-search">
     <div class="search-box p-4 rounded shadow-sm bg-white">
-	  <h4 class="fw-bold mb-2">What are you looking for?</h4>
-	  <p class="text-muted mb-3">
-		Search <strong>courses</strong> to build skills or find an expert <strong>tutor</strong> for personalized learning.
-	  </p>
+        <h4 class="fw-bold mb-2">What are you looking for?</h4>
+        <p class="text-muted mb-3">
+            Find the right <strong>tutor</strong> or search by <strong>subject</strong> for personalized learning.
+        </p>
     </div>
+
     <form action="<?php echo site_url('home/search'); ?>" method="get" class="lvalues-hero-search-form">
+        <input type="hidden" name="search_for" class="lvalues-search-for-input" value="tutor">
+
+        <div class="lvalues-search-toggle-wrap mb-3">
+            <button type="button" class="btn btn-primary lvalues-search-toggle active" data-mode="tutor">
+                <?php echo get_phrase('Find a tutor'); ?>
+            </button>
+            <button type="button" class="btn btn-outline-primary lvalues-search-toggle" data-mode="subject">
+                <?php echo get_phrase('Find a subject'); ?>
+            </button>
+        </div>
+
         <div class="lvalues-hero-search-row">
-            <div class="lvalues-search-type">
-                <label for="lvalues_search_for_home_1">Search for</label>
-                <select class="form-control" name="search_for" id="lvalues_search_for_home_1">
-                    <option value="course" selected><?php echo get_phrase('Courses'); ?></option>
-                    <option value="tutor"><?php echo get_phrase('Tutors'); ?></option>
-                </select>
-            </div>
             <div class="lvalues-search-input-wrap">
                 <label for="lvalues_search_query_home_1">Enter keyword</label>
-                <input class="form-control lvalues-search-input" type="text" id="lvalues_search_query_home_1" name="query" placeholder="Search courses like Data Science, AWS, Python">
-                <small id="lvalues_search_hint_home_1" class="lvalues-search-hint">Example: Data Science, DevOps, Python, Java tutor, Home tutor</small>
+                <input
+                    class="form-control lvalues-search-input"
+                    type="text"
+                    id="lvalues_search_query_home_1"
+                    name="query"
+                    placeholder="Search tutor like Math tutor, English tutor, Java tutor"
+                >
+                <small id="lvalues_search_hint_home_1" class="lvalues-search-hint">
+                    Example: Math tutor, English tutor, Home tutor, Online tutor
+                </small>
             </div>
-            <div class="d-flex gap-2 align-items-center mt-2">
 
-				<input class="form-control hero-search-input"
-					   type="text"
-					   id="searchQuery"
-					   name="query"
-					   placeholder="Search courses like Data Science, AWS, Python">
-
-				<button class="btn btn-primary px-4 py-2" type="submit">
-					<i class="fa fa-search"></i> Search
-				</button>
-
-			</div>
+            <div class="lvalues-search-button-wrap">
+                <button class="btn btn-primary lvalues-search-button px-4 py-2" type="submit">
+                    <i class="fa fa-search"></i> Search
+                </button>
+            </div>
         </div>
+
         <div class="lvalues-search-tags">
             <span class="lvalues-search-tags-label">Popular:</span>
-            <button type="button" class="lvalues-search-tag" data-target="home_1" data-type="course" data-value="Python">Python</button>
-            <button type="button" class="lvalues-search-tag" data-target="home_1" data-type="course" data-value="Data Science">Data Science</button>
-            <button type="button" class="lvalues-search-tag" data-target="home_1" data-type="course" data-value="AWS">AWS</button>
-            <button type="button" class="lvalues-search-tag" data-target="home_1" data-type="tutor" data-value="Math tutor">Math tutor</button>
-            <button type="button" class="lvalues-search-tag" data-target="home_1" data-type="tutor" data-value="English tutor">English tutor</button>
+            <button type="button" class="lvalues-search-tag" data-mode="tutor" data-value="Math tutor">Math tutor</button>
+            <button type="button" class="lvalues-search-tag" data-mode="tutor" data-value="English tutor">English tutor</button>
+            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Mathematics">Mathematics</button>
+            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Physics">Physics</button>
+            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Computer Science">Computer Science</button>
         </div>
     </form>
 </div>
@@ -76,17 +83,41 @@
     padding: 22px;
     box-shadow: 0 14px 35px rgba(33, 43, 99, 0.08);
 }
-.lvalues-search-heading h5{
-    margin-bottom: 6px;
-    font-size: 24px;
-    font-weight: 700;
-    color: #1d2746;
+.lvalues-search-toggle-wrap{
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
-.lvalues-search-heading p{
-    margin-bottom: 18px;
-    color: #6b7280;
-    font-size: 15px;
-    line-height: 1.7;
+.lvalues-search-toggle{
+    min-width: 150px;
+    border-radius: 12px !important;
+    font-weight: 700;
+    border: 1px solid #6c4df6 !important;
+    background: #ffffff !important;
+    color: #6c4df6 !important;
+}
+.lvalues-search-toggle:hover,
+.lvalues-search-toggle:focus,
+.lvalues-search-toggle:active{
+    color: #6c4df6 !important;
+    background: #f4f1ff !important;
+    border-color: #6c4df6 !important;
+    box-shadow: none !important;
+}
+.lvalues-search-toggle.active,
+.lvalues-search-toggle.btn-primary,
+.lvalues-search-toggle.active:hover,
+.lvalues-search-toggle.active:focus,
+.lvalues-search-toggle.active:active{
+    background: #6c4df6 !important;
+    border-color: #6c4df6 !important;
+    color: #ffffff !important;
+    box-shadow: none !important;
+}
+.lvalues-search-toggle.btn-outline-primary{
+    background: #ffffff !important;
+    color: #6c4df6 !important;
+    border-color: #6c4df6 !important;
 }
 .lvalues-hero-search-row{
     display: flex;
@@ -94,17 +125,12 @@
     align-items: end;
     flex-wrap: wrap;
 }
-.lvalues-search-type{
-    min-width: 180px;
-    flex: 0 0 180px;
-}
 .lvalues-search-input-wrap{
     flex: 1 1 360px;
 }
 .lvalues-search-button-wrap{
     flex: 0 0 auto;
 }
-.lvalues-search-type label,
 .lvalues-search-input-wrap label{
     display: block;
     margin-bottom: 8px;
@@ -112,16 +138,14 @@
     font-weight: 700;
     color: #4b5563;
 }
-.lvalues-search-input,
-.lvalues-search-type select{
+.lvalues-search-input{
     height: 56px;
     border-radius: 12px;
     border: 1px solid #dfe3f0;
     box-shadow: none;
     font-size: 16px;
 }
-.lvalues-search-input:focus,
-.lvalues-search-type select:focus{
+.lvalues-search-input:focus{
     border-color: #6c4df6;
     box-shadow: 0 0 0 0.15rem rgba(108, 77, 246, 0.15);
 }
@@ -171,13 +195,13 @@
     .lvalues-hero-search{
         padding: 16px;
     }
-    .lvalues-search-type,
     .lvalues-search-input-wrap,
     .lvalues-search-button-wrap{
         flex: 1 1 100%;
         min-width: 100%;
     }
-    .lvalues-search-button{
+    .lvalues-search-button,
+    .lvalues-search-toggle{
         width: 100%;
     }
 }
@@ -185,42 +209,55 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    var searchType = document.getElementById('lvalues_search_for_home_1');
-    var searchQuery = document.getElementById('lvalues_search_query_home_1');
-    var searchHint = document.getElementById('lvalues_search_hint_home_1');
-    var tags = document.querySelectorAll('.lvalues-search-tag[data-target="home_1"]');
+    var heroSearch = document.querySelector('.lvalues-hero-search');
+    if (!heroSearch) return;
 
-    function updateLvaluesHeroSearch() {
-        if (!searchType || !searchQuery || !searchHint) return;
+    var hiddenInput = heroSearch.querySelector('.lvalues-search-for-input');
+    var searchQuery = heroSearch.querySelector('.lvalues-search-input');
+    var searchHint  = heroSearch.querySelector('.lvalues-search-hint');
+    var toggles     = heroSearch.querySelectorAll('.lvalues-search-toggle');
+    var tags        = heroSearch.querySelectorAll('.lvalues-search-tag');
 
-        if (searchType.value === 'tutor') {
-            searchQuery.placeholder = 'Search tutors like Math tutor, Java tutor, IELTS tutor';
-            searchHint.textContent = 'Example: Math tutor, English tutor, Home tutor, Online tutor';
+    function setActiveMode(mode) {
+        if (!hiddenInput || !searchQuery || !searchHint) return;
+
+        hiddenInput.value = 'tutor';
+
+        toggles.forEach(function(btn) {
+            var isActive = btn.getAttribute('data-mode') === mode;
+            btn.classList.toggle('btn-primary', isActive);
+            btn.classList.toggle('active', isActive);
+            btn.classList.toggle('btn-outline-primary', !isActive);
+        });
+
+        if (mode === 'subject') {
+            searchQuery.placeholder = 'Search subject like Mathematics, Physics, Chemistry';
+            searchHint.textContent  = 'Example: Mathematics, Physics, Chemistry, Biology, Computer Science';
         } else {
-            searchQuery.placeholder = 'Search courses like Data Science, AWS, Python';
-            searchHint.textContent = 'Example: Data Science, DevOps, Python, Cloud Computing';
+            searchQuery.placeholder = 'Search tutor like Math tutor, English tutor, Java tutor';
+            searchHint.textContent  = 'Example: Math tutor, English tutor, Home tutor, Online tutor';
         }
     }
 
-    if (searchType) {
-        searchType.addEventListener('change', updateLvaluesHeroSearch);
-        updateLvaluesHeroSearch();
-    }
+    toggles.forEach(function(btn) {
+        btn.addEventListener('click', function () {
+            setActiveMode(this.getAttribute('data-mode'));
+        });
+    });
 
     tags.forEach(function(tag) {
         tag.addEventListener('click', function() {
-            var type = this.getAttribute('data-type');
+            var mode  = this.getAttribute('data-mode');
             var value = this.getAttribute('data-value');
-            if (searchType) {
-                searchType.value = type;
-                updateLvaluesHeroSearch();
-            }
+            setActiveMode(mode);
             if (searchQuery) {
                 searchQuery.value = value;
                 searchQuery.focus();
             }
         });
     });
+
+    setActiveMode('tutor');
 });
 </script>
                 

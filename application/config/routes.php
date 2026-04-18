@@ -151,3 +151,7 @@ $route['sign_up/verification_code'] = 'Sign_up/verification_code';
 $route['tutor-api/registration-tree'] = 'Tutor_api/registration_tree';
 $route['tutor-api/classes-by-category'] = 'Tutor_api/classes_by_category';
 $route['tutor-api/subjects-by-class'] = 'Tutor_api/subjects_by_class';
+
+
+$route['user/tutor_teaching_profile'] = 'User/tutor_teaching_profile';
+$route['user/update_tutor_teaching_profile'] = 'User/update_tutor_teaching_profile';

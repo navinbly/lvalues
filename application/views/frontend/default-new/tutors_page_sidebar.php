@@ -17,7 +17,7 @@ $selected_subject_id  = isset($_GET['subject_id']) ? (int) $_GET['subject_id'] :
             <select class="form-control" name="category_id" id="tutor_filter_category" onchange="syncTutorFilterTaxonomy(); filterTutor();">
                 <option value="0">All categories</option>
                 <?php foreach ($taxonomy_tree as $category): ?>
-                    <option value="<?php echo (int)$category['id']; ?>" <?php if($selected_category_id === (int)$category['id']) echo 'selected'; ?>><?php echo html_escape($category['name']); ?></option>
+                    <option value="<?php echo (int)$category['id']; ?>" <?php if($selected_category_id === (int)$category['id']) echo 'selected'; ?>><?php echo html_entity_decode($category['name'], ENT_QUOTES, 'UTF-8'); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>

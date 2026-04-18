@@ -915,7 +915,7 @@ class Home extends CI_Controller
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/reload_my_courses', $page_data);
     }
 
-    public function search($search_string = "")
+    /*public function search($search_string = "")
     {
         // Support both GET (home page) and POST (header search) without breaking existing behaviour.
         $incoming_query = $this->input->get('query', true);
@@ -1022,7 +1022,139 @@ class Home extends CI_Controller
         $page_data['search_string'] = $search_string;
         $page_data['page_title'] = site_phrase('search_results');
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }*/
+	
+	public function search($search_string = "")
+{
+    // Support both GET (home page) and POST (header search) without breaking existing behaviour.
+    $incoming_query = $this->input->get('query', true);
+    if ($incoming_query === null || $incoming_query === '') {
+        $incoming_query = $this->input->post('query', true);
     }
+
+    // course | tutor | subject
+    $search_for = $this->input->get('search_for', true);
+    if ($search_for === null || $search_for === '') {
+        $search_for = $this->input->post('search_for', true);
+    }
+
+    $search_for = $search_for ? strtolower(trim($search_for)) : 'course';
+
+    // "subject" should use the existing tutor result flow
+    if ($search_for === 'subject') {
+        $search_for = 'tutor';
+    }
+
+    if (!in_array($search_for, ['course', 'tutor'], true)) {
+        $search_for = 'course';
+    }
+
+    if (!empty($incoming_query)) {
+        $search_string = $incoming_query;
+
+        // check double quote and script text in the search string
+        if (preg_match('/"/', $search_string) >= 1 && strpos(strtolower($search_string), "script") !== false) {
+            $this->session->set_flashdata('error_message', site_phrase('such_script_searches_are_not_allowed'));
+            redirect(site_url(), 'refresh');
+        }
+
+        // =============================
+        // Search for COURSES
+        // =============================
+        if ($search_for === 'course') {
+            $all_rows = $this->crud_model->get_courses_by_search_string($search_string)->num_rows();
+
+            $config = pagintaion($all_rows, 9);
+            $config['base_url']  = site_url('home/search/');
+            $config['suffix']    = '?query=' . urlencode($search_string) . '&search_for=course';
+            $config['first_url'] = site_url('home/search') . '?query=' . urlencode($search_string) . '&search_for=course';
+            $this->pagination->initialize($config);
+
+            $page_data['courses'] = $this->crud_model->get_courses_by_search_string(
+                $search_string,
+                $config['per_page'],
+                $this->uri->segment(3)
+            )->result_array();
+
+            $page_data['total_result'] = $all_rows;
+            $page_data['search_for']   = 'course';
+
+        // =============================
+        // Search for TUTORS / SUBJECTS
+        // =============================
+        } else {
+            $category_id = (int) $this->input->get('category_id', true);
+            $class_id    = (int) $this->input->get('class_id', true);
+            $subject_id  = (int) $this->input->get('subject_id', true);
+            $mode        = $this->input->get('mode', true);
+            $location    = $this->input->get('location', true);
+            $distance_km = (int) $this->input->get('distance_km', true);
+            $lat         = $this->input->get('lat', true);
+            $lng         = $this->input->get('lng', true);
+            $min_rating  = (int) $this->input->get('min_rating', true);
+            $fee_min     = $this->input->get('fee_min', true);
+            $fee_max     = $this->input->get('fee_max', true);
+            $sort_by     = $this->input->get('sort_by', true);
+
+            $filters = [
+                'query'       => $search_string,
+                'category_id' => $category_id > 0 ? $category_id : null,
+                'class_id'    => $class_id > 0 ? $class_id : null,
+                'subject_id'  => $subject_id > 0 ? $subject_id : null,
+                'mode'        => $mode ?: 'all',
+                'location'    => $location ?: '',
+                'distance_km' => $distance_km ?: 0,
+                'lat'         => is_numeric($lat) ? (float) $lat : null,
+                'lng'         => is_numeric($lng) ? (float) $lng : null,
+                'min_rating'  => $min_rating ?: 0,
+                'fee_min'     => is_numeric($fee_min) ? (float) $fee_min : null,
+                'fee_max'     => is_numeric($fee_max) ? (float) $fee_max : null,
+                'sort_by'     => $sort_by ?: 'best_match',
+            ];
+
+            $this->load->model('Tutor_search_model', 'tutor_search_model');
+
+            $all_rows = $this->tutor_search_model->count_filtered($filters);
+
+            $config = pagintaion($all_rows, 9);
+            $config['base_url'] = site_url('home/search/');
+
+            $suffix_params = $_GET;
+            $suffix_params['query']      = $search_string;
+            $suffix_params['search_for'] = 'tutor';
+
+            $config['suffix']    = '?' . http_build_query($suffix_params);
+            $config['first_url'] = site_url('home/search') . '?' . http_build_query($suffix_params);
+
+            $this->pagination->initialize($config);
+
+            $page_data['tutors'] = $this->tutor_search_model->get_filtered(
+                $filters,
+                $config['per_page'],
+                (int) $this->uri->segment(3)
+            );
+
+            $page_data['total_result']  = $all_rows;
+            $page_data['search_for']    = 'tutor';
+            $page_data['tutor_filters'] = $filters;
+        }
+    } else {
+        $this->session->set_flashdata('error_message', site_phrase('no_search_value_found'));
+        redirect(site_url(), 'refresh');
+    }
+
+    if (!$this->session->userdata('layout')) {
+        $this->session->set_userdata('layout', 'list');
+    }
+
+    $page_data['layout']        = $this->session->userdata('layout');
+    $page_data['page_name']     = 'courses_page';
+    $page_data['search_string'] = $search_string;
+    $page_data['page_title']    = site_phrase('search_results');
+
+    $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+}
+	
     public function my_courses_by_search_string()
     {
         $search_string = $this->input->post('search_string');
@@ -1970,6 +2102,14 @@ class Home extends CI_Controller
 					redirect(site_url('user/pending_blog'), 'refresh');
 				}
 
+				if ($notification['type'] === 'tutor_request_received') {
+					redirect(site_url('user/student_requests'), 'refresh');
+				}
+
+				if (in_array($notification['type'], ['tutor_request_submitted', 'tutor_request_accepted', 'tutor_request_rejected'])) {
+					redirect(site_url('home/my_tutor_requests'), 'refresh');
+				}
+
 				redirect(site_url('home'), 'refresh');
 			}
 
@@ -2156,4 +2296,63 @@ class Home extends CI_Controller
             echo $response;
         }
     }
+
+
+    public function send_tutor_request()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            $this->session->set_flashdata('error_message', get_phrase('Please login first to send a request.'));
+            redirect(site_url('login'), 'refresh');
+        }
+
+        if (strtoupper($this->input->method()) !== 'POST') {
+            redirect(site_url('home'), 'refresh');
+        }
+
+        $this->load->model('Tutor_request_model', 'tutor_request_model');
+
+        $payload = [
+            'tutor_user_id'     => (int) $this->input->post('tutor_user_id'),
+            'tutor_profile_id'  => (int) $this->input->post('tutor_profile_id'),
+            'category_id'       => (int) $this->input->post('category_id'),
+            'class_id'          => (int) $this->input->post('class_id'),
+            'subject_id'        => (int) $this->input->post('subject_id'),
+            'query_text'        => trim((string) $this->input->post('query_text')),
+            'preferred_mode'    => trim((string) $this->input->post('preferred_mode')),
+            'student_location'  => trim((string) $this->input->post('student_location')),
+            'message'           => trim((string) $this->input->post('message')),
+        ];
+
+        $result = $this->tutor_request_model->create_request((int) $this->session->userdata('user_id'), $payload);
+
+        if (!empty($result['status'])) {
+            $this->session->set_flashdata('flash_message', $result['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $result['message']);
+        }
+
+        $redirect_url = trim((string) $this->input->post('redirect_url'));
+        if ($redirect_url === '') {
+            $redirect_url = (string) $this->input->server('HTTP_REFERER');
+        }
+
+        if (!empty($redirect_url)) {
+            redirect($redirect_url, 'refresh');
+        }
+        redirect(site_url('home/search'), 'refresh');
+    }
+
+    public function my_tutor_requests()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $this->load->model('Tutor_request_model', 'tutor_request_model');
+        $page_data['requests'] = $this->tutor_request_model->get_student_requests((int) $this->session->userdata('user_id'));
+        $page_data['page_name'] = 'my_tutor_requests';
+        $page_data['page_title'] = site_phrase('my_tutor_requests');
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
 }

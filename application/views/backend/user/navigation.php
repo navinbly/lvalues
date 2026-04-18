@@ -1,5 +1,11 @@
 <?php
 $status_wise_courses = $this->crud_model->get_status_wise_courses();
+
+// Safe CI instance access for tutor request count in view
+$CI =& get_instance();
+if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
+	$CI->load->model('Tutor_request_model', 'tutor_request_model');
+}
 ?>
 <!-- ========== Left Sidebar Start ========== -->
 <div class="left-side-menu left-side-menu-detached">
@@ -25,6 +31,29 @@ $status_wise_courses = $this->crud_model->get_status_wise_courses();
 						<span><?php echo get_phrase('dashboard'); ?></span>
 					</a>
 				</li>
+				<li class="side-nav-item">
+					<a href="<?php echo site_url('user/tutor_teaching_profile'); ?>" class="side-nav-link <?php if ($page_name == 'tutor_teaching_profile') echo 'active'; ?>">
+						<i class="dripicons-user"></i>
+						<span><?php echo get_phrase('teaching_profile'); ?></span>
+					</a>
+				</li>
+				<?php
+					$pending_student_request_count = 0;
+					$current_user_id = (int) $CI->session->userdata('user_id');
+					if ($current_user_id > 0) {
+						$pending_student_request_count = (int) $CI->tutor_request_model->count_pending_for_tutor($current_user_id);
+					}
+				?>
+				<li class="side-nav-item">
+					<a href="<?php echo site_url('user/student_requests'); ?>" class="side-nav-link <?php if ($page_name == 'student_requests') echo 'active'; ?>">
+						<i class="dripicons-message"></i>
+						<span><?php echo get_phrase('student_requests'); ?></span>
+						<?php if ($pending_student_request_count > 0): ?>
+							<span class="badge badge-danger-lighten ml-2"><?php echo $pending_student_request_count; ?></span>
+						<?php endif; ?>
+					</a>
+				</li>
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/courses'); ?>" class="side-nav-link <?php if ($page_name == 'courses' || $page_name == 'course_add' || $page_name == 'course_edit') echo 'active'; ?>">
 						<i class="dripicons-archive"></i>
@@ -216,9 +245,9 @@ $status_wise_courses = $this->crud_model->get_status_wise_courses();
 
 		<?php //course_addon start
 		if (addon_status('affiliate_course') ) :
-			$CI    = &get_instance();
-			$CI->load->model('addons/affiliate_course_model');
-			$x = $CI->affiliate_course_model->is_affilator($this->session->userdata('user_id'));
+			$CI_aff = &get_instance();
+			$CI_aff->load->model('addons/affiliate_course_model');
+			$x = $CI_aff->affiliate_course_model->is_affilator($this->session->userdata('user_id'));
 
 			if ($x == 0  && get_settings('affiliate_addon_active_status')==1) : ?>
 

@@ -1455,4 +1455,124 @@ class User extends CI_Controller
 
 	
 	
+
+
+    public function tutor_teaching_profile()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        if (!$this->session->userdata('is_instructor')) {
+            $this->session->set_flashdata('error_message', 'Only tutors can update teaching profile.');
+            redirect(site_url('user/dashboard'), 'refresh');
+        }
+
+        $this->load->model('Tutor_master_model', 'tutor_master_model');
+        $user_id = (int) $this->session->userdata('user_id');
+
+        $page_data['tutor_registration_tree'] = $this->tutor_master_model->get_registration_tree();
+        $page_data['tutor_profile'] = $this->tutor_master_model->get_tutor_profile_by_user_id($user_id);
+        $page_data['selected_category_ids'] = $this->tutor_master_model->get_selected_category_ids_by_user_id($user_id);
+        $page_data['selected_class_ids'] = $this->tutor_master_model->get_selected_class_ids_by_user_id($user_id);
+        $page_data['selected_subject_ids'] = $this->tutor_master_model->get_selected_subject_ids_by_user_id($user_id);
+        $page_data['page_name'] = 'tutor_teaching_profile';
+        $page_data['page_title'] = 'teaching_profile';
+
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function update_tutor_teaching_profile()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        if (!$this->session->userdata('is_instructor')) {
+            $this->session->set_flashdata('error_message', 'Only tutors can update teaching profile.');
+            redirect(site_url('user/dashboard'), 'refresh');
+        }
+
+        if (strtoupper($this->input->method()) !== 'POST') {
+            redirect(site_url('user/tutor_teaching_profile'), 'refresh');
+        }
+
+        $this->load->model('Tutor_master_model', 'tutor_master_model');
+        $user_id = (int) $this->session->userdata('user_id');
+
+        $tutor_lat = trim((string) $this->input->post('tutor_lat', true));
+        $tutor_lng = trim((string) $this->input->post('tutor_lng', true));
+
+        $payload = [
+            'tutor_category_ids' => (array) $this->input->post('tutor_category_ids'),
+            'tutor_class_ids' => (array) $this->input->post('tutor_class_ids'),
+            'tutor_subject_ids' => (array) $this->input->post('tutor_subject_ids'),
+            'tutor_headline' => $this->input->post('tutor_headline', true),
+            'tutor_qualification' => $this->input->post('tutor_qualification', true),
+            'tutor_experience_years' => $this->input->post('tutor_experience_years', true),
+            'tutor_teaching_mode' => $this->input->post('tutor_teaching_mode', true),
+            'tutor_hourly_fee' => $this->input->post('tutor_hourly_fee', true),
+            'tutor_city' => $this->input->post('tutor_city', true),
+            'tutor_state' => $this->input->post('tutor_state', true),
+            'tutor_country' => $this->input->post('tutor_country', true),
+            'tutor_pincode' => $this->input->post('tutor_pincode', true),
+            'tutor_bio' => $this->input->post('tutor_bio'),
+            'tutor_lat' => is_numeric($tutor_lat) ? $tutor_lat : '',
+            'tutor_lng' => is_numeric($tutor_lng) ? $tutor_lng : '',
+        ];
+
+        $result = $this->tutor_master_model->save_tutor_teaching_profile($user_id, $payload);
+
+        if (!empty($result['status'])) {
+            $this->session->set_flashdata('flash_message', $result['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $result['message']);
+        }
+
+        redirect(site_url('user/tutor_teaching_profile'), 'refresh');
+    }
+
+    public function student_requests($status = 'all')
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $this->load->model('Tutor_request_model', 'tutor_request_model');
+        $allowed = ['all', 'pending', 'approved', 'rejected'];
+        if (!in_array($status, $allowed, true)) {
+            $status = 'all';
+        }
+
+        $page_data['request_status_filter'] = $status;
+        $page_data['requests'] = $this->tutor_request_model->get_incoming_requests_for_tutor((int) $this->session->userdata('user_id'), $status);
+        $page_data['pending_request_count'] = $this->tutor_request_model->count_pending_for_tutor((int) $this->session->userdata('user_id'));
+        $page_data['page_name'] = 'student_requests';
+        $page_data['page_title'] = get_phrase('student_requests');
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function update_student_request($request_id = 0, $action = '')
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        if (strtoupper($this->input->method()) !== 'POST') {
+            redirect(site_url('user/student_requests'), 'refresh');
+        }
+
+        $this->load->model('Tutor_request_model', 'tutor_request_model');
+        $response_message = trim((string) $this->input->post('response_message'));
+        $result = $this->tutor_request_model->respond_to_request((int) $request_id, (int) $this->session->userdata('user_id'), strtolower(trim($action)), $response_message);
+
+        if (!empty($result['status'])) {
+            $this->session->set_flashdata('flash_message', $result['message']);
+        } else {
+            $this->session->set_flashdata('error_message', $result['message']);
+        }
+
+        redirect(site_url('user/student_requests'), 'refresh');
+    }
+
 }

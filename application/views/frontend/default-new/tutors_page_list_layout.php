@@ -1,11 +1,15 @@
 <?php
-// Tutor list layout - mirrors course list style so UI feels consistent.
 $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
+$selected_subject_id = isset($_GET['subject_id']) ? (int) $_GET['subject_id'] : 0;
+$selected_category_id = isset($_GET['category_id']) ? (int) $_GET['category_id'] : 0;
+$selected_class_id = isset($_GET['class_id']) ? (int) $_GET['class_id'] : 0;
+$current_query = isset($search_string) ? $search_string : (isset($_GET['query']) ? $_GET['query'] : '');
+$current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVER['QUERY_STRING'] : '');
 ?>
 
 <div class="grid-view-body courses courses-list-view-body">
 
-    <div class="d-flex align-items-center justify-content-between mb-3">
+    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap">
         <div>
             <strong>
                 <?php echo get_phrase('Showing'); ?>
@@ -28,15 +32,28 @@ $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
                 $location = trim(($t['city'] ?? '').(!empty($t['state']) ? ', '.$t['state'] : '').(!empty($t['country']) ? ', '.$t['country'] : ''));
                 $rating = (float)($t['avg_rating'] ?? 0);
                 $rating_count = (int)($t['rating_count'] ?? 0);
+                $request_modal_id = 'tutorRequestModal_' . (int) $t['tutor_profile_id'];
+                $profile_modal_id = 'tutorProfileModal_' . (int) $t['tutor_profile_id'];
+
+                $headline = trim((string)($t['headline'] ?? ''));
+                $qualification = trim((string)($t['qualification'] ?? ''));
+                $experience_years = (int)($t['experience_years'] ?? 0);
+                $bio = trim((string)($t['bio'] ?? ''));
+                $subject_names = trim((string)($t['subject_names'] ?? ''));
+                $pincode = trim((string)($t['pincode'] ?? ''));
+                $hourly_fee = $t['hourly_fee'] ?? '';
+                $city = trim((string)($t['city'] ?? ''));
+                $state = trim((string)($t['state'] ?? ''));
+                $country = trim((string)($t['country'] ?? ''));
+                $profile_location_line = trim($city . ($state !== '' ? ', ' . $state : '') . ($country !== '' ? ', ' . $country : '') . ($pincode !== '' ? ' - ' . $pincode : ''));
+
+                $photo = !empty($t['profile_photo']) ? $t['profile_photo'] : '';
+                $photo_path = $photo ? ('uploads/tutors/'.$photo) : '';
+                $photo_url = (!empty($photo_path) && file_exists($photo_path)) ? base_url($photo_path) : base_url('assets/global/image/user.png');
             ?>
 
             <div class="courses-list-view-card-body courses-card-body" style="cursor: default;">
                 <div class="courses-card-image">
-                    <?php
-                        $photo = !empty($t['profile_photo']) ? $t['profile_photo'] : '';
-                        $photo_path = $photo ? ('uploads/tutors/'.$photo) : '';
-                        $photo_url = (!empty($photo_path) && file_exists($photo_path)) ? base_url($photo_path) : base_url('assets/global/image/user.png');
-                    ?>
                     <img loading="lazy" src="<?php echo $photo_url; ?>" alt="Tutor" />
 
                     <div class="courses-card-image-text">
@@ -46,10 +63,14 @@ $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
 
                 <div class="courses-text w-100">
                     <div class="courses-d-flex-text">
-                        <h5><?php echo html_escape($full_name ?: 'Tutor'); ?></h5>
+                        <h5 class="mb-0">
+                            <a href="javascript:void(0);" class="tutor-name-link" data-bs-toggle="modal" data-bs-target="#<?php echo $profile_modal_id; ?>">
+                                <?php echo html_escape($full_name ?: 'Tutor'); ?>
+                            </a>
+                        </h5>
                         <span class="compare-img">
-                            <?php if (!empty($t['hourly_fee'])): ?>
-                                <strong><?php echo currency($t['hourly_fee']); ?></strong>
+                            <?php if (!empty($hourly_fee)): ?>
+                                <strong><?php echo currency($hourly_fee); ?></strong>
                             <?php else: ?>
                                 <strong><?php echo get_phrase('Contact'); ?></strong>
                             <?php endif; ?>
@@ -65,17 +86,21 @@ $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
                         <?php endif; ?>
                     </div>
 
-                    <?php if (!empty($t['headline'])): ?>
-                        <p class="ellipsis-line-2"><?php echo html_escape($t['headline']); ?></p>
+                    <?php if (!empty($subject_names)): ?>
+                        <p class="mb-2"><strong><?php echo get_phrase('Subjects'); ?>:</strong> <?php echo html_escape($subject_names); ?></p>
+                    <?php endif; ?>
+
+                    <?php if (!empty($headline)): ?>
+                        <p class="ellipsis-line-2"><?php echo html_escape($headline); ?></p>
                     <?php endif; ?>
 
                     <div class="courses-price-border">
                         <div class="courses-price">
                             <div class="courses-price-left">
                                 <p class="mb-0"><i class="fa-regular fa-id-badge"></i>
-                                    <?php echo html_escape($t['qualification'] ?? ''); ?>
-                                    <?php if (!empty($t['experience_years'])): ?>
-                                        · <?php echo (int)$t['experience_years']; ?> yrs
+                                    <?php echo html_escape($qualification); ?>
+                                    <?php if (!empty($experience_years)): ?>
+                                        · <?php echo (int)$experience_years; ?> yrs
                                     <?php endif; ?>
                                 </p>
                                 <?php if (!empty($location)): ?>
@@ -83,15 +108,146 @@ $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
                                 <?php endif; ?>
                             </div>
                             <div class="courses-price-right">
-                                <!-- Future: request/enroll buttons go here -->
-                                <a href="javascript:void(0)" class="btn btn-sm btn-outline-primary" onclick="alert('Next step: open tutor profile + send request');">
-                                    <?php echo get_phrase('Send Request'); ?>
-                                </a>
+                                <?php if ($this->session->userdata('user_login')): ?>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#<?php echo $request_modal_id; ?>">
+                                        <?php echo get_phrase('Send Request'); ?>
+                                    </button>
+                                <?php else: ?>
+                                    <a href="<?php echo site_url('login'); ?>" class="btn btn-sm btn-outline-primary">
+                                        <?php echo get_phrase('Login to Request'); ?>
+                                    </a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            <div class="modal fade" id="<?php echo $profile_modal_id; ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content tutor-profile-modal-content">
+                        <div class="modal-header tutor-profile-modal-header">
+                            <h5 class="modal-title tutor-profile-modal-title"><?php echo get_phrase('Tutor Profile'); ?></h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo get_phrase('Close'); ?>"></button>
+                        </div>
+                        <div class="modal-body tutor-profile-modal-body">
+                            <div class="row align-items-start">
+                                <div class="col-md-4 text-center mb-3 mb-md-0">
+                                    <img src="<?php echo $photo_url; ?>" alt="Tutor" class="tutor-profile-avatar">
+                                    <h4 class="tutor-profile-name"><?php echo html_escape($full_name ?: 'Tutor'); ?></h4>
+                                    <?php if ($headline !== ''): ?>
+                                        <p class="tutor-profile-headline"><?php echo html_escape($headline); ?></p>
+                                    <?php endif; ?>
+
+                                    <div class="tutor-profile-badges">
+                                        <span class="tutor-pill tutor-pill-light"><?php echo strtoupper(html_escape($mode)); ?></span>
+                                        <?php if (!empty($hourly_fee)): ?>
+                                            <span class="tutor-pill tutor-pill-primary"><?php echo currency($hourly_fee); ?></span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-8">
+                                    <div class="row">
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Subjects'); ?></div>
+                                                <div class="tutor-profile-value"><?php echo html_escape($subject_names !== '' ? $subject_names : 'NA'); ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Qualification'); ?></div>
+                                                <div class="tutor-profile-value"><?php echo html_escape($qualification !== '' ? $qualification : 'NA'); ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Experience'); ?></div>
+                                                <div class="tutor-profile-value"><?php echo $experience_years > 0 ? (int)$experience_years . ' yrs' : 'NA'; ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Rating'); ?></div>
+                                                <div class="tutor-profile-value"><?php echo number_format($rating, 1); ?> (<?php echo $rating_count; ?> <?php echo get_phrase('Reviews'); ?>)</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-12">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Location'); ?></div>
+                                                <div class="tutor-profile-value"><?php echo html_escape($profile_location_line !== '' ? $profile_location_line : 'NA'); ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-12">
+                                            <div class="tutor-profile-field mb-0">
+                                                <div class="tutor-profile-label"><?php echo get_phrase('Bio'); ?></div>
+                                                <div class="tutor-profile-bio-box"><?php echo nl2br(html_escape($bio !== '' ? $bio : 'No bio added yet.')); ?></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer tutor-profile-modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal"><?php echo get_phrase('Close'); ?></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($this->session->userdata('user_login')): ?>
+            <div class="modal fade" id="<?php echo $request_modal_id; ?>" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <form action="<?php echo site_url('home/send_tutor_request'); ?>" method="post">
+                            <div class="modal-header">
+                                <h5 class="modal-title"><?php echo get_phrase('Send Request'); ?> - <?php echo html_escape($full_name ?: 'Tutor'); ?></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo get_phrase('Close'); ?>"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" name="tutor_user_id" value="<?php echo (int) $t['tutor_user_id']; ?>">
+                                <input type="hidden" name="tutor_profile_id" value="<?php echo (int) $t['tutor_profile_id']; ?>">
+                                <input type="hidden" name="category_id" value="<?php echo (int) $selected_category_id; ?>">
+                                <input type="hidden" name="class_id" value="<?php echo (int) $selected_class_id; ?>">
+                                <input type="hidden" name="subject_id" value="<?php echo (int) $selected_subject_id; ?>">
+                                <input type="hidden" name="query_text" value="<?php echo html_escape($current_query); ?>">
+                                <input type="hidden" name="redirect_url" value="<?php echo html_escape($current_url); ?>">
+
+                                <div class="form-group">
+                                    <label><?php echo get_phrase('Tutor'); ?></label>
+                                    <input type="text" class="form-control" value="<?php echo html_escape($full_name ?: 'Tutor'); ?>" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label><?php echo get_phrase('Subjects'); ?></label>
+                                    <input type="text" class="form-control" value="<?php echo html_escape($subject_names); ?>" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label><?php echo get_phrase('Preferred Mode'); ?></label>
+                                    <select name="preferred_mode" class="form-control" required>
+                                        <option value="both"><?php echo get_phrase('Both'); ?></option>
+                                        <option value="online"><?php echo get_phrase('Online'); ?></option>
+                                        <option value="offline"><?php echo get_phrase('Offline'); ?></option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label><?php echo get_phrase('Location'); ?></label>
+                                    <input type="text" class="form-control" name="student_location" placeholder="City / Area / Pincode">
+                                </div>
+                                <div class="form-group mb-0">
+                                    <label><?php echo get_phrase('Message'); ?></label>
+                                    <textarea class="form-control" name="message" rows="4" placeholder="Briefly explain what help you need" required></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal"><?php echo get_phrase('Cancel'); ?></button>
+                                <button type="submit" class="btn btn-primary"><?php echo get_phrase('Submit Request'); ?></button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
         <?php endforeach; ?>
 
         <div class="pagenation-items mb-0 mt-3">
@@ -99,3 +255,111 @@ $tutors = isset($tutors) && is_array($tutors) ? $tutors : [];
         </div>
     </div>
 </div>
+
+<style>
+.tutor-name-link{
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+.tutor-name-link:hover{
+    color: #6c4df6;
+    text-decoration: underline;
+}
+
+.tutor-profile-modal-content{
+    border-radius: 14px;
+    border: 1px solid #ececf5;
+    overflow: hidden;
+}
+.tutor-profile-modal-header{
+    background: #ffffff;
+    border-bottom: 1px solid #ececf5;
+    padding: 16px 20px;
+}
+.tutor-profile-modal-title{
+    font-weight: 700;
+    color: #1d2746;
+}
+.tutor-profile-modal-body{
+    background: #ffffff;
+    padding: 20px;
+}
+.tutor-profile-modal-footer{
+    background: #ffffff;
+    border-top: 1px solid #ececf5;
+    padding: 14px 20px;
+}
+.tutor-profile-avatar{
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #edf0f7;
+    box-shadow: 0 6px 20px rgba(29, 39, 70, 0.08);
+}
+.tutor-profile-name{
+    margin-top: 16px;
+    margin-bottom: 6px;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1d2746;
+}
+.tutor-profile-headline{
+    margin-bottom: 14px;
+    color: #6b7280;
+    font-size: 14px;
+    line-height: 1.6;
+}
+.tutor-profile-badges{
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.tutor-pill{
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+}
+.tutor-pill-light{
+    background: #f4f6fb;
+    color: #374151;
+    border: 1px solid #dfe4ee;
+}
+.tutor-pill-primary{
+    background: #6c4df6;
+    color: #ffffff;
+}
+.tutor-profile-field{
+    margin-bottom: 16px;
+}
+.tutor-profile-label{
+    font-size: 13px;
+    font-weight: 700;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.tutor-profile-value{
+    color: #1f2937;
+    font-size: 15px;
+    line-height: 1.6;
+}
+.tutor-profile-bio-box{
+    background: #f8f9fc;
+    border: 1px solid #ececf5;
+    border-radius: 10px;
+    padding: 12px 14px;
+    min-height: 90px;
+    color: #1f2937;
+    line-height: 1.7;
+    white-space: normal;
+    word-break: break-word;
+}
+.modal .btn-close{
+    opacity: 1;
+}
+</style>
