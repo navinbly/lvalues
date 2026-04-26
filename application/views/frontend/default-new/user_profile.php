@@ -1,5 +1,13 @@
 <?php $user_details = $this->user_model->get_all_user($this->session->userdata('user_id'))->row_array(); ?>
 <?php $social_links = json_decode($user_details['social_links'], true); ?>
+<?php
+$tutor_registration_tree = isset($tutor_registration_tree) && is_array($tutor_registration_tree) ? $tutor_registration_tree : [];
+$student_learning_profile = isset($student_learning_profile) && is_array($student_learning_profile) ? $student_learning_profile : [];
+$is_student_profile = isset($user_details['is_instructor']) && (int)$user_details['is_instructor'] !== 1;
+$selected_student_category_id = (string)($student_learning_profile['category_id'] ?? '');
+$selected_student_class_id = (string)($student_learning_profile['class_id'] ?? '');
+$selected_student_subject_id = (string)($student_learning_profile['subject_interest_id'] ?? '');
+?>
 
 
 <?php include "breadcrumb.php"; ?>
@@ -85,6 +93,54 @@
                                             <textarea class="form-control bg-white-2 text-14px text_editor" name="biography" id="Biography"><?php echo $user_details['biography']; ?></textarea>
                                         </div>
 
+                                        <?php if ($is_student_profile): ?>
+                                            <hr class="my-5 bg-secondary">
+
+                                            <div class="student-learning-profile-section">
+                                                <h4 class="text-black mb-2">Learning Profile</h4>
+                                                <p class="text-muted mb-4">Update your current class/level so tutors can send you relevant batch invitations.</p>
+
+                                                <div class="row">
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="text-dark fw-600" for="student_category_id">Learning Category</label>
+                                                        <select class="form-control bg-white-2 text-14px" name="student_category_id" id="student_category_id" required>
+                                                            <option value="">Select category</option>
+                                                            <?php foreach ($tutor_registration_tree as $category_item): ?>
+                                                                <option value="<?php echo html_escape($category_item['id']); ?>" <?php echo $selected_student_category_id === (string)$category_item['id'] ? 'selected' : ''; ?>>
+                                                                    <?php echo html_escape($category_item['name']); ?>
+                                                                </option>
+                                                            <?php endforeach; ?>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="text-dark fw-600" for="student_class_id">Current Class / Level</label>
+                                                        <select class="form-control bg-white-2 text-14px" name="student_class_id" id="student_class_id" required>
+                                                            <option value="">Select class / level</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="text-dark fw-600" for="student_subject_interest_id">Subject Interest</label>
+                                                        <select class="form-control bg-white-2 text-14px" name="student_subject_interest_id" id="student_subject_interest_id">
+                                                            <option value="">Any / Not sure</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="col-md-6 mb-3">
+                                                        <label class="text-dark fw-600" for="student_academic_year">Academic Year</label>
+                                                        <input type="text" class="form-control bg-white-2 text-14px" name="student_academic_year" id="student_academic_year" placeholder="Example: 2026-27" value="<?php echo html_escape($student_learning_profile['academic_year'] ?? date('Y')); ?>">
+                                                    </div>
+
+                                                    <div class="col-md-12 mb-3">
+                                                        <label class="text-dark fw-600" for="student_current_level_label">Current Level Label</label>
+                                                        <input type="text" class="form-control bg-white-2 text-14px" name="student_current_level_label" id="student_current_level_label" placeholder="Example: Class 3, B.Tech 2nd Year" value="<?php echo html_escape($student_learning_profile['current_level_label'] ?? ''); ?>">
+                                                        <small class="text-muted">Example: if you were in Class 2 last year, update it to Class 3 for the current academic year.</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endif; ?>
+
                                         <hr class="my-5 bg-secondary">
 
                                         <label class="text-dark fw-600"><?php echo site_phrase('add_your_twitter_link'); ?></label>
@@ -121,3 +177,111 @@
     </div>
 </section>
 <!-------- wish list bosy section end ------->
+
+<?php if ($is_student_profile): ?>
+<script>
+(function () {
+    const registrationTree = <?php echo json_encode($tutor_registration_tree); ?>;
+    const selectedCategoryId = <?php echo json_encode($selected_student_category_id); ?>;
+    const selectedClassId = <?php echo json_encode($selected_student_class_id); ?>;
+    const selectedSubjectId = <?php echo json_encode($selected_student_subject_id); ?>;
+
+    const categorySelect = document.getElementById('student_category_id');
+    const classSelect = document.getElementById('student_class_id');
+    const subjectSelect = document.getElementById('student_subject_interest_id');
+
+    if (!categorySelect || !classSelect || !subjectSelect) {
+        return;
+    }
+
+    function resetSelect(select, firstText) {
+        select.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = firstText;
+        select.appendChild(option);
+    }
+
+    function loadClasses() {
+        const categoryId = categorySelect.value;
+        const currentClassValue = classSelect.value || selectedClassId;
+
+        resetSelect(classSelect, 'Select class / level');
+        resetSelect(subjectSelect, 'Any / Not sure');
+
+        if (!categoryId) {
+            return;
+        }
+
+        registrationTree.forEach(function (category) {
+            if (String(category.id) !== String(categoryId)) {
+                return;
+            }
+
+            (category.classes || []).forEach(function (classItem) {
+                const option = document.createElement('option');
+                option.value = classItem.id;
+                option.textContent = classItem.name;
+                if (String(currentClassValue) === String(classItem.id)) {
+                    option.selected = true;
+                }
+                classSelect.appendChild(option);
+            });
+        });
+
+        loadSubjects();
+    }
+
+    function loadSubjects() {
+        const categoryId = categorySelect.value;
+        const classId = classSelect.value;
+        const currentSubjectValue = subjectSelect.value || selectedSubjectId;
+
+        resetSelect(subjectSelect, 'Any / Not sure');
+
+        if (!categoryId || !classId) {
+            return;
+        }
+
+        registrationTree.forEach(function (category) {
+            if (String(category.id) !== String(categoryId)) {
+                return;
+            }
+
+            (category.classes || []).forEach(function (classItem) {
+                if (String(classItem.id) !== String(classId)) {
+                    return;
+                }
+
+                (classItem.subjects || []).forEach(function (subjectItem) {
+                    const option = document.createElement('option');
+                    option.value = subjectItem.id;
+                    option.textContent = subjectItem.name;
+                    if (String(currentSubjectValue) === String(subjectItem.id)) {
+                        option.selected = true;
+                    }
+                    subjectSelect.appendChild(option);
+                });
+            });
+        });
+    }
+
+    categorySelect.addEventListener('change', function () {
+        classSelect.value = '';
+        subjectSelect.value = '';
+        loadClasses();
+    });
+
+    classSelect.addEventListener('change', function () {
+        subjectSelect.value = '';
+        loadSubjects();
+    });
+
+    if (!categorySelect.value && selectedCategoryId) {
+        categorySelect.value = selectedCategoryId;
+    }
+
+    loadClasses();
+})();
+</script>
+<?php endif; ?>

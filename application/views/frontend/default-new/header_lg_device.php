@@ -254,12 +254,12 @@
             <!-- Profile Area -->
             <div class="menu_pro_tgl_div">
               <div class="menu_pro_tgl-2div">
-                <a class="menu_pro_tgl profile-dropdown"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
+                <a class="menu_pro_tgl profile-dropdown" href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
               </div>
               <div class="menu_pro_tgl_bg">
                 <div class="path-pos">
-                  <a href="#"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
-                  <a href="#"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
+                  <a href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
+                  <a href="<?php echo site_url('home/my_courses'); ?>"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
                   <p><?php echo $user_details['email']; ?></p>
                   <ul>
                     <?php if($user_login): ?>
@@ -273,6 +273,7 @@
                       <?php endif; ?>
 
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem"></i><?php echo site_phrase('my_courses'); ?></a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_courses'); ?>"><i class="fas fa-tachometer-alt"></i>Go to Dashboard</a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope"></i><?php echo site_phrase('my_messages'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart"></i><?php echo site_phrase('purchase_history'); ?></a></li>

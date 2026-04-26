@@ -10,6 +10,9 @@ $tutor_registration_tree = isset($tutor_registration_tree) && is_array($tutor_re
 $selected_category_ids = array_map('strval', (array)$this->input->post('tutor_category_ids'));
 $selected_class_ids    = array_map('strval', (array)$this->input->post('tutor_class_ids'));
 $selected_subject_ids  = array_map('strval', (array)$this->input->post('tutor_subject_ids'));
+$selected_student_category_id = (string)set_value('student_category_id');
+$selected_student_class_id = (string)set_value('student_class_id');
+$selected_student_subject_id = (string)set_value('student_subject_interest_id');
 ?>
 <style>
 .registration-switch { display:flex; gap:10px; }
@@ -21,6 +24,7 @@ $selected_subject_ids  = array_map('strval', (array)$this->input->post('tutor_su
 .taxonomy-label { font-size:14px; font-weight:700; color:#24324a; margin-bottom:6px; display:block; }
 .taxonomy-help { font-size:12px; color:#6c757d; margin-bottom:8px; }
 .taxonomy-select { width:100%; min-height:180px; border:1px solid #d9dff0; border-radius:10px; padding:10px; background:#fafbff; }
+.student-taxonomy-select { min-height:48px; }
 .taxonomy-select:focus { border-color:#6f42f5; box-shadow:0 0 0 .2rem rgba(111,66,245,.12); outline:0; }
 .taxonomy-note { font-size:12px; color:#6c757d; }
 .browser-location-box { border:1px solid #e6e8ef; border-radius:14px; padding:14px 16px; background:#fafbff; }
@@ -66,6 +70,51 @@ $selected_subject_ids  = array_map('strval', (array)$this->input->post('tutor_su
     <?php if(form_error('phone_number')): ?>
         <div class="invalid-feedback d-block"><?php echo form_error('phone_number'); ?></div>
     <?php endif; ?>
+</div>
+<div id="student-fields" class="<?php echo $registration_type === 'student' ? '' : 'd-none'; ?>">
+<div class="mb-4 taxonomy-section">
+<h5 class="mb-2">Student Learning Profile</h5>
+<p class="text-muted small mb-3">Select the class/level for which you want to learn. Tutors will use this to send relevant batch invitations.</p>
+<div class="taxonomy-block <?php echo form_error('student_category_id') ? 'border border-danger rounded p-2' : ''; ?>">
+<label class="taxonomy-label" for="student_category_id">Learning Category</label>
+<select class="form-control taxonomy-select student-taxonomy-select <?php echo form_error('student_category_id') ? 'is-invalid' : ''; ?>" name="student_category_id" id="student_category_id">
+<option value="">Select category</option>
+<?php foreach ($tutor_registration_tree as $category_item): ?>
+<option value="<?php echo html_escape($category_item['id']); ?>" <?php echo $selected_student_category_id === (string)$category_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($category_item['name']); ?></option>
+<?php endforeach; ?>
+</select>
+<?php if(form_error('student_category_id')): ?><div class="invalid-feedback d-block"><?php echo form_error('student_category_id'); ?></div><?php endif; ?>
+</div>
+<div class="taxonomy-block <?php echo form_error('student_class_id') ? 'border border-danger rounded p-2' : ''; ?>">
+<label class="taxonomy-label" for="student_class_id">Current Class / Level</label>
+<select class="form-control taxonomy-select student-taxonomy-select <?php echo form_error('student_class_id') ? 'is-invalid' : ''; ?>" name="student_class_id" id="student_class_id">
+<option value="">Select class / level</option>
+<?php foreach ($tutor_registration_tree as $category_item): ?>
+    <?php foreach (($category_item['classes'] ?? []) as $class_item): ?>
+        <option value="<?php echo html_escape($class_item['id']); ?>" data-category="<?php echo html_escape($category_item['id']); ?>" <?php echo $selected_student_class_id === (string)$class_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($category_item['name'].' / '.$class_item['name']); ?></option>
+    <?php endforeach; ?>
+<?php endforeach; ?>
+</select>
+<?php if(form_error('student_class_id')): ?><div class="invalid-feedback d-block"><?php echo form_error('student_class_id'); ?></div><?php endif; ?>
+</div>
+<div class="taxonomy-block">
+<label class="taxonomy-label" for="student_subject_interest_id">Subject Interest <small class="text-muted">Optional</small></label>
+<select class="form-control taxonomy-select student-taxonomy-select" name="student_subject_interest_id" id="student_subject_interest_id">
+<option value="">Any / Not sure</option>
+<?php foreach ($tutor_registration_tree as $category_item): ?>
+    <?php foreach (($category_item['classes'] ?? []) as $class_item): ?>
+        <?php foreach (($class_item['subjects'] ?? []) as $subject_item): ?>
+            <option value="<?php echo html_escape($subject_item['id']); ?>" data-class="<?php echo html_escape($class_item['id']); ?>" <?php echo $selected_student_subject_id === (string)$subject_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($class_item['name'].' / '.$subject_item['name']); ?></option>
+        <?php endforeach; ?>
+    <?php endforeach; ?>
+<?php endforeach; ?>
+</select>
+</div>
+<div class="row g-2">
+<div class="col-md-6 mb-2"><label class="taxonomy-label">Current Level Label</label><input type="text" class="form-control" name="student_current_level_label" placeholder="Example: Class 2, B.Tech 1st Year" value="<?php echo set_value('student_current_level_label'); ?>"></div>
+<div class="col-md-6 mb-2"><label class="taxonomy-label">Academic Year</label><input type="text" class="form-control" name="student_academic_year" placeholder="Example: 2026-27" value="<?php echo set_value('student_academic_year', date('Y')); ?>"></div>
+</div>
+</div>
 </div>
 <?php if(get_settings('allow_instructor')): ?>
 <div id="tutor-fields" class="<?php echo $registration_type === 'tutor' ? '' : 'd-none'; ?>">
@@ -113,6 +162,7 @@ $selected_subject_ids  = array_map('strval', (array)$this->input->post('tutor_su
 (function() {
 const registrationInput = document.getElementById('registration_type');
 const tutorFields = document.getElementById('tutor-fields');
+const studentFields = document.getElementById('student-fields');
 const toggles = document.querySelectorAll('.registration-toggle');
 const locationHelp = document.getElementById('location-help');
 const locationBadge = document.getElementById('browser-location-badge');
@@ -129,13 +179,16 @@ const perSubjectBox = document.getElementById('per-subject-box');
 const categorySelector = document.getElementById('category_selector');
 const classSelector = document.getElementById('class_selector');
 const subjectSelector = document.getElementById('subject_selector');
+const studentCategorySelector = document.getElementById('student_category_id');
+const studentClassSelector = document.getElementById('student_class_id');
+const studentSubjectSelector = document.getElementById('student_subject_interest_id');
 const registrationTree = <?php echo json_encode($tutor_registration_tree); ?>;
 let oldSelectedClassIds = <?php echo json_encode(array_values($selected_class_ids)); ?>;
 let oldSelectedSubjectIds = <?php echo json_encode(array_values($selected_subject_ids)); ?>;
 const addressInputs = ['tutor_address_line1','tutor_city','tutor_state','tutor_country','tutor_pincode'].map(id => document.getElementById(id)).filter(Boolean);
 const oldFeeNames = <?php echo json_encode((array)$this->input->post('subject_fee_name')); ?>;
 const oldFeeAmounts = <?php echo json_encode((array)$this->input->post('subject_fee_amount')); ?>;
-function setRegistrationType(type){ registrationInput.value = type; toggles.forEach(btn => btn.classList.toggle('active', btn.dataset.type === type)); if (tutorFields){ tutorFields.classList.toggle('d-none', type !== 'tutor'); toggleTutorRequired(type === 'tutor'); } if (type === 'tutor') { syncSelectors(); updateCombinedLocation(); } updateSubmitState(); }
+function setRegistrationType(type){ registrationInput.value = type; toggles.forEach(btn => btn.classList.toggle('active', btn.dataset.type === type)); if (tutorFields){ tutorFields.classList.toggle('d-none', type !== 'tutor'); toggleTutorRequired(type === 'tutor'); } if (studentFields){ studentFields.classList.toggle('d-none', type !== 'student'); toggleStudentRequired(type === 'student'); } if (type === 'tutor') { syncSelectors(); updateCombinedLocation(); } if (type === 'student') { syncStudentSelectors(); } updateSubmitState(); }
 
 function toggleTutorRequired(isTutor){
     ['tutor_teaching_mode','document','tutor_address_line1','tutor_city','tutor_country'].forEach(id => {
@@ -159,6 +212,29 @@ function toggleTutorRequired(isTutor){
     updateSubmitState();
 }
 
+function toggleStudentRequired(isStudent){
+    ['student_category_id','student_class_id'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (isStudent) el.setAttribute('required','required');
+        else el.removeAttribute('required');
+    });
+}
+function syncStudentSelectors(){
+    if(!studentCategorySelector || !studentClassSelector || !studentSubjectSelector) return;
+    const selectedCategory = studentCategorySelector.value;
+    Array.from(studentClassSelector.options).forEach(option => {
+        if (!option.value) { option.hidden = false; return; }
+        option.hidden = selectedCategory && option.dataset.category !== selectedCategory;
+        if (option.hidden && option.selected) option.selected = false;
+    });
+    const selectedClass = studentClassSelector.value;
+    Array.from(studentSubjectSelector.options).forEach(option => {
+        if (!option.value) { option.hidden = false; return; }
+        option.hidden = selectedClass && option.dataset.class !== selectedClass;
+        if (option.hidden && option.selected) option.selected = false;
+    });
+}
 function updateCombinedLocation(){ if(!tutorLocation) return; const parts = addressInputs.map(input => input && input.value ? input.value.trim() : '').filter(Boolean); tutorLocation.value = parts.join(', '); }
 function hasVerifiedLocation(){ return !!(tutorLat && tutorLng && tutorLat.value && tutorLng.value); }
 function updateSubmitState(){ if(!submitBtn) return; if(registrationInput.value === 'tutor'){ submitBtn.disabled = !hasVerifiedLocation(); } else { submitBtn.disabled = false; } }
@@ -173,7 +249,7 @@ function toggleFeeBox(){ if(!perHourBox || !perSubjectBox || !subjectFeesWrapper
 subjectFeesWrapper.querySelectorAll('input').forEach(el => { if(feeType === 'per_subject' && isTutor) el.setAttribute('required','required'); else el.removeAttribute('required'); }); }
 function createSubjectFeeRow(name='', amount=''){ if(!subjectFeesWrapper) return; const row=document.createElement('div'); row.className='row g-2 align-items-center mb-2 subject-fee-row'; row.innerHTML=`<div class="col-6"><input type="text" class="form-control" name="subject_fee_name[]" placeholder="Subject name" value="${escapeHtml(name)}"></div><div class="col-4"><input type="number" min="0" step="0.01" class="form-control" name="subject_fee_amount[]" placeholder="Fee" value="${escapeHtml(amount)}"></div><div class="col-2"><button type="button" class="btn btn-outline-danger w-100 delete-subject-fee">Delete</button></div>`; subjectFeesWrapper.appendChild(row); row.querySelector('.delete-subject-fee').addEventListener('click', function(){ row.remove(); if(!subjectFeesWrapper.querySelector('.subject-fee-row')) createSubjectFeeRow(); toggleFeeBox(); }); toggleFeeBox(); }
 function escapeHtml(value){ return String(value ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-toggles.forEach(btn => btn.addEventListener('click', function(){ setRegistrationType(this.dataset.type); })); if(categorySelector){ categorySelector.addEventListener('change', syncSelectors); } if(classSelector){ classSelector.addEventListener('change', syncSelectors); } addressInputs.forEach(input => input.addEventListener('input', updateCombinedLocation)); if(refreshLocationBtn){ refreshLocationBtn.addEventListener('click', detectLocation); } if(addSubjectFeeBtn){ addSubjectFeeBtn.addEventListener('click', function(){ createSubjectFeeRow(); }); } feeTypeRadios.forEach(radio => radio.addEventListener('change', toggleFeeBox)); if(subjectFeesWrapper){ if(oldFeeNames.length || oldFeeAmounts.length){ const total = Math.max(oldFeeNames.length, oldFeeAmounts.length); for(let i=0;i<total;i++) createSubjectFeeRow(oldFeeNames[i] || '', oldFeeAmounts[i] || ''); } else { createSubjectFeeRow(); } }
+toggles.forEach(btn => btn.addEventListener('click', function(){ setRegistrationType(this.dataset.type); })); if(categorySelector){ categorySelector.addEventListener('change', syncSelectors); } if(classSelector){ classSelector.addEventListener('change', syncSelectors); } if(studentCategorySelector){ studentCategorySelector.addEventListener('change', syncStudentSelectors); } if(studentClassSelector){ studentClassSelector.addEventListener('change', syncStudentSelectors); } addressInputs.forEach(input => input.addEventListener('input', updateCombinedLocation)); if(refreshLocationBtn){ refreshLocationBtn.addEventListener('click', detectLocation); } if(addSubjectFeeBtn){ addSubjectFeeBtn.addEventListener('click', function(){ createSubjectFeeRow(); }); } feeTypeRadios.forEach(radio => radio.addEventListener('change', toggleFeeBox)); if(subjectFeesWrapper){ if(oldFeeNames.length || oldFeeAmounts.length){ const total = Math.max(oldFeeNames.length, oldFeeAmounts.length); for(let i=0;i<total;i++) createSubjectFeeRow(oldFeeNames[i] || '', oldFeeAmounts[i] || ''); } else { createSubjectFeeRow(); } }
 const signupForm = document.getElementById('signup-form'); if(signupForm){ signupForm.addEventListener('submit', function(event){ if(registrationInput.value === 'tutor' && !hasVerifiedLocation()){ event.preventDefault(); setLocationStatus('warning','Location verification required','Please click Verify current location and allow browser access before submitting tutor registration.'); } }); }
 updateCombinedLocation(); syncSelectors(); setRegistrationType(registrationInput.value || 'student'); toggleFeeBox(); updateSubmitState();
 })();

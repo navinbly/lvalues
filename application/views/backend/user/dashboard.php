@@ -4,7 +4,7 @@
     $number_of_enrolment_result = $this->crud_model->instructor_wise_enrolment($instructor_id);
     if ($number_of_enrolment_result) {
         $number_of_enrolment = $number_of_enrolment_result->num_rows();
-    }else{
+    } else {
         $number_of_enrolment = 0;
     }
     $total_pending_amount = $this->crud_model->get_total_pending_amount($instructor_id);
@@ -15,10 +15,13 @@
     <div class="col-xl-12">
         <div class="card">
             <div class="card-body">
-                <h4 class="page-title"> <i class="mdi mdi-apple-keyboard-command title_icon"></i> <?php echo get_phrase('dashboard'); ?></h4>
-            </div> <!-- end card body-->
-        </div> <!-- end card -->
-    </div><!-- end col-->
+                <h4 class="page-title">
+                    <i class="mdi mdi-apple-keyboard-command title_icon"></i>
+                    <?php echo get_phrase('dashboard'); ?>
+                </h4>
+            </div>
+        </div>
+    </div>
 </div>
 
 <?php
@@ -54,6 +57,7 @@
                             </div>
                         </a>
                     </div>
+
                     <div class="col-sm-6 col-xl-9 border-left">
                         <div class="card shadow-none m-0">
                             <div class="card-body">
@@ -120,6 +124,53 @@
     </div>
 </div>
 
+<!-- NEW: Batch management shortcuts -->
+<div class="row">
+    <div class="col-12">
+        <div class="card widget-inline">
+            <div class="card-body p-0">
+                <div class="row no-gutters">
+                    <div class="col-sm-6 col-xl-4">
+                        <a href="<?php echo site_url('tutor_batch'); ?>" class="text-secondary">
+                            <div class="card shadow-none m-0">
+                                <div class="card-body text-center">
+                                    <i class="dripicons-user-group text-muted" style="font-size: 24px;"></i>
+                                    <h3><span>-</span></h3>
+                                    <p class="text-muted font-15 mb-0"><?php echo get_phrase('manage_batches'); ?></p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-sm-6 col-xl-4">
+                        <a href="<?php echo site_url('tutor_batch/create'); ?>" class="text-secondary">
+                            <div class="card shadow-none m-0 border-left">
+                                <div class="card-body text-center">
+                                    <i class="dripicons-plus text-muted" style="font-size: 24px;"></i>
+                                    <h3><span>+</span></h3>
+                                    <p class="text-muted font-15 mb-0"><?php echo get_phrase('create_batch'); ?></p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-sm-6 col-xl-4">
+                        <a href="<?php echo site_url('tutor_batch'); ?>" class="text-secondary">
+                            <div class="card shadow-none m-0 border-left">
+                                <div class="card-body text-center">
+                                    <i class="dripicons-calendar text-muted" style="font-size: 24px;"></i>
+                                    <h3><span><?php echo get_phrase('go'); ?></span></h3>
+                                    <p class="text-muted font-15 mb-0"><?php echo get_phrase('batch_sessions_assignments_tests'); ?></p>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-xl-12">
         <div class="card">
@@ -128,9 +179,9 @@
                 <div class="mt-3 chartjs-chart" style="height: 320px;">
                     <canvas id="task-area-chart"></canvas>
                 </div>
-            </div> <!-- end card body-->
-        </div> <!-- end card -->
-    </div><!-- end col-->
+            </div>
+        </div>
+    </div>
 </div>
 
 <div class="row">
@@ -184,11 +235,12 @@
                         </a>
                     </div>
 
-                </div> <!-- end row -->
+                </div>
             </div>
-        </div> <!-- end card-box-->
-    </div> <!-- end col-->
+        </div>
+    </div>
 </div>
+
 <div class="row">
     <div class="col-xl-12">
         <div class="card">
@@ -210,7 +262,7 @@
                         <h3 class="font-weight-normal">
                             <span><?php echo $this->crud_model->get_status_wise_courses_for_instructor('pending')->num_rows(); ?></span>
                         </h3>
-                        <p class="text-muted mb-0"> <?php echo get_phrase('pending_courses'); ?></p>
+                        <p class="text-muted mb-0"><?php echo get_phrase('pending_courses'); ?></p>
                     </div>
                 </div>
             </div>

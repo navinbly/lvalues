@@ -31,12 +31,14 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 						<span><?php echo get_phrase('dashboard'); ?></span>
 					</a>
 				</li>
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/tutor_teaching_profile'); ?>" class="side-nav-link <?php if ($page_name == 'tutor_teaching_profile') echo 'active'; ?>">
 						<i class="dripicons-user"></i>
 						<span><?php echo get_phrase('teaching_profile'); ?></span>
 					</a>
 				</li>
+
 				<?php
 					$pending_student_request_count = 0;
 					$current_user_id = (int) $CI->session->userdata('user_id');
@@ -44,6 +46,7 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 						$pending_student_request_count = (int) $CI->tutor_request_model->count_pending_for_tutor($current_user_id);
 					}
 				?>
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/student_requests'); ?>" class="side-nav-link <?php if ($page_name == 'student_requests') echo 'active'; ?>">
 						<i class="dripicons-message"></i>
@@ -52,6 +55,23 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 							<span class="badge badge-danger-lighten ml-2"><?php echo $pending_student_request_count; ?></span>
 						<?php endif; ?>
 					</a>
+				</li>
+
+				<!-- NEW: Tutor Batch Management -->
+				<li class="side-nav-item">
+					<a href="javascript: void(0);" class="side-nav-link <?php if (in_array($page_name, array('tutor_batches', 'tutor_batch_form', 'tutor_batch_manage'))) echo 'active'; ?>">
+						<i class="dripicons-user-group"></i>
+						<span><?php echo get_phrase('batch_management'); ?></span>
+						<span class="menu-arrow"></span>
+					</a>
+					<ul class="side-nav-second-level <?php if (in_array($page_name, array('tutor_batches', 'tutor_batch_form', 'tutor_batch_manage'))) echo 'in'; ?>" aria-expanded="false">
+						<li class="<?php if ($page_name == 'tutor_batches' || $page_name == 'tutor_batch_manage') echo 'active'; ?>">
+							<a href="<?php echo site_url('tutor_batch'); ?>"><?php echo get_phrase('all_batches'); ?></a>
+						</li>
+						<li class="<?php if ($page_name == 'tutor_batch_form') echo 'active'; ?>">
+							<a href="<?php echo site_url('tutor_batch/create'); ?>"><?php echo get_phrase('create_batch'); ?></a>
+						</li>
+					</ul>
 				</li>
 
 				<li class="side-nav-item">
@@ -70,17 +90,14 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 			            </a>
 			            <ul class="side-nav-second-level" aria-expanded="false">
 
-			                <!-- live class -->
 			                <li class="<?php if ($page_name == 'bootcamp/live_classes') echo 'active'; ?>">
 			                    <a href="<?php echo site_url('addons/bootcamp/live_classes'); ?>"><?php echo get_phrase('live_class'); ?></a>
 			                </li>
 
-			                <!-- add bootcamp -->
 			                <li class="<?php if ($page_name == 'bootcamp/bootcamp_form') echo 'active'; ?>">
 			                    <a href="<?php echo site_url('addons/bootcamp/action/form'); ?>"><?php echo get_phrase('bootcamp_form'); ?></a>
 			                </li>
 
-			                <!-- payment -->
 			                <li class="<?php if ($page_name == 'bootcamp/payment_report' || $page_name == 'bootcamp/payment_invoice') echo 'active'; ?>">
 			                    <a href="<?php echo site_url('addons/bootcamp/payment_report'); ?>"><?php echo get_phrase('payment'); ?></a>
 			                </li>
@@ -88,7 +105,6 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 			        </li>
 		        <?php endif; ?>
 
-		        <!-- team training start -->
 				<?php if (addon_status('team_training')) : ?>
 					<li class="side-nav-item">
 						<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'team_packages' ||$page_name == 'team_package_add' || $page_name == 'team_package_edit'  || $page_name == 'team_package_purchase_history' || $page_name == 'teams-server-side' || $page_name == 'team-details-page') : ?> active <?php endif; ?>">
@@ -103,20 +119,15 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 							<li class="<?php if ($page_name == 'team_package_add' ) echo 'active'; ?>">
 								<a href="<?php echo site_url('addons/team_training/team_package_form/add_team_package_form'); ?>"><?php echo get_phrase('add_new_package'); ?></a>
 							</li>
-
-
 							<li class="<?php if ($page_name == 'team_package_purchase_history') echo 'active'; ?>">
 								<a href="<?php echo site_url('addons/team_training/purchase_history'); ?>"><?php echo get_phrase('sales_report'); ?></a>
 							</li>
-
 							<li class="<?php if ($page_name == 'teams-server-side' || $page_name == 'team-details-page') echo 'active'; ?>">
 								<a href="<?php echo site_url('addons/team_training/teams_list'); ?>"><?php echo get_phrase('teams'); ?></a>
 							</li>
-
 						</ul>
 					</li>
 				<?php endif; ?>
-				<!-- team training end -->
 
 				<?php if (addon_status('ebook')) : ?>
 					<li class="side-nav-item">
@@ -139,16 +150,14 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 					</li>
 				<?php endif; ?>
 
-
 				<?php if (addon_status('tutor_booking') && $this->session->userdata('is_instructor')==1) : ?>
 					<li class="side-nav-item">
-					<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'tutor_inactive_booking_list' ||$page_name == 'tutor_schedule_list' || $page_name == 'tutor_inactive_schedule_list'  || $page_name == 'tutor_live_class_settings' || $page_name == 'booked_schedule_details' ||$page_name == 'tutor_caregories' || $page_name == 'add_schedule' || $page_name == 'tutor_booking_list') : ?> active <?php endif; ?>">
+						<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'tutor_inactive_booking_list' ||$page_name == 'tutor_schedule_list' || $page_name == 'tutor_inactive_schedule_list'  || $page_name == 'tutor_live_class_settings' || $page_name == 'booked_schedule_details' ||$page_name == 'tutor_caregories' || $page_name == 'add_schedule' || $page_name == 'tutor_booking_list') : ?> active <?php endif; ?>">
 							<i class="dripicons-document"></i>
 							<span> <?php echo get_phrase('tutor_booking'); ?> </span>
 							<span class="menu-arrow"></span>
 						</a>
 						<ul class="side-nav-second-level <?php if ($page_name == 'tutor_inactive_booking_list' ||$page_name == 'tutor_schedule_list' || $page_name == 'tutor_inactive_schedule_list'  || $page_name == 'tutor_live_class_settings' || $page_name == 'booked_schedule_details' ||$page_name == 'tutor_caregories' || $page_name == 'add_schedule' || $page_name == 'tutor_booking_list') echo 'in'; ?>" aria-expanded="false">
-						
 							<li class="<?php if ($page_name == 'add_schedule') echo 'active'; ?>">
 								<a href="<?php echo site_url('addons/tutor_booking/schedule'); ?>"><?php echo get_phrase('add_booking'); ?></a>
 							</li>
@@ -160,29 +169,31 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 							<li class="<?php if ($page_name == 'booked_schedule_details') echo 'active'; ?>">
 								<a href="<?php echo site_url('addons/tutor_booking/booked_schedules'); ?>"><?php echo get_phrase('Student bookings'); ?></a>
 							</li>
-
 						</ul>
 					</li>
 				<?php endif; ?>
-		
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/sales_report'); ?>" class="side-nav-link <?php if ($page_name == 'report' || $page_name == 'invoice') echo 'active'; ?>">
 						<i class="dripicons-to-do"></i>
 						<span><?php echo get_phrase('sales_report'); ?></span>
 					</a>
 				</li>
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/payout_report'); ?>" class="side-nav-link <?php if ($page_name == 'payout_report' || $page_name == 'invoice') echo 'active'; ?>">
 						<i class="dripicons-shopping-bag"></i>
 						<span><?php echo get_phrase('payout_report'); ?></span>
 					</a>
 				</li>
+
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/payout_settings'); ?>" class="side-nav-link <?php if ($page_name == 'payment_settings') echo 'active'; ?>">
 						<i class="dripicons-gear"></i>
 						<span><?php echo get_phrase('payout_settings'); ?></span>
 					</a>
 				</li>
+
 			<?php else : ?>
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/become_an_instructor'); ?>" class="side-nav-link <?php if ($page_name == 'become_an_instructor') echo 'active'; ?>">
@@ -190,8 +201,6 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 						<span><?php echo get_phrase('become_an_instructor'); ?></span>
 					</a>
 				</li>
-
-			
 			<?php endif; ?>
 		<?php endif; ?>
 
@@ -203,7 +212,6 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 				</a>
 			</li>
 		<?php endif; ?>
-
 
 		<?php if (get_frontend_settings('instructors_blog_permission') && $this->session->userdata('is_instructor')) : ?>
 			<li class="side-nav-item <?php if ($page_name == 'blog' || $page_name == 'blog_add' || $page_name == 'blog_edit' || $page_name == 'instructors_pending_blog') : ?> active <?php endif; ?>">
@@ -224,7 +232,6 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 			</li>
 		<?php endif; ?>
 
-
 		<?php if (addon_status('customer_support')) : ?>
 			<li class="side-nav-item <?php if ($page_name == 'tickets' || $page_name == 'create_ticket') : ?> active <?php endif; ?>">
 				<a href="javascript: void(0);" class="side-nav-link">
@@ -243,7 +250,7 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 			</li>
 		<?php endif; ?>
 
-		<?php //course_addon start
+		<?php
 		if (addon_status('affiliate_course') ) :
 			$CI_aff = &get_instance();
 			$CI_aff->load->model('addons/affiliate_course_model');
@@ -271,44 +278,38 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 						<span><?php echo get_phrase('Affiliation History'); ?></span>
 					</a>
 				</li>
-				<?php elseif($x==2): ?>
-					<li class="side-nav-item">
+			<?php elseif($x==2): ?>
+				<li class="side-nav-item">
 					<a href="<?php echo site_url('addons/affiliate_course/become_an_affiliator'); ?>" class="side-nav-link <?php if ($page_name == 'become_an_affiliator') echo 'active'; ?>">
 						<i class="dripicons-archive"></i>
 						<span><?php echo get_phrase('Affiliation Status'); ?></span>
 					</a>
 				</li>
-
-
 			<?php endif; ?>
-		<?php endif;
-		//course_addon end 
-		?>
-		
+		<?php endif; ?>
+
 		<?php if ($this->session->userdata('is_instructor')) : ?>
-		<li class="side-nav-item <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
-			<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
-				<i class="mdi mdi-file-document-outline"></i>
-				<span><?php echo get_phrase('Content (Docs)'); ?></span>
-				<span class="menu-arrow"></span>
-			</a>
+			<li class="side-nav-item <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
+				<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
+					<i class="mdi mdi-file-document-outline"></i>
+					<span><?php echo get_phrase('Content (Docs)'); ?></span>
+					<span class="menu-arrow"></span>
+				</a>
 
-			<ul class="side-nav-second-level" aria-expanded="false">
+				<ul class="side-nav-second-level" aria-expanded="false">
+					<li class="<?php if ($page_name == 'content_nodes' || $page_name == 'content_add_node' || $page_name == 'content_edit_node') echo 'active'; ?>">
+						<a href="<?php echo site_url('user/content_nodes'); ?>">
+							<?php echo get_phrase('Nodes (Tree)'); ?>
+						</a>
+					</li>
 
-				<li class="<?php if ($page_name == 'content_nodes' || $page_name == 'content_add_node' || $page_name == 'content_edit_node') echo 'active'; ?>">
-					<a href="<?php echo site_url('user/content_nodes'); ?>">
-						<?php echo get_phrase('Nodes (Tree)'); ?>
-					</a>
-				</li>
-
-				<li class="<?php if ($page_name == 'content_pages' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') echo 'active'; ?>">
-					<a href="<?php echo site_url('user/content_pages'); ?>">
-						<?php echo get_phrase('Pages'); ?>
-					</a>
-				</li>
-
-			</ul>
-		</li>
+					<li class="<?php if ($page_name == 'content_pages' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') echo 'active'; ?>">
+						<a href="<?php echo site_url('user/content_pages'); ?>">
+							<?php echo get_phrase('Pages'); ?>
+						</a>
+					</li>
+				</ul>
+			</li>
 		<?php endif; ?>
 
 		<li class="side-nav-item">
@@ -329,14 +330,12 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 			</a>
 		</li>
 
-
 		<li class="side-nav-item">
 			<a href="<?php echo site_url('home/profile/user_profile'); ?>" class="side-nav-link">
 				<i class="dripicons-user"></i>
 				<span><?php echo get_phrase('manage_profile'); ?></span>
 			</a>
 		</li>
-
 
 	</ul>
 </div>

@@ -405,23 +405,43 @@ class Home extends CI_Controller
             $page_data['page_name'] = "update_user_photo";
             $page_data['page_title'] = site_phrase('update_user_photo');
         }
-        $page_data['user_details'] = $this->user_model->get_user($this->session->userdata('user_id'));
+
+        $user_id = (int)$this->session->userdata('user_id');
+        $page_data['user_details'] = $this->user_model->get_user($user_id);
+
+        if ($param1 == 'user_profile') {
+            $page_data['tutor_registration_tree'] = $this->tutor_master_model->get_registration_tree();
+            $page_data['student_learning_profile'] = $this->_get_student_learning_profile($user_id);
+        }
+
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
     }
 
     public function update_profile($param1 = "", $is_profile_page = false)
     {
+        $user_id = (int)$this->session->userdata('user_id');
+
         if ($param1 == 'update_basics') {
-            $this->user_model->edit_user($this->session->userdata('user_id'));
+            $this->user_model->edit_user($user_id);
+
+            $user = $this->db->get_where('users', array('id' => $user_id), 1)->row_array();
+            if (!empty($user) && (int)($user['is_instructor'] ?? 0) !== 1) {
+                $this->_save_student_learning_profile($user_id);
+            }
+
+            $this->session->set_flashdata('flash_message', site_phrase('updated_successfully'));
             redirect(site_url('home/profile/user_profile'), 'refresh');
         } elseif ($param1 == "update_credentials") {
-            $this->user_model->update_account_settings($this->session->userdata('user_id'));
+            $this->user_model->update_account_settings($user_id);
             redirect(site_url('home/profile/user_credentials'), 'refresh');
         } elseif ($param1 == "update_photo") {
             if (isset($_FILES['user_image']) && $_FILES['user_image']['name'] != "") {
-                unlink('uploads/user_image/' . $this->db->get_where('users', array('id' => $this->session->userdata('user_id')))->row('image') . '.jpg');
+                $old_image = $this->db->get_where('users', array('id' => $user_id))->row('image');
+                if (!empty($old_image) && file_exists('uploads/user_image/' . $old_image . '.jpg')) {
+                    unlink('uploads/user_image/' . $old_image . '.jpg');
+                }
                 $data['image'] = md5(rand(10000, 10000000));
-                $this->db->where('id', $this->session->userdata('user_id'));
+                $this->db->where('id', $user_id);
                 $this->db->update('users', $data);
                 $this->user_model->upload_user_image($data['image']);
             }
@@ -433,6 +453,66 @@ class Home extends CI_Controller
                 redirect(site_url('home/profile/user_photo'), 'refresh');
             }
         }
+    }
+
+    private function _get_student_learning_profile($user_id)
+    {
+        if (!$this->db->table_exists('student_learning_profiles')) {
+            return array();
+        }
+
+        return $this->db
+            ->where('student_user_id', (int)$user_id)
+            ->get('student_learning_profiles', 1)
+            ->row_array();
+    }
+
+    private function _save_student_learning_profile($user_id)
+    {
+        if (!$this->db->table_exists('student_learning_profiles')) {
+            return false;
+        }
+
+        $category_id = (int)$this->input->post('student_category_id');
+        $class_id = (int)$this->input->post('student_class_id');
+        $subject_interest_id = (int)$this->input->post('student_subject_interest_id');
+
+        if ($category_id <= 0 || $class_id <= 0) {
+            $this->session->set_flashdata('error_message', 'Please select your learning category and current class/level.');
+            return false;
+        }
+
+        if (!$this->tutor_master_model->class_ids_belong_to_categories(array($class_id), array($category_id))) {
+            $this->session->set_flashdata('error_message', 'Selected class/level does not belong to the selected category.');
+            return false;
+        }
+
+        if ($subject_interest_id > 0 && !$this->tutor_master_model->subject_ids_belong_to_classes(array($subject_interest_id), array($class_id))) {
+            $this->session->set_flashdata('error_message', 'Selected subject does not belong to selected class/level.');
+            return false;
+        }
+
+        $data = array(
+            'student_user_id' => (int)$user_id,
+            'category_id' => $category_id,
+            'class_id' => $class_id,
+            'subject_interest_id' => $subject_interest_id > 0 ? $subject_interest_id : null,
+            'current_level_label' => trim((string)$this->input->post('student_current_level_label', true)),
+            'academic_year' => trim((string)$this->input->post('student_academic_year', true)),
+            'status' => 1,
+            'updated_at' => date('Y-m-d H:i:s')
+        );
+
+        $existing = $this->db->get_where('student_learning_profiles', array('student_user_id' => (int)$user_id), 1)->row_array();
+        if (!empty($existing)) {
+            $this->db->where('student_user_id', (int)$user_id);
+            $this->db->update('student_learning_profiles', $data);
+        } else {
+            $data['created_at'] = date('Y-m-d H:i:s');
+            $this->db->insert('student_learning_profiles', $data);
+        }
+
+        return true;
     }
 
     public function handleWishList($return_number = "")

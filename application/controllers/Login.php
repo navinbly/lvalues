@@ -227,6 +227,27 @@ class Login extends CI_Controller
 			}
 		}
 
+		if (!$is_instructor) {
+			$student_category_id = (int)$this->input->post('student_category_id');
+			$student_class_id = (int)$this->input->post('student_class_id');
+			$student_subject_interest_id = (int)$this->input->post('student_subject_interest_id');
+
+			if ($student_category_id <= 0 || $student_class_id <= 0) {
+				$this->session->set_flashdata('error_message', 'Please select your learning category and current class/level.');
+				redirect($signup_redirect, 'refresh');
+			}
+
+			if (!$this->tutor_master_model->class_ids_belong_to_categories([$student_class_id], [$student_category_id])) {
+				$this->session->set_flashdata('error_message', 'Selected class/level does not belong to the selected category.');
+				redirect($signup_redirect, 'refresh');
+			}
+
+			if ($student_subject_interest_id > 0 && !$this->tutor_master_model->subject_ids_belong_to_classes([$student_subject_interest_id], [$student_class_id])) {
+				$this->session->set_flashdata('error_message', 'Selected subject does not belong to selected class/level.');
+				redirect($signup_redirect, 'refresh');
+			}
+		}
+
 		$email = html_escape($this->input->post('email'));
 		$validity = $this->user_model->check_duplication('on_create', $email);
 		if (!($validity === 'unverified_user' || $validity === true)) {
@@ -315,6 +336,13 @@ class Login extends CI_Controller
 		// Mobile number for both student and tutor
 		$this->form_validation->set_rules('phone_country_code', 'Country code', 'required|trim');
 		$this->form_validation->set_rules('phone_number', 'Phone number', 'required|trim|callback__valid_phone_by_country');
+
+		// Student learning profile classification is required for student registration.
+		if (!$is_instructor) {
+			$this->form_validation->set_rules('student_category_id', 'Learning Category', 'required|integer');
+			$this->form_validation->set_rules('student_class_id', 'Current Class / Level', 'required|integer');
+			$this->form_validation->set_rules('student_subject_interest_id', 'Subject Interest', 'integer');
+		}
 
 		if ($is_instructor) {
 			$this->form_validation->set_rules('tutor_category_ids[]', 'Category', 'required');
@@ -430,6 +458,32 @@ class Login extends CI_Controller
 		} else {
 			$this->user_model->register_user_update_code($data, $data['status']);
 			$user_id = $this->db->get_where('users', ['email' => $email])->row('id');
+		}
+
+		if (!$is_instructor && !empty($user_id)) {
+			$student_subject_interest_id = (int)$this->input->post('student_subject_interest_id');
+			$student_profile = [
+				'student_user_id' => (int)$user_id,
+				'category_id' => (int)$this->input->post('student_category_id'),
+				'class_id' => (int)$this->input->post('student_class_id'),
+				'subject_interest_id' => $student_subject_interest_id > 0 ? $student_subject_interest_id : null,
+				'current_level_label' => trim((string)$this->input->post('student_current_level_label')),
+				'academic_year' => trim((string)$this->input->post('student_academic_year')) ?: date('Y'),
+				'status' => 1,
+				'created_at' => date('Y-m-d H:i:s'),
+				'updated_at' => date('Y-m-d H:i:s')
+			];
+
+			$existing_profile = $this->db
+				->get_where('student_learning_profiles', ['student_user_id' => (int)$user_id], 1)
+				->row_array();
+
+			if ($existing_profile) {
+				unset($student_profile['created_at']);
+				$this->db->where('student_user_id', (int)$user_id)->update('student_learning_profiles', $student_profile);
+			} else {
+				$this->db->insert('student_learning_profiles', $student_profile);
+			}
 		}
 
 		if ($is_instructor) {

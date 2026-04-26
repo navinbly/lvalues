@@ -8,12 +8,13 @@ $unreaded_message = $this->db->get('message')->num_rows();
     <div class="row">
         <div class="col-md-12">
             <div class="student-profile-info">
-                <img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>">
+                <a href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>"></a>
                 <h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4>
                 <span><?php echo $user_details['email']; ?></span>
             </div>
         </div>
     </div>
+
     <div class="wish-list-course">
         <a class="btn-profile-menu <?php if($page_name == 'my_courses') echo 'active'; ?>" href="<?php echo site_url('home/my_courses'); ?>">
             <i class="fa-solid fa-book-open-reader me-2"></i>
@@ -61,13 +62,24 @@ $unreaded_message = $this->db->get('message')->num_rows();
             </a>
         <?php endif; ?>
 
+        <!-- NEW: Student Batch Invites -->
+        <a class="btn-profile-menu <?php if($page_name == 'student_batch_invites') echo 'active'; ?>" href="<?php echo site_url('student_batch/invites'); ?>">
+            <i class="fas fa-envelope-open-text me-2"></i>
+            <?php echo get_phrase('Batch Invites'); ?>
+        </a>
+
+        <!-- NEW: Student Batches -->
+        <a class="btn-profile-menu <?php if($page_name == 'student_batches') echo 'active'; ?>" href="<?php echo site_url('student_batch/my_batches'); ?>">
+            <i class="fas fa-users me-2"></i>
+            <?php echo get_phrase('My Batches'); ?>
+        </a>
+
         <?php if(addon_status('ebook')): ?>
             <a class="btn-profile-menu <?php if($page_name == 'my_ebooks') echo 'active'; ?>" href="<?php echo site_url('home/my_ebooks'); ?>">
                 <i class="fas fa-book me-2"></i>
                 <?php echo get_phrase('My Ebooks'); ?>
             </a>
         <?php endif; ?>
-
 
         <a class="btn-profile-menu <?php if($page_name == 'my_wishlist') echo 'active'; ?>" href="<?php echo site_url('home/my_wishlist'); ?>">
             <i class="fa-regular fa-heart me-2"></i>
