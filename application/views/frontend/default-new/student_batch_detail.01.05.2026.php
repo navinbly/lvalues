@@ -78,7 +78,7 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
 									<div class="progress-bar" role="progressbar"
 										 style="width: <?php echo $attendance; ?>%;"></div>
 								</div>
-								<small class="text-muted">Based on marked sessions</small>
+								<small class="text-muted">Coming in Step 5</small>
 							</div>
 						</div>
 					</div>
@@ -97,30 +97,6 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                             </thead>
                             <tbody>
                                 <?php foreach (($batch['sessions'] ?? []) as $session): ?>
-                                    <?php
-                                        $meeting_url = $session['meeting_url'] ?? ($session['student_join_url'] ?? '');
-
-                                        $session_date = trim((string)($session['session_date'] ?? ''));
-                                        $start_time_value = trim((string)($session['start_time'] ?? ''));
-                                        $end_time_value = trim((string)($session['end_time'] ?? ''));
-
-                                        $start_string = trim($session_date . ' ' . $start_time_value);
-                                        $end_string = trim($session_date . ' ' . $end_time_value);
-
-                                        $now = time();
-                                        $start = strtotime($start_string);
-                                        $end = strtotime($end_string);
-
-                                        $join_window_start = $start ? $start - (10 * 60) : 0;
-                                        $join_window_end = $end ? $end + (15 * 60) : 0;
-
-                                        $can_join = !empty($meeting_url)
-                                            && $start
-                                            && $end
-                                            && $now >= $join_window_start
-                                            && $now <= $join_window_end
-                                            && (($session['session_status'] ?? 'scheduled') !== 'cancelled');
-                                    ?>
                                     <tr>
                                         <td><?php echo html_escape($session['session_date'] ?? ''); ?></td>
                                         <td>
@@ -132,19 +108,10 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                                         <td><?php echo html_escape(($session['start_time'] ?? '') . ' - ' . ($session['end_time'] ?? '')); ?></td>
                                         <td><?php echo ucfirst(html_escape($session['session_status'] ?? 'scheduled')); ?></td>
                                         <td>
-                                            <?php if ($can_join): ?>
-                                                <a href="<?php echo site_url('student_batch/join_session/' . (int)$session['id']); ?>"
-                                                   target="_blank"
-                                                   rel="noopener"
-                                                   class="btn btn-success btn-sm">
-                                                    Join Now
-                                                </a>
-                                            <?php elseif (empty($meeting_url)): ?>
-                                                <span class="text-muted">Link not available</span>
+                                            <?php if (!empty($session['student_join_url'])): ?>
+                                                <a href="<?php echo html_escape($session['student_join_url']); ?>" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Join Live</a>
                                             <?php else: ?>
-                                                <button class="btn btn-secondary btn-sm" disabled>
-                                                    Not Live
-                                                </button>
+                                                <span class="text-muted">Not available</span>
                                             <?php endif; ?>
                                         </td>
                                     </tr>
@@ -156,82 +123,31 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                         </table>
                     </div>
 
-                    <h5 class="mb-3">Class Recordings</h5>
+                    <h5 class="mb-3">Recordings</h5>
                     <div class="row mb-4">
-                        <?php
-                            $has_recording = false;
-                            foreach (($batch['sessions'] ?? []) as $session) {
-                                if (($session['recording_status'] ?? '') === 'available' && !empty($session['recording_url'])) {
-                                    $has_recording = true;
-                                    break;
-                                }
-                            }
-                        ?>
-
-                        <?php foreach (($batch['sessions'] ?? []) as $session): ?>
-                            <?php if (($session['recording_status'] ?? '') === 'available' && !empty($session['recording_url'])): ?>
-                                <?php $recording_url = $session['recording_url']; ?>
-                                <div class="col-md-6 mb-3">
-                                    <div class="border rounded p-3 h-100">
-                                        <h6><?php echo html_escape($session['title'] ?? 'Session Recording'); ?></h6>
-
+                        <?php foreach (($batch['recordings'] ?? []) as $recording): ?>
+                            <?php $recording_url = !empty($recording['embed_url']) ? $recording['embed_url'] : ($recording['playback_url'] ?? ''); ?>
+                            <div class="col-md-6 mb-3">
+                                <div class="border rounded p-3 h-100">
+                                    <h6><?php echo html_escape($recording['title'] ?: 'Session Recording'); ?></h6>
+                                    <?php if (!empty($recording_url)): ?>
                                         <?php if (preg_match('/\.(mp4|webm|ogg)(\?.*)?$/i', $recording_url)): ?>
                                             <video width="100%" controls controlsList="nodownload" oncontextmenu="return false;">
                                                 <source src="<?php echo html_escape($recording_url); ?>">
                                                 Your browser does not support video playback.
                                             </video>
                                         <?php else: ?>
-                                            <div class="embed-responsive embed-responsive-16by9">
-                                                <iframe class="embed-responsive-item"
-                                                        src="<?php echo html_escape($recording_url); ?>"
-                                                        allowfullscreen
-                                                        oncontextmenu="return false;">
-                                                </iframe>
-                                            </div>
+                                            <a href="<?php echo html_escape($recording_url); ?>" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm">View Recording</a>
                                         <?php endif; ?>
-
-                                        <small class="d-block text-muted mt-2">
-                                            Download option is disabled in the student interface.
-                                        </small>
-                                    </div>
+                                        <small class="d-block text-muted mt-2">Download option is disabled in the student interface.</small>
+                                    <?php else: ?>
+                                        <span class="text-muted">Recording link not available.</span>
+                                    <?php endif; ?>
                                 </div>
-                            <?php endif; ?>
-                        <?php endforeach; ?>
-
-                        <?php if (!$has_recording && !empty($batch['recordings'])): ?>
-                            <?php foreach (($batch['recordings'] ?? []) as $recording): ?>
-                                <?php $recording_url = !empty($recording['embed_url']) ? $recording['embed_url'] : ($recording['playback_url'] ?? ''); ?>
-                                <div class="col-md-6 mb-3">
-                                    <div class="border rounded p-3 h-100">
-                                        <h6><?php echo html_escape($recording['title'] ?: 'Session Recording'); ?></h6>
-                                        <?php if (!empty($recording_url)): ?>
-                                            <?php if (preg_match('/\.(mp4|webm|ogg)(\?.*)?$/i', $recording_url)): ?>
-                                                <video width="100%" controls controlsList="nodownload" oncontextmenu="return false;">
-                                                    <source src="<?php echo html_escape($recording_url); ?>">
-                                                    Your browser does not support video playback.
-                                                </video>
-                                            <?php else: ?>
-                                                <div class="embed-responsive embed-responsive-16by9">
-                                                    <iframe class="embed-responsive-item"
-                                                            src="<?php echo html_escape($recording_url); ?>"
-                                                            allowfullscreen
-                                                            oncontextmenu="return false;">
-                                                    </iframe>
-                                                </div>
-                                            <?php endif; ?>
-                                            <small class="d-block text-muted mt-2">Download option is disabled in the student interface.</small>
-                                        <?php else: ?>
-                                            <span class="text-muted">Recording link not available.</span>
-                                        <?php endif; ?>
-                                    </div>
-                                </div>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-
-                        <?php if (!$has_recording && empty($batch['recordings'])): ?>
-                            <div class="col-12">
-                                <div class="border rounded p-3 text-muted">No recordings available yet.</div>
                             </div>
+                        <?php endforeach; ?>
+                        <?php if (empty($batch['recordings'])): ?>
+                            <div class="col-12"><div class="border rounded p-3 text-muted">No recordings available yet.</div></div>
                         <?php endif; ?>
                     </div>
 

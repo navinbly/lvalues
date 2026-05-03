@@ -5,7 +5,6 @@ $sessions = isset($upcoming_tutor_sessions) ? $upcoming_tutor_sessions : [];
 <div class="container my-5">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h3 class="mb-0">Upcoming Live Sessions</h3>
-    <a href="<?= site_url('tutors'); ?>" class="btn btn-outline-primary btn-sm">Find Tutors</a>
   </div>
 
   <?php if (empty($sessions)): ?>

@@ -87,7 +87,13 @@ class Login extends CI_Controller
 		}
 
 		$this->user_model->new_device_login_tracker($row->id);
-		$this->user_model->set_login_userdata($row->id);
+	    $this->user_model->set_login_userdata($row->id);
+
+		if ((int)$row->is_instructor === 1) {
+			redirect(site_url('user/dashboard'), 'refresh');
+		} else {
+			redirect(site_url('home/my_courses'), 'refresh');
+		}
 	}
 
     function new_login_confirmation($param1 = ""){
@@ -342,6 +348,7 @@ class Login extends CI_Controller
 			$this->form_validation->set_rules('student_category_id', 'Learning Category', 'required|integer');
 			$this->form_validation->set_rules('student_class_id', 'Current Class / Level', 'required|integer');
 			$this->form_validation->set_rules('student_subject_interest_id', 'Subject Interest', 'integer');
+                $this->form_validation->set_rules('student_learning_message', 'Learning Message', 'trim|max_length[1000]');
 		}
 
 		if ($is_instructor) {
@@ -469,10 +476,15 @@ class Login extends CI_Controller
 				'subject_interest_id' => $student_subject_interest_id > 0 ? $student_subject_interest_id : null,
 				'current_level_label' => trim((string)$this->input->post('student_current_level_label')),
 				'academic_year' => trim((string)$this->input->post('student_academic_year')) ?: date('Y'),
+                    'student_learning_message' => trim((string)$this->input->post('student_learning_message', true)),
 				'status' => 1,
 				'created_at' => date('Y-m-d H:i:s'),
 				'updated_at' => date('Y-m-d H:i:s')
 			];
+
+                if (!$this->db->field_exists('student_learning_message', 'student_learning_profiles')) {
+                    unset($student_profile['student_learning_message']);
+                }
 
 			$existing_profile = $this->db
 				->get_where('student_learning_profiles', ['student_user_id' => (int)$user_id], 1)

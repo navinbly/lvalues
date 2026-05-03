@@ -27,9 +27,8 @@
       <div class="flex-shrink-0 mt-3">
         <ul class="list-unstyled ps-0">
           <?php if($user_login): ?>
-            <?php if($user_details['is_instructor'] == 1): ?>
-              <li><a href="<?php echo site_url('user/dashboard'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-columns me-2"></i><?php echo site_phrase('Instructor Dashboard'); ?></a></li>
-            <?php else: ?>
+            <li><a href="<?php echo site_url('dashboard'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-tachometer-alt me-2"></i><?php echo site_phrase('dashboard'); ?></a></li>
+            <?php if($user_details['is_instructor'] != 1): ?>
               <?php if (get_settings('allow_instructor') == 1) : ?>
                 <li><a href="<?php echo site_url('home/become_an_instructor'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-columns me-2"></i><?php echo site_phrase('Become an instructor'); ?></a></li>
               <?php endif; ?>
@@ -131,7 +130,7 @@
             </li>
           <?php elseif($user_login): ?>
             <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem me-2"></i><?php echo site_phrase('my_courses'); ?></a></li>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_courses'); ?>"><i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard</a></li>
+
             <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart me-2"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
             <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope me-2"></i><?php echo site_phrase('my_messages'); ?></a></li>
             <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart me-2"></i><?php echo site_phrase('purchase_history'); ?></a></li>

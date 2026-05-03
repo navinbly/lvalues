@@ -51,6 +51,7 @@ defined('BASEPATH') or exit('No direct script access allowed');
 */
 
 $route['default_controller'] = 'home';
+$route['dashboard'] = 'home/smart_dashboard';
 $route['404_override'] = 'home/page_not_found';
 $route['certificate/(:any)']        = "addons/certificate/generate_certificate/$1";
 
@@ -155,3 +156,24 @@ $route['tutor-api/subjects-by-class'] = 'Tutor_api/subjects_by_class';
 
 $route['user/tutor_teaching_profile'] = 'User/tutor_teaching_profile';
 $route['user/update_tutor_teaching_profile'] = 'User/update_tutor_teaching_profile';
+
+$route['student_batch/submit_assignment/(:num)'] = 'student_batch/submit_assignment/$1';
+
+$route['tutor_batch/evaluate_assignment/(:num)'] = 'tutor_batch/evaluate_assignment/$1';
+
+$route['tutor_batch/create_test/(:num)'] = 'tutor_batch/create_test/$1';
+$route['tutor_batch/add_test_question/(:num)'] = 'tutor_batch/add_test_question/$1';
+$route['tutor_batch/publish_test/(:num)'] = 'tutor_batch/publish_test/$1';
+
+$route['student_batch/start_test/(:num)'] = 'student_batch/start_test/$1';
+$route['student_batch/submit_test/(:num)'] = 'student_batch/submit_test/$1';
+
+$route['tutor_batch/attendance/(:num)'] = 'tutor_batch/attendance/$1';
+$route['tutor_batch/save_attendance/(:num)'] = 'tutor_batch/save_attendance/$1';
+
+$route['tutor_batch/update_session_links/(:num)'] = 'tutor_batch/update_session_links/$1';
+$route['student_batch/join_session/(:num)'] = 'student_batch/join_session/$1';
+
+$route['notifications'] = 'notifications/index';
+$route['notifications/read/(:num)'] = 'notifications/read/$1';
+$route['notifications/mark_all_read'] = 'notifications/mark_all_read';

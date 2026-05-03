@@ -42,6 +42,24 @@ class Home extends CI_Controller
         $this->home();
     }
 
+    /**
+     * Single smart dashboard router.
+     * Tutor -> instructor backend dashboard
+     * Student -> frontend learning dashboard
+     */
+    public function smart_dashboard()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        if ((int)$this->session->userdata('is_instructor') === 1) {
+            redirect(site_url('user/dashboard'), 'refresh');
+        }
+
+        redirect(site_url('home/my_courses'), 'refresh');
+    }
+
     function test()
     {
         $url = 'https://service-sandbox.tazapay.com/v3/checkout';
@@ -499,9 +517,14 @@ class Home extends CI_Controller
             'subject_interest_id' => $subject_interest_id > 0 ? $subject_interest_id : null,
             'current_level_label' => trim((string)$this->input->post('student_current_level_label', true)),
             'academic_year' => trim((string)$this->input->post('student_academic_year', true)),
+            'student_learning_message' => trim((string)$this->input->post('student_learning_message', true)),
             'status' => 1,
             'updated_at' => date('Y-m-d H:i:s')
         );
+        if (!$this->db->field_exists('student_learning_message', 'student_learning_profiles')) {
+            unset($data['student_learning_message']);
+        }
+
 
         $existing = $this->db->get_where('student_learning_profiles', array('student_user_id' => (int)$user_id), 1)->row_array();
         if (!empty($existing)) {

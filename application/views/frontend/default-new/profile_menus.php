@@ -2,13 +2,28 @@
 $this->db->where('receiver', $this->session->userdata('user_id'));
 $this->db->where('read_status !=', 1);
 $unreaded_message = $this->db->get('message')->num_rows();
+
+$notification_count = 0;
+$logged_user_id = (int)$this->session->userdata('user_id');
+
+if ($this->db->table_exists('lms_notifications')) {
+    $notification_count = (int)$this->db
+        ->where('user_id', $logged_user_id)
+        ->where('is_read', 0)
+        ->count_all_results('lms_notifications');
+} elseif ($this->db->table_exists('notifications')) {
+    $notification_count = (int)$this->db
+        ->where('to_user', $logged_user_id)
+        ->where('status', 0)
+        ->count_all_results('notifications');
+}
 ?>
 
 <div class="wish-list-search mb-5">
     <div class="row">
         <div class="col-md-12">
             <div class="student-profile-info">
-                <a href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>"></a>
+                <a href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>"></a>
                 <h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4>
                 <span><?php echo $user_details['email']; ?></span>
             </div>
@@ -72,6 +87,15 @@ $unreaded_message = $this->db->get('message')->num_rows();
         <a class="btn-profile-menu <?php if($page_name == 'student_batches') echo 'active'; ?>" href="<?php echo site_url('student_batch/my_batches'); ?>">
             <i class="fas fa-users me-2"></i>
             <?php echo get_phrase('My Batches'); ?>
+        </a>
+
+        <!-- NEW: LMS Notifications -->
+        <a class="btn-profile-menu <?php if($page_name == 'notifications') echo 'active'; ?>" href="<?php echo site_url('notifications'); ?>">
+            <i class="far fa-bell me-2"></i>
+            <?php echo get_phrase('Notifications'); ?>
+            <?php if($notification_count > 0): ?>
+                <span class="badge bg-danger"><?php echo (int)$notification_count; ?></span>
+            <?php endif; ?>
         </a>
 
         <?php if(addon_status('ebook')): ?>

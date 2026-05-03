@@ -1,345 +1,476 @@
 <!---------- Banner Section Start ---------------->
-<section class="h-1-banner bannar-area pt-3 pb-5">
-    <div class="container">
-        <div class="row">
-            <div class="col-lg-6 col-md-6 col-sm-12 col-12 order-md-1 order-sm-2 order-2">
-                <div class="h-1-banner-text mb-3">
-                    <?php
-                        $banner_title = site_phrase(get_frontend_settings('banner_title'));
-                        $banner_title_arr = explode(' ', $banner_title);
-                    ?>
-                    <h1>
-                        <?php
-                        foreach($banner_title_arr as $key => $value){
-                            if($key == count($banner_title_arr) - 1){
-                                echo '<span class="d-inline-block">'.$value.'</span>';
-                            }else{
-                                echo $value.' ';
-                            }
-                        }
-                        ?>
-                    </h1>
-                    <p><?php echo site_phrase(get_frontend_settings('banner_sub_title')); ?></p>
-                </div>
-                <div class="search-option lvalues-hero-search">
-    <div class="search-box p-4 rounded shadow-sm bg-white">
-        <h4 class="fw-bold mb-2">What are you looking for?</h4>
-        <p class="text-muted mb-3">
-            Find the right <strong>tutor</strong> or search by <strong>subject</strong> for personalized learning.
-        </p>
-    </div>
-
-    <form action="<?php echo site_url('home/search'); ?>" method="get" class="lvalues-hero-search-form">
-        <input type="hidden" name="search_for" class="lvalues-search-for-input" value="tutor">
-
-        <div class="lvalues-search-toggle-wrap mb-3">
-            <button type="button" class="btn btn-primary lvalues-search-toggle active" data-mode="tutor">
-                <?php echo get_phrase('Find a tutor'); ?>
-            </button>
-            <button type="button" class="btn btn-outline-primary lvalues-search-toggle" data-mode="subject">
-                <?php echo get_phrase('Find a subject'); ?>
-            </button>
-        </div>
-
-        <div class="lvalues-hero-search-row">
-            <div class="lvalues-search-input-wrap">
-                <label for="lvalues_search_query_home_1">Enter keyword</label>
-                <input
-                    class="form-control lvalues-search-input"
-                    type="text"
-                    id="lvalues_search_query_home_1"
-                    name="query"
-                    placeholder="Search tutor like Math tutor, English tutor, Java tutor"
-                >
-                <small id="lvalues_search_hint_home_1" class="lvalues-search-hint">
-                    Example: Math tutor, English tutor, Home tutor, Online tutor
-                </small>
-            </div>
-
-            <div class="lvalues-search-button-wrap">
-                <button class="btn btn-primary lvalues-search-button px-4 py-2" type="submit">
-                    <i class="fa fa-search"></i> Search
-                </button>
-            </div>
-        </div>
-
-        <div class="lvalues-search-tags">
-            <span class="lvalues-search-tags-label">Popular:</span>
-            <button type="button" class="lvalues-search-tag" data-mode="tutor" data-value="Math tutor">Math tutor</button>
-            <button type="button" class="lvalues-search-tag" data-mode="tutor" data-value="English tutor">English tutor</button>
-            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Mathematics">Mathematics</button>
-            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Physics">Physics</button>
-            <button type="button" class="lvalues-search-tag" data-mode="subject" data-value="Computer Science">Computer Science</button>
-        </div>
-    </form>
-</div>
-
-<style>
-.lvalues-hero-search{
-    margin-top: 24px;
-    background: #ffffff;
-    border: 1px solid #ececf5;
-    border-radius: 18px;
-    padding: 22px;
-    box-shadow: 0 14px 35px rgba(33, 43, 99, 0.08);
-}
-.lvalues-search-toggle-wrap{
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-.lvalues-search-toggle{
-    min-width: 150px;
-    border-radius: 12px !important;
-    font-weight: 700;
-    border: 1px solid #6c4df6 !important;
-    background: #ffffff !important;
-    color: #6c4df6 !important;
-}
-.lvalues-search-toggle:hover,
-.lvalues-search-toggle:focus,
-.lvalues-search-toggle:active{
-    color: #6c4df6 !important;
-    background: #f4f1ff !important;
-    border-color: #6c4df6 !important;
-    box-shadow: none !important;
-}
-.lvalues-search-toggle.active,
-.lvalues-search-toggle.btn-primary,
-.lvalues-search-toggle.active:hover,
-.lvalues-search-toggle.active:focus,
-.lvalues-search-toggle.active:active{
-    background: #6c4df6 !important;
-    border-color: #6c4df6 !important;
-    color: #ffffff !important;
-    box-shadow: none !important;
-}
-.lvalues-search-toggle.btn-outline-primary{
-    background: #ffffff !important;
-    color: #6c4df6 !important;
-    border-color: #6c4df6 !important;
-}
-.lvalues-hero-search-row{
-    display: flex;
-    gap: 12px;
-    align-items: end;
-    flex-wrap: wrap;
-}
-.lvalues-search-input-wrap{
-    flex: 1 1 360px;
-}
-.lvalues-search-button-wrap{
-    flex: 0 0 auto;
-}
-.lvalues-search-input-wrap label{
-    display: block;
-    margin-bottom: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: #4b5563;
-}
-.lvalues-search-input{
-    height: 56px;
-    border-radius: 12px;
-    border: 1px solid #dfe3f0;
-    box-shadow: none;
-    font-size: 16px;
-}
-.lvalues-search-input:focus{
-    border-color: #6c4df6;
-    box-shadow: 0 0 0 0.15rem rgba(108, 77, 246, 0.15);
-}
-.lvalues-search-hint{
-    display: block;
-    margin-top: 8px;
-    color: #7b8190;
-    font-size: 13px;
-}
-.lvalues-search-button{
-    min-width: 150px;
-    height: 56px;
-    border-radius: 12px !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 700;
-}
-.lvalues-search-tags{
-    margin-top: 16px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-}
-.lvalues-search-tags-label{
-    font-size: 14px;
-    font-weight: 700;
-    color: #4b5563;
-}
-.lvalues-search-tag{
-    border: none;
-    background: #f4f1ff;
-    color: #6c4df6;
-    border-radius: 999px;
-    padding: 8px 14px;
-    font-size: 13px;
-    font-weight: 600;
-    transition: all 0.2s ease;
-}
-.lvalues-search-tag:hover{
-    background: #6c4df6;
-    color: #ffffff;
-}
-@media (max-width: 767px){
-    .lvalues-hero-search{
-        padding: 16px;
+<?php
+    $lvalues_banner_image = get_current_banner('banner_image');
+    if(empty($lvalues_banner_image)){
+        $lvalues_banner_image = 'home_1.png';
     }
-    .lvalues-search-input-wrap,
-    .lvalues-search-button-wrap{
-        flex: 1 1 100%;
-        min-width: 100%;
-    }
-    .lvalues-search-button,
-    .lvalues-search-toggle{
-        width: 100%;
-    }
-}
-</style>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var heroSearch = document.querySelector('.lvalues-hero-search');
-    if (!heroSearch) return;
-
-    var hiddenInput = heroSearch.querySelector('.lvalues-search-for-input');
-    var searchQuery = heroSearch.querySelector('.lvalues-search-input');
-    var searchHint  = heroSearch.querySelector('.lvalues-search-hint');
-    var toggles     = heroSearch.querySelectorAll('.lvalues-search-toggle');
-    var tags        = heroSearch.querySelectorAll('.lvalues-search-tag');
-
-    function setActiveMode(mode) {
-        if (!hiddenInput || !searchQuery || !searchHint) return;
-
-        hiddenInput.value = 'tutor';
-
-        toggles.forEach(function(btn) {
-            var isActive = btn.getAttribute('data-mode') === mode;
-            btn.classList.toggle('btn-primary', isActive);
-            btn.classList.toggle('active', isActive);
-            btn.classList.toggle('btn-outline-primary', !isActive);
-        });
-
-        if (mode === 'subject') {
-            searchQuery.placeholder = 'Search subject like Mathematics, Physics, Chemistry';
-            searchHint.textContent  = 'Example: Mathematics, Physics, Chemistry, Biology, Computer Science';
-        } else {
-            searchQuery.placeholder = 'Search tutor like Math tutor, English tutor, Java tutor';
-            searchHint.textContent  = 'Example: Math tutor, English tutor, Home tutor, Online tutor';
+?>
+<section class="h-1-banner bannar-area lvalues-home-hero" id="lvaluesHomeTop">
+    <style>
+        .lvalues-home-hero{
+            background:#f7f9ff;
+            background:-webkit-linear-gradient(135deg,#f7f9ff 0%,#ffffff 48%,#f4f0ff 100%);
+            background:linear-gradient(135deg,#f7f9ff 0%,#ffffff 48%,#f4f0ff 100%);
+            padding:54px 0 46px;
+            overflow:hidden;
         }
-    }
+        .lvalues-hero-kicker{
+            display:inline-block;
+            padding:8px 14px;
+            border-radius:999px;
+            background:#ffffff;
+            color:#6c4df6;
+            border:1px solid #e5ddff;
+            font-size:13px;
+            font-weight:700;
+            margin-bottom:16px;
+            box-shadow:0 8px 22px rgba(40,35,95,.06);
+        }
+        .lvalues-hero-title{
+            margin:0;
+            color:#17213a;
+            font-size:52px;
+            line-height:1.12;
+            font-weight:800;
+            letter-spacing:-1.2px;
+        }
+        .lvalues-hero-title span{color:#6c4df6;}
+        .lvalues-hero-subtitle{
+            margin-top:18px;
+            max-width:620px;
+            color:#566179;
+            font-size:18px;
+            line-height:1.75;
+        }
+        .lvalues-confidence-box{
+            margin-top:16px;
+            max-width:620px;
+            background:#ffffff;
+            border:1px solid #eef0f7;
+            border-left:4px solid #6c4df6;
+            border-radius:16px;
+            padding:15px 18px;
+            box-shadow:0 12px 28px rgba(31,39,83,.07);
+        }
+        .lvalues-confidence-box h6{margin:0 0 6px;color:#17213a;font-weight:800;font-size:16px;}
+        .lvalues-confidence-box p{margin:0;color:#6b7280;font-size:14px;line-height:1.6;}
+        .lvalues-hero-actions{margin-top:26px;display:flex;flex-wrap:nowrap;gap:10px;align-items:center;}
+        .lvalues-hero-actions .btn{
+            border-radius:14px !important;
+            padding:13px 22px;
+            font-weight:800;
+            margin-right:0;
+            margin-bottom:0;
+            box-shadow:none !important;
+            white-space:nowrap;
+        }
+        .lvalues-btn-primary{
+            background:#6c4df6 !important;
+            border-color:#6c4df6 !important;
+            color:#ffffff !important;
+        }
+        .lvalues-btn-primary:hover,
+        .lvalues-btn-primary:focus{
+            background:#5639de !important;
+            border-color:#5639de !important;
+            color:#ffffff !important;
+        }
+        .lvalues-btn-outline{
+            background:#ffffff !important;
+            border:1px solid #6c4df6 !important;
+            color:#6c4df6 !important;
+        }
+        .lvalues-btn-outline:hover,
+        .lvalues-btn-outline:focus{
+            background:#f2efff !important;
+            color:#5639de !important;
+        }
+        .lvalues-trust-row{margin-top:16px;color:#566179;font-size:14px;line-height:1.7;}
+        .lvalues-trust-pill{
+            display:inline-block;
+            margin:0 8px 8px 0;
+            padding:8px 12px;
+            border-radius:999px;
+            background:#ffffff;
+            border:1px solid #edf0f7;
+            color:#36415a;
+            font-weight:700;
+            box-shadow:0 8px 20px rgba(27,36,76,.05);
+        }
+        .lvalues-hero-image-card{
+            position:relative;
+            padding:12px;
+            background:#ffffff;
+            border:1px solid #eef0f7;
+            border-radius:24px;
+            box-shadow:0 24px 60px rgba(38,45,97,.12);
+            max-width:640px;
+            margin-left:auto;
+        }
+        .lvalues-hero-image-card img{
+            width:100%;
+            max-width:100%;
+            height:auto;
+            display:block;
+            border-radius:18px;
+        }
+        .lvalues-floating-card{
+            position:absolute;
+            left:-18px;
+            bottom:22px;
+            width:210px;
+            background:#ffffff;
+            border-radius:18px;
+            padding:14px;
+            box-shadow:0 18px 45px rgba(31,39,83,.16);
+            border:1px solid #eff1f7;
+            text-align:left;
+        }
+        .lvalues-floating-card h6{margin:0 0 5px;color:#17213a;font-weight:800;font-size:15px;}
+        .lvalues-floating-card p{margin:0;color:#6b7280;font-size:12px;line-height:1.45;}
+        .lvalues-search-panel{
+            display:none;
+            margin-top:42px;
+            background:#ffffff;
+            border:1px solid #e9ecf5;
+            border-radius:24px;
+            padding:26px;
+            box-shadow:0 22px 60px rgba(34,41,87,.10);
+        }
+        .lvalues-search-panel h4{margin:0 0 6px;color:#17213a;font-size:24px;font-weight:800;}
+        .lvalues-search-panel p{margin-bottom:18px;color:#68738c;}
+        .lvalues-search-back{
+            display:inline-block;
+            margin-bottom:12px;
+            color:#6c4df6;
+            font-weight:800;
+            text-decoration:none;
+            cursor:pointer;
+        }
+        .lvalues-search-panel.is-visible{display:block;}
+        .lvalues-search-back:hover{text-decoration:underline;color:#5639de;}
+        .lvalues-mode-buttons{
+            display:inline-flex;
+            flex-wrap:nowrap;
+            align-items:center;
+            gap:6px;
+            margin-bottom:16px;
+            background:#f2efff;
+            border:1px solid #ded6ff;
+            border-radius:999px;
+            padding:6px;
+            box-shadow:inset 0 1px 2px rgba(108,77,246,.08);
+            max-width:100%;
+        }
+        .lvalues-mode-buttons button{
+            width:auto !important;
+            min-width:150px;
+            height:46px;
+            margin:0 !important;
+            padding:0 22px;
+            border:0 !important;
+            border-radius:999px !important;
+            background:transparent !important;
+            color:#5f46e8 !important;
+            font-weight:800;
+            white-space:nowrap;
+            box-shadow:none !important;
+            transition:background .25s ease,color .25s ease,box-shadow .25s ease;
+            -webkit-transition:background .25s ease,color .25s ease,box-shadow .25s ease;
+        }
+        .lvalues-mode-buttons button:hover,
+        .lvalues-mode-buttons button:focus{
+            background:#ffffff !important;
+            color:#5f46e8 !important;
+            outline:none;
+        }
+        .lvalues-mode-buttons button.active{
+            background:#6c4df6 !important;
+            background:-webkit-linear-gradient(135deg,#7c5cff,#5f46e8) !important;
+            background:linear-gradient(135deg,#7c5cff,#5f46e8) !important;
+            color:#ffffff !important;
+            box-shadow:0 10px 22px rgba(108,77,246,.28) !important;
+        }
+        .lvalues-search-input{
+            height:56px;
+            border-radius:14px;
+            border:1px solid #dce2ef;
+            color:#1f2937;
+            font-size:15px;
+            box-shadow:none !important;
+        }
+        .lvalues-search-input:focus{border-color:#6c4df6;box-shadow:0 0 0 .15rem rgba(108,77,246,.15) !important;}
+        .lvalues-search-submit{
+            height:56px;
+            border-radius:14px !important;
+            font-weight:800;
+            background:#6c4df6 !important;
+            border-color:#6c4df6 !important;
+        }
+        .lvalues-popular-tags{margin-top:16px;}
+        .lvalues-popular-tags span,
+        .lvalues-popular-tags button{display:inline-block;margin:0 8px 8px 0;}
+        .lvalues-popular-tags span{color:#596579;font-weight:800;font-size:14px;}
+        .lvalues-popular-tags button{
+            border:0;
+            border-radius:999px;
+            background:#f4f1ff;
+            color:#5d3df1;
+            padding:8px 13px;
+            font-size:13px;
+            font-weight:800;
+            cursor:pointer;
+        }
+        .lvalues-popular-tags button:hover{background:#6c4df6;color:#ffffff;}
+        .lvalues-proof-grid{margin-top:26px;}
+        .lvalues-proof-card{
+            height:100%;
+            background:rgba(255,255,255,.94);
+            border:1px solid #edf0f7;
+            border-radius:18px;
+            padding:18px;
+            box-shadow:0 14px 34px rgba(34,41,87,.07);
+        }
+        .lvalues-proof-card h5{margin:0 0 6px;color:#17213a;font-weight:800;font-size:17px;}
+        .lvalues-proof-card p{margin:0;color:#6b7280;font-size:14px;line-height:1.55;}
+        .lvalues-proof-icon{
+            width:42px;height:42px;line-height:42px;text-align:center;border-radius:13px;
+            background:#f4f1ff;color:#6c4df6;margin-bottom:12px;font-size:18px;
+        }
+        @media (max-width:991px){
+            .lvalues-home-hero{padding:36px 0 32px;}
+            .lvalues-hero-title{font-size:40px;letter-spacing:-.8px;}
+            .lvalues-hero-subtitle{font-size:16px;}
+            .lvalues-hero-image-card{margin-top:24px;margin-left:0;}
+            .lvalues-floating-card{display:none;}
+        }
+        @media (max-width:575px){
+            .lvalues-home-hero{padding:28px 0;}
+            .lvalues-hero-title{font-size:32px;line-height:1.18;}
+            .lvalues-hero-subtitle{font-size:15px;line-height:1.65;}
+            .lvalues-hero-actions{display:block;}
+            .lvalues-hero-actions .btn{display:block;width:100%;margin-right:0;margin-bottom:10px;}
+            .lvalues-search-panel{padding:18px;border-radius:18px;}
+            .lvalues-mode-buttons{display:flex;width:100%;}
+            .lvalues-mode-buttons button{min-width:0;flex:1 1 50%;padding:0 10px;font-size:14px;}
+            .lvalues-search-submit{margin-top:10px;}
+        }
+    </style>
 
-    toggles.forEach(function(btn) {
-        btn.addEventListener('click', function () {
-            setActiveMode(this.getAttribute('data-mode'));
-        });
-    });
+    <div class="container">
+        <div class="row align-items-start">
+            <div class="col-lg-6 col-md-12">
+                <div class="lvalues-hero-kicker">Tutor-student learning platform</div>
+                <h1 class="lvalues-hero-title">
+                    Find the right <span>tutor</span>.<br>
+                    Learn online, offline, or both.
+                </h1>
+                <p class="lvalues-hero-subtitle">
+                    Lvalues helps students find trusted tutors by subject, class, skill and location. Tutors can find students, create batches, schedule live sessions, assign tests, and track progress from one platform.
+                </p>
 
-    tags.forEach(function(tag) {
-        tag.addEventListener('click', function() {
-            var mode  = this.getAttribute('data-mode');
-            var value = this.getAttribute('data-value');
-            setActiveMode(mode);
-            if (searchQuery) {
-                searchQuery.value = value;
-                searchQuery.focus();
-            }
-        });
-    });
+                <div class="lvalues-confidence-box">
+                    <h6>Learn with confidence</h6>
+                    <p>Search tutors, join batches, attend sessions, complete assignments, and track learning progress.</p>
+                </div>
 
-    setActiveMode('tutor');
-});
-</script>
-                
+                <div class="lvalues-hero-actions">
+                    <a href="#lvaluesStartSearch" class="btn btn-primary btn-lg lvalues-btn-primary lvalues-open-search" data-mode="tutor">Find a Tutor</a>
+                    <a href="#lvaluesStartSearch" class="btn btn-outline-primary btn-lg lvalues-btn-outline lvalues-open-search" data-mode="course">Find a Course</a>
+                    <?php if($this->session->userdata('user_id')): ?>
+                        <a href="<?php echo site_url('user/become_an_instructor'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
+                    <?php else: ?>
+                        <a href="<?php echo site_url('sign_up?instructor=yes'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
+                    <?php endif; ?>
+                </div>
+
+                <div class="lvalues-trust-row">
+                    <span class="lvalues-trust-pill">Online classes</span>
+                    <span class="lvalues-trust-pill">Offline tuition</span>
+                    <span class="lvalues-trust-pill">Hybrid learning</span>
+                    <span class="lvalues-trust-pill">Assignments & tests</span>
+                </div>
             </div>
-            <div class="col-lg-6 col-md-6 col-sm-12 col-12 order-md-2 order-sm-1 order-1 pt-0 pt-md-5 ">
-                <img loading="lazy" width="100%" src="<?php echo base_url("uploads/system/" . get_current_banner('banner_image')); ?>">
+
+            <div class="col-lg-6 col-md-12">
+                <div class="lvalues-hero-image-card">
+                    <img loading="eager" decoding="async" src="<?php echo base_url('uploads/system/'.$lvalues_banner_image.'?v=4'); ?>" onerror="this.onerror=null;this.src='<?php echo base_url('uploads/system/home_1.png?v=4'); ?>';" alt="Lvalues online and offline tutor student learning platform">
+
+                </div>
             </div>
-        </div> 
-        <div class="row">
-            <div class="col-lg-6">
-                <div class="students-rating">
-                    <div class="row">
-                        <div class="col-lg-3 col-md-3 col-sm-3 col-3">
-                            <?php $all_students = $this->db->get_where('users', ['role_id !=' => 1]); ?>
-                            <h1><?php echo nice_number($all_students->num_rows()); ?>+</h1>
+        </div>
+
+        <div class="row" id="lvaluesStartSearch">
+            <div class="col-lg-11 mx-auto">
+                <div class="lvalues-search-panel">
+                    <a href="#lvaluesHomeTop" class="lvalues-search-back" id="lvaluesSearchBack">← Back to main page</a>
+                    <div class="row align-items-center">
+                        <div class="col-lg-4 col-md-12">
+                            <h4 id="lvaluesSearchTitle">Start your search</h4>
+                            <p id="lvaluesSearchDescription">Find a tutor or course for school, college, IT, cloud, professional skills, and more.</p>
                         </div>
-                        <div class="col-lg-2 col-md-2 col-sm-2 col-2">
-                            <p><?php echo get_phrase('Happy') ?></p>
-                            <p><?php echo get_phrase('Students') ?></p>
-                        </div> 
-                        <div class="col-lg-2 col-md-2 col-sm-2 col-2">
-                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/h-1-ban-st.png')?>" alt="">
-                        </div>
-                        <div class="col-lg-2 col-md-2 col-sm-2 col-2">
-                            <?php $all_instructor = $this->db->get_where('users', ['is_instructor' => 1]); ?>
-                            <h1><?php echo nice_number($all_instructor->num_rows()); ?>+</h1>
-                        </div>
-                        <div class="col-lg-3 col-md-3 col-sm-3 col-3">
-                            <p><?php echo get_phrase('Experienced') ?></p>
-                            <p><?php echo get_phrase('Instructors') ?></p>
+                        <div class="col-lg-8 col-md-12">
+                            <form action="<?php echo site_url('home/search'); ?>" method="get" id="lvaluesHeroSearchForm">
+                                <input type="hidden" name="search_for" id="lvaluesSearchFor" value="tutor">
+
+                                <div class="lvalues-mode-buttons">
+                                    <button type="button" class="btn active" data-mode="tutor">Find a tutor</button>
+                                    <button type="button" class="btn" data-mode="course">Find a course</button>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-8 col-sm-12">
+                                        <input type="text" name="query" id="lvaluesHeroQuery" class="form-control lvalues-search-input" placeholder="Search Math tutor, English tutor, Java tutor, home tutor">
+                                    </div>
+                                    <div class="col-md-4 col-sm-12">
+                                        <button class="btn btn-primary w-100 lvalues-search-submit" type="submit">Search</button>
+                                    </div>
+                                </div>
+
+                                <div class="lvalues-popular-tags">
+                                    <span>Popular:</span>
+                                    <button type="button" data-mode="tutor" data-value="Math tutor">Math tutor</button>
+                                    <button type="button" data-mode="tutor" data-value="English tutor">English tutor</button>
+                                    <button type="button" data-mode="course" data-value="Physics">Physics</button>
+                                    <button type="button" data-mode="course" data-value="Computer Science">Computer Science</button>
+                                    <button type="button" data-mode="course" data-value="Google Cloud">Google Cloud</button>
+                                </div>
+                            </form>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="bannar-card">
-            <div class="row">
-                <div class="col-lg-4 col-md-6 col-sm-12">
-                    <div class="banner-card-1">
-                        <div class="row">
-                            <div class="col-lg-2">
-                                <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/h-1-bnar-c-1.png')?>">
-                            </div>
-                            <div class="col-lg-10">
-                                <h6><?php
-                                    $status_wise_courses = $this->crud_model->get_status_wise_courses_front();
-                                    $number_of_courses = $status_wise_courses['active']->num_rows();
-                                    echo $number_of_courses . ' ' . site_phrase('online_courses'); ?></h6>
-                                <p><?php echo site_phrase('explore_a_variety_of_fresh_topics'); ?></p>
-                            </div>
-                        </div>
-                    </div>
+
+        <div class="row lvalues-proof-grid">
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="lvalues-proof-card">
+                    <div class="lvalues-proof-icon"><i class="fa-solid fa-user-graduate"></i></div>
+                    <?php $all_students = $this->db->get_where('users', ['role_id !=' => 1]); ?>
+                    <h5><?php echo nice_number($all_students->num_rows()); ?>+ Learners</h5>
+                    <p>Students can search tutors, join batches, attend sessions, and track progress.</p>
                 </div>
-                <div class="col-lg-4 col-md-6 col-sm-12">
-                    <div class="banner-card-1">
-                        <div class="row">
-                            <div class="col-lg-2">
-                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/h-1-bnar-c-2.png')?>">
-                            </div>
-                            <div class="col-lg-10">
-                                <h6><?php echo site_phrase('expert_instruction'); ?></h6>
-                                <p><?php echo site_phrase('find_the_right_course_for_you'); ?></p>
-                            </div>
-                        </div>
-                    </div>           
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="lvalues-proof-card">
+                    <div class="lvalues-proof-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <?php $all_instructor = $this->db->get_where('users', ['is_instructor' => 1]); ?>
+                    <h5><?php echo nice_number($all_instructor->num_rows()); ?>+ Tutors</h5>
+                    <p>Tutors can find students, manage batches, schedule classes, and assign work.</p>
                 </div>
-                <div class="col-lg-4 col-md-6 col-sm-12">
-                    <div class="banner-card-1">
-                        <div class="row">
-                            <div class="col-lg-2">
-                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/h-1-bnar-c-3.png')?>">
-                            </div>
-                            <div class="col-lg-10">
-                                <h6><?php echo site_phrase('Smart solution'); ?></h6>
-                                <p><?php echo site_phrase('learn_on_your_schedule'); ?></p>
-                            </div>
-                        </div>
-                    </div>           
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="lvalues-proof-card">
+                    <div class="lvalues-proof-icon"><i class="fa-solid fa-video"></i></div>
+                    <h5>Live Sessions</h5>
+                    <p>Support for online classes, offline learning, and hybrid learning plans.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
+                <div class="lvalues-proof-card">
+                    <div class="lvalues-proof-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <h5>Progress Tracking</h5>
+                    <p>Assignments, tests, batch status, invites, and learning progress in one place.</p>
                 </div>
             </div>
         </div>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('lvaluesHeroSearchForm');
+            var searchPanel = document.querySelector('.lvalues-search-panel');
+            var searchBack = document.getElementById('lvaluesSearchBack');
+            if (!form) return;
+
+            var modeInput = document.getElementById('lvaluesSearchFor');
+            var queryInput = document.getElementById('lvaluesHeroQuery');
+            var modeButtons = form.querySelectorAll('.lvalues-mode-buttons button');
+            var tagButtons = form.querySelectorAll('.lvalues-popular-tags button');
+            var title = document.getElementById('lvaluesSearchTitle');
+            var description = document.getElementById('lvaluesSearchDescription');
+            var openSearchButtons = document.querySelectorAll('.lvalues-open-search');
+
+            function showSearchPanel() {
+                if (searchPanel) {
+                    searchPanel.className = searchPanel.className.replace(/\bis-visible\b/g, '').replace(/\s+$/,'') + ' is-visible';
+                }
+                var target = document.getElementById('lvaluesStartSearch');
+                if (target && target.scrollIntoView) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            function hideSearchPanel() {
+                if (searchPanel) {
+                    searchPanel.className = searchPanel.className.replace(/\bis-visible\b/g, '').replace(/\s+$/,'');
+                }
+                var top = document.getElementById('lvaluesHomeTop');
+                if (top && top.scrollIntoView) {
+                    top.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }
+
+            function setMode(mode) {
+                if (!modeInput || !queryInput) return;
+
+                for (var i = 0; i < modeButtons.length; i++) {
+                    if (modeButtons[i].getAttribute('data-mode') === mode) {
+                        modeButtons[i].className = 'btn active';
+                    } else {
+                        modeButtons[i].className = 'btn';
+                    }
+                }
+
+                if (mode === 'course') {
+                    modeInput.value = 'course';
+                    form.action = '<?php echo site_url('home/courses'); ?>';
+                    queryInput.placeholder = 'Search courses like Google Cloud, Python, Data Science, Physics';
+                    if (title) title.innerHTML = 'Find a course';
+                    if (description) description.innerHTML = 'Search courses for school learning, IT skills, cloud, data science, professional training, and more.';
+                } else {
+                    modeInput.value = 'tutor';
+                    form.action = '<?php echo site_url('home/search'); ?>';
+                    queryInput.placeholder = 'Search Math tutor, English tutor, Java tutor, home tutor';
+                    if (title) title.innerHTML = 'Find a tutor';
+                    if (description) description.innerHTML = 'Search tutors by subject, class, skill, location, online classes, offline tuition, or hybrid learning.';
+                }
+            }
+
+            for (var i = 0; i < modeButtons.length; i++) {
+                modeButtons[i].onclick = function () {
+                    setMode(this.getAttribute('data-mode'));
+                };
+            }
+
+            for (var j = 0; j < tagButtons.length; j++) {
+                tagButtons[j].onclick = function () {
+                    setMode(this.getAttribute('data-mode'));
+                    queryInput.value = this.getAttribute('data-value');
+                    queryInput.focus();
+                };
+            }
+
+            for (var k = 0; k < openSearchButtons.length; k++) {
+                openSearchButtons[k].onclick = function (e) {
+                    if (e && e.preventDefault) e.preventDefault();
+                    setMode(this.getAttribute('data-mode'));
+                    showSearchPanel();
+                    return false;
+                };
+            }
+
+            if (searchBack) {
+                searchBack.onclick = function (e) {
+                    if (e && e.preventDefault) e.preventDefault();
+                    hideSearchPanel();
+                    return false;
+                };
+            }
+
+            setMode('tutor');
+        });
+    </script>
 </section>
 <!---------- Banner Section End ---------------->
 

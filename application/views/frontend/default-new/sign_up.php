@@ -86,33 +86,34 @@ $selected_student_subject_id = (string)set_value('student_subject_interest_id');
 <?php if(form_error('student_category_id')): ?><div class="invalid-feedback d-block"><?php echo form_error('student_category_id'); ?></div><?php endif; ?>
 </div>
 <div class="taxonomy-block <?php echo form_error('student_class_id') ? 'border border-danger rounded p-2' : ''; ?>">
-<label class="taxonomy-label" for="student_class_id">Current Class / Level</label>
+<label class="taxonomy-label" for="student_class_id" id="student_class_label">Current Class & Level</label>
 <select class="form-control taxonomy-select student-taxonomy-select <?php echo form_error('student_class_id') ? 'is-invalid' : ''; ?>" name="student_class_id" id="student_class_id">
 <option value="">Select class / level</option>
 <?php foreach ($tutor_registration_tree as $category_item): ?>
     <?php foreach (($category_item['classes'] ?? []) as $class_item): ?>
-        <option value="<?php echo html_escape($class_item['id']); ?>" data-category="<?php echo html_escape($category_item['id']); ?>" <?php echo $selected_student_class_id === (string)$class_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($category_item['name'].' / '.$class_item['name']); ?></option>
+        <option value="<?php echo html_escape($class_item['id']); ?>" data-category="<?php echo html_escape($category_item['id']); ?>" <?php echo $selected_student_class_id === (string)$class_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($class_item['name']); ?></option>
     <?php endforeach; ?>
 <?php endforeach; ?>
 </select>
 <?php if(form_error('student_class_id')): ?><div class="invalid-feedback d-block"><?php echo form_error('student_class_id'); ?></div><?php endif; ?>
 </div>
 <div class="taxonomy-block">
-<label class="taxonomy-label" for="student_subject_interest_id">Subject Interest <small class="text-muted">Optional</small></label>
+<label class="taxonomy-label" for="student_subject_interest_id" id="student_subject_label">Subject Interest <small class="text-muted">Optional</small></label>
 <select class="form-control taxonomy-select student-taxonomy-select" name="student_subject_interest_id" id="student_subject_interest_id">
 <option value="">Any / Not sure</option>
 <?php foreach ($tutor_registration_tree as $category_item): ?>
     <?php foreach (($category_item['classes'] ?? []) as $class_item): ?>
         <?php foreach (($class_item['subjects'] ?? []) as $subject_item): ?>
-            <option value="<?php echo html_escape($subject_item['id']); ?>" data-class="<?php echo html_escape($class_item['id']); ?>" <?php echo $selected_student_subject_id === (string)$subject_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($class_item['name'].' / '.$subject_item['name']); ?></option>
+            <option value="<?php echo html_escape($subject_item['id']); ?>" data-class="<?php echo html_escape($class_item['id']); ?>" <?php echo $selected_student_subject_id === (string)$subject_item['id'] ? 'selected' : ''; ?>><?php echo html_escape($subject_item['name']); ?></option>
         <?php endforeach; ?>
     <?php endforeach; ?>
 <?php endforeach; ?>
 </select>
 </div>
 <div class="row g-2">
-<div class="col-md-6 mb-2"><label class="taxonomy-label">Current Level Label</label><input type="text" class="form-control" name="student_current_level_label" placeholder="Example: Class 2, B.Tech 1st Year" value="<?php echo set_value('student_current_level_label'); ?>"></div>
-<div class="col-md-6 mb-2"><label class="taxonomy-label">Academic Year</label><input type="text" class="form-control" name="student_academic_year" placeholder="Example: 2026-27" value="<?php echo set_value('student_academic_year', date('Y')); ?>"></div>
+<div class="col-md-6 mb-2" id="student_level_label_box"><label class="taxonomy-label" id="student_level_text_label">Current Level Label</label><input type="text" class="form-control" name="student_current_level_label" placeholder="Example: Class 2, B.Tech 1st Year" value="<?php echo html_escape(set_value('student_current_level_label')); ?>"></div>
+<div class="col-md-6 mb-2"><label class="taxonomy-label">Academic Year</label><input type="text" class="form-control" name="student_academic_year" placeholder="Example: 2026" value="<?php echo html_escape(set_value('student_academic_year', date('Y'))); ?>"></div>
+<div class="col-md-12 mb-2" id="student_learning_message_box"><label class="taxonomy-label" id="student_learning_message_label">Message / Learning Goal</label><textarea class="form-control" name="student_learning_message" rows="3" maxlength="1000" placeholder="Tell us what you want to learn or any requirement for the tutor."><?php echo html_escape(set_value('student_learning_message')); ?></textarea><small class="text-muted">Optional. For IT and Professional courses, write your learning goal, experience level, or preferred course requirement.</small></div>
 </div>
 </div>
 </div>
@@ -182,6 +183,11 @@ const subjectSelector = document.getElementById('subject_selector');
 const studentCategorySelector = document.getElementById('student_category_id');
 const studentClassSelector = document.getElementById('student_class_id');
 const studentSubjectSelector = document.getElementById('student_subject_interest_id');
+const studentClassLabel = document.getElementById('student_class_label');
+const studentSubjectLabel = document.getElementById('student_subject_label');
+const studentLevelTextLabel = document.getElementById('student_level_text_label');
+const studentLearningMessageBox = document.getElementById('student_learning_message_box');
+const studentLearningMessageLabel = document.getElementById('student_learning_message_label');
 const registrationTree = <?php echo json_encode($tutor_registration_tree); ?>;
 let oldSelectedClassIds = <?php echo json_encode(array_values($selected_class_ids)); ?>;
 let oldSelectedSubjectIds = <?php echo json_encode(array_values($selected_subject_ids)); ?>;
@@ -220,8 +226,26 @@ function toggleStudentRequired(isStudent){
         else el.removeAttribute('required');
     });
 }
+function getSelectedStudentCategoryName(){
+    if (!studentCategorySelector) return '';
+    const selected = studentCategorySelector.options[studentCategorySelector.selectedIndex];
+    return selected ? selected.textContent.trim() : '';
+}
+function isProfessionalStudentCategory(){
+    const name = getSelectedStudentCategoryName().toLowerCase();
+    return name.includes('it') || name.includes('professional') || name.includes('cloud') || name.includes('technology');
+}
+function updateStudentFieldLabels(){
+    const isProfessional = isProfessionalStudentCategory();
+    if (studentClassLabel) studentClassLabel.textContent = isProfessional ? 'SubCategory' : 'Current Class & Level';
+    if (studentSubjectLabel) studentSubjectLabel.innerHTML = isProfessional ? 'Course <small class="text-muted">Optional</small>' : 'Subject Interest <small class="text-muted">Optional</small>';
+    if (studentLevelTextLabel) studentLevelTextLabel.textContent = isProfessional ? 'Total Experience' : 'Previous Class';
+    if (studentLearningMessageLabel) studentLearningMessageLabel.textContent = isProfessional ? 'Message / Course Requirement' : 'Message / Learning Goal';
+    if (studentLearningMessageBox) studentLearningMessageBox.classList.remove('d-none');
+}
 function syncStudentSelectors(){
     if(!studentCategorySelector || !studentClassSelector || !studentSubjectSelector) return;
+    updateStudentFieldLabels();
     const selectedCategory = studentCategorySelector.value;
     Array.from(studentClassSelector.options).forEach(option => {
         if (!option.value) { option.hidden = false; return; }

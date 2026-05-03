@@ -254,26 +254,24 @@
             <!-- Profile Area -->
             <div class="menu_pro_tgl_div">
               <div class="menu_pro_tgl-2div">
-                <a class="menu_pro_tgl profile-dropdown" href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
+                <a class="menu_pro_tgl profile-dropdown" href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
               </div>
               <div class="menu_pro_tgl_bg">
                 <div class="path-pos">
-                  <a href="<?php echo site_url('home/my_courses'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
-                  <a href="<?php echo site_url('home/my_courses'); ?>"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
+                  <a href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
+                  <a href="<?php echo site_url('dashboard'); ?>"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
                   <p><?php echo $user_details['email']; ?></p>
                   <ul>
                     <?php if($user_login): ?>
                       
-                      <?php if($user_details['is_instructor'] == 1): ?>
-                        <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/dashboard'); ?>"><i class="fas fa-columns"></i><?php echo site_phrase('Instructor Dashboard'); ?></a></li>
-                      <?php else: ?>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('dashboard'); ?>"><i class="fas fa-tachometer-alt"></i><?php echo site_phrase('dashboard'); ?></a></li>
+                      <?php if($user_details['is_instructor'] != 1): ?>
                         <?php if (get_settings('allow_instructor') == 1) : ?>
                           <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/become_an_instructor'); ?>"><i class="fas fa-columns"></i><?php echo site_phrase('Become an instructor'); ?></a></li>
                         <?php endif; ?>
                       <?php endif; ?>
 
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem"></i><?php echo site_phrase('my_courses'); ?></a></li>
-                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_courses'); ?>"><i class="fas fa-tachometer-alt"></i>Go to Dashboard</a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope"></i><?php echo site_phrase('my_messages'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart"></i><?php echo site_phrase('purchase_history'); ?></a></li>
