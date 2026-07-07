@@ -137,18 +137,20 @@ class Tutor_request_model extends CI_Model
         if ($limit > 0) {
             $this->db->limit($limit);
         }
-        return $this->db->get()->result_array();
+        $requests = $this->db->get()->result_array();
+        return $this->with_payment_foundations($requests);
     }
 
     public function get_student_requests(int $student_user_id): array
     {
-        return $this->db->select('tr.*, u.first_name AS tutor_first_name, u.last_name AS tutor_last_name, u.email AS tutor_email, u.phone AS tutor_phone, tp.headline AS tutor_headline, tp.profile_photo, tp.hourly_fee, tp.teaching_mode')
+        $requests = $this->db->select('tr.*, u.first_name AS tutor_first_name, u.last_name AS tutor_last_name, u.email AS tutor_email, u.phone AS tutor_phone, tp.headline AS tutor_headline, tp.profile_photo, tp.hourly_fee, tp.teaching_mode')
             ->from('tutor_requests tr')
             ->join('users u', 'u.id = tr.tutor_user_id', 'left')
             ->join('tutor_profiles tp', 'tp.user_id = tr.tutor_user_id', 'left')
             ->where('tr.student_user_id', $student_user_id)
             ->order_by('tr.id', 'DESC')
             ->get()->result_array();
+        return $this->with_payment_foundations($requests);
     }
 
     public function count_pending_for_tutor(int $tutor_user_id): int
@@ -184,6 +186,9 @@ class Tutor_request_model extends CI_Model
         $this->log_status($request_id, 'pending', $action, $response_message, $tutor_user_id);
 
         $request_row = $this->get_request_details($request_id);
+        if ($action === 'approved') {
+            $this->ensure_payment_placeholder_for_request($request_id);
+        }
         $status_text = $action === 'approved' ? 'accepted' : 'rejected';
 
         $this->create_system_notification(
@@ -209,6 +214,133 @@ class Tutor_request_model extends CI_Model
             ->join('tutor_profiles tp', 'tp.user_id = tr.tutor_user_id', 'left')
             ->where('tr.id', $request_id)
             ->get()->row_array();
+    }
+
+    public function ensure_payment_placeholder_for_request(int $request_id): array
+    {
+        if (!$this->db->table_exists('tutor_request_payments')) {
+            return [];
+        }
+
+        $request = $this->get_request_details($request_id);
+        if (empty($request) || ($request['status'] ?? '') !== 'approved') {
+            return [];
+        }
+
+        $existing = $this->db->where('request_id', $request_id)->get('tutor_request_payments')->result_array();
+        if (!empty($existing)) {
+            return $existing;
+        }
+
+        $amount = max(0, (float)($request['hourly_fee'] ?? 0));
+        $commission_rate = 0.00;
+        $commission_amount = round(($amount * $commission_rate) / 100, 2);
+        $tutor_payable = max(0, round($amount - $commission_amount, 2));
+        $disabled_reason = 'Payments are intentionally disabled until Lvalues enables the verified student/tutor marketplace payment database and gateway workflow.';
+        $today = date('Y-m-d');
+        $next_cycle_start = date('Y-m-01', strtotime('first day of next month'));
+        $next_cycle_end = date('Y-m-t', strtotime($next_cycle_start));
+        $now = date('Y-m-d H:i:s');
+
+        $base = [
+            'request_id' => $request_id,
+            'student_user_id' => (int)$request['student_user_id'],
+            'tutor_user_id' => (int)$request['tutor_user_id'],
+            'tutor_profile_id' => !empty($request['tutor_profile_id']) ? (int)$request['tutor_profile_id'] : null,
+            'amount' => $amount,
+            'currency' => 'INR',
+            'platform_commission_rate' => $commission_rate,
+            'platform_commission_amount' => $commission_amount,
+            'tutor_payable_amount' => $tutor_payable,
+            'payment_status' => 'payment_disabled',
+            'settlement_status' => 'not_eligible',
+            'disabled_reason' => $disabled_reason,
+            'admin_note' => 'Foundation record only. Do not collect money or release payout until payment gateway, ledger reconciliation, and admin approval workflow are enabled.',
+            'created_at' => $now,
+        ];
+
+        $one_time = $base;
+        $one_time['plan_type'] = 'one_time';
+        $one_time['billing_cycle_start'] = $today;
+        $one_time['billing_cycle_end'] = $today;
+        $this->db->insert('tutor_request_payments', $one_time);
+        $one_time_id = (int)$this->db->insert_id();
+
+        $monthly = $base;
+        $monthly['plan_type'] = 'monthly';
+        $monthly['billing_cycle_start'] = $next_cycle_start;
+        $monthly['billing_cycle_end'] = $next_cycle_end;
+        $this->db->insert('tutor_request_payments', $monthly);
+        $monthly_id = (int)$this->db->insert_id();
+
+        if ($monthly_id > 0 && $this->db->table_exists('tutor_payment_renewals')) {
+            $this->db->insert('tutor_payment_renewals', [
+                'parent_payment_id' => $monthly_id,
+                'request_id' => $request_id,
+                'student_user_id' => (int)$request['student_user_id'],
+                'tutor_user_id' => (int)$request['tutor_user_id'],
+                'due_date' => $next_cycle_start,
+                'reminder_date' => date('Y-m-d', strtotime($next_cycle_start . ' -7 days')),
+                'amount' => $amount,
+                'currency' => 'INR',
+                'renewal_status' => 'payment_disabled',
+                'access_status' => 'blocked',
+                'created_at' => $now,
+            ]);
+        }
+
+        return $this->db->where_in('id', array_filter([$one_time_id, $monthly_id]))->get('tutor_request_payments')->result_array();
+    }
+
+    private function with_payment_foundations(array $requests): array
+    {
+        if (empty($requests) || !$this->db->table_exists('tutor_request_payments')) {
+            return $requests;
+        }
+
+        foreach ($requests as $request) {
+            if (($request['status'] ?? '') === 'approved') {
+                $this->ensure_payment_placeholder_for_request((int)$request['id']);
+            }
+        }
+
+        $request_ids = array_values(array_filter(array_map(static function ($request) {
+            return (int)($request['id'] ?? 0);
+        }, $requests)));
+        if (empty($request_ids)) {
+            return $requests;
+        }
+
+        $payments = $this->db
+            ->where_in('request_id', $request_ids)
+            ->order_by('id', 'ASC')
+            ->get('tutor_request_payments')
+            ->result_array();
+
+        $payment_map = [];
+        foreach ($payments as $payment) {
+            $payment_map[(int)$payment['request_id']][$payment['plan_type']] = $payment;
+        }
+
+        foreach ($requests as &$request) {
+            $request_id = (int)($request['id'] ?? 0);
+            $request['marketplace_payments'] = $payment_map[$request_id] ?? [];
+            foreach (['one_time', 'monthly'] as $plan_type) {
+                $payment = $request['marketplace_payments'][$plan_type] ?? [];
+                $prefix = $plan_type === 'one_time' ? 'one_time' : 'monthly';
+                $request[$prefix . '_payment_id'] = (int)($payment['id'] ?? 0);
+                $request[$prefix . '_payment_status'] = $payment['payment_status'] ?? '';
+                $request[$prefix . '_settlement_status'] = $payment['settlement_status'] ?? '';
+                $request[$prefix . '_payment_amount'] = isset($payment['amount']) ? (float)$payment['amount'] : 0;
+                $request[$prefix . '_tutor_payable_amount'] = isset($payment['tutor_payable_amount']) ? (float)$payment['tutor_payable_amount'] : 0;
+                $request[$prefix . '_disabled_reason'] = $payment['disabled_reason'] ?? '';
+                $request[$prefix . '_billing_cycle_start'] = $payment['billing_cycle_start'] ?? '';
+                $request[$prefix . '_billing_cycle_end'] = $payment['billing_cycle_end'] ?? '';
+            }
+        }
+        unset($request);
+
+        return $requests;
     }
 
     private function create_system_notification(string $type, int $to_user, string $title, string $description, int $from_user = 0): void

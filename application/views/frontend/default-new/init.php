@@ -5,9 +5,10 @@
 			$('[data-bs-toggle="tooltip"]').tooltip();
 		}
 
-		if($('.tagify').length > 0){
-			$('.tagify:not(.initialized)').tagify();
-			$('.tagify:not(.initialized)').addClass('initialized');
+		if($('.tagify:not(.initialized)').length > 0){
+			var tagifyInputs = $('.tagify:not(.initialized)');
+			tagifyInputs.tagify();
+			tagifyInputs.addClass('initialized');
 		}
 
 		$('a[href="#"]').on('click', function(event){

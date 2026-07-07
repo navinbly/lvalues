@@ -1,0 +1,33 @@
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+$summary = $analytics['summary'] ?? array();
+function lv_admin_exam_time($seconds) { $seconds=(int)$seconds; return floor($seconds/60).'m '.($seconds%60).'s'; }
+?>
+<style>
+.exam-analytics-card{border:1px solid #e5e7eb;border-radius:14px;background:#fff;padding:15px;height:100%}.exam-analytics-card h3{margin:2px 0 0}.performance-bar{height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden}.performance-bar span{display:block;height:100%;background:#4f46e5;border-radius:999px}.weak-row td{vertical-align:middle}.filter-card{border:1px solid #dbe3ef;border-radius:14px;background:#f8fafc;padding:14px}
+</style>
+<div class="row"><div class="col-12"><div class="card"><div class="card-body">
+    <div class="d-flex justify-content-between align-items-start flex-wrap">
+        <div><h4 class="page-title mb-1"><i class="mdi mdi-chart-bar title_icon"></i> Exam Analytics</h4><p class="text-muted mb-0">Review scores, accuracy, timing, section performance, and recurring weak topics.</p></div>
+        <a class="btn btn-light" href="<?php echo site_url('admin/content_public_exams'); ?>">Back to Exam Patterns</a>
+    </div>
+</div></div></div></div>
+<div class="row"><div class="col-12"><form class="filter-card mb-3" method="get">
+    <div class="form-row align-items-end"><div class="col-md-8"><label>Exam</label><select class="form-control" name="exam_id"><option value="0">All exams</option><?php foreach(($exams ?? array()) as $exam): ?><option value="<?php echo (int)$exam['id']; ?>" <?php echo (int)$selected_exam_id===(int)$exam['id']?'selected':''; ?>><?php echo html_escape($exam['title']); ?></option><?php endforeach; ?></select></div><div class="col-md-4 mt-2 mt-md-0"><button class="btn btn-primary">Apply Filter</button> <a class="btn btn-outline-secondary" href="<?php echo site_url('admin/exam_analytics'); ?>">Reset</a></div></div>
+</form></div></div>
+<div class="row mb-3">
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Attempts</small><h3><?php echo (int)($summary['attempts'] ?? 0); ?></h3></div></div>
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Students</small><h3><?php echo (int)($summary['students'] ?? 0); ?></h3></div></div>
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Average Score</small><h3><?php echo (float)($summary['average_score'] ?? 0); ?>%</h3></div></div>
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Accuracy</small><h3><?php echo (float)($summary['average_accuracy'] ?? 0); ?>%</h3></div></div>
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Pass Rate</small><h3><?php echo (float)($summary['pass_rate'] ?? 0); ?>%</h3></div></div>
+    <div class="col-lg-2 col-md-4 mb-2"><div class="exam-analytics-card"><small class="text-muted">Average Time</small><h3><?php echo lv_admin_exam_time($summary['average_time'] ?? 0); ?></h3></div></div>
+</div>
+<div class="row">
+    <div class="col-lg-6"><div class="card"><div class="card-body"><h4 class="header-title">Mode Performance</h4><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Mode</th><th>Attempts</th><th>Score</th><th>Accuracy</th></tr></thead><tbody><?php foreach(($analytics['modes'] ?? array()) as $mode): ?><tr><td><?php echo html_escape(ucfirst($mode['attempt_mode'])); ?></td><td><?php echo (int)$mode['attempts']; ?></td><td><?php echo (float)$mode['average_score']; ?>%</td><td><?php echo (float)$mode['average_accuracy']; ?>%</td></tr><?php endforeach; ?><?php if(empty($analytics['modes'])): ?><tr><td colspan="4" class="text-center text-muted">No completed attempts yet.</td></tr><?php endif; ?></tbody></table></div></div></div></div>
+    <div class="col-lg-6"><div class="card"><div class="card-body"><h4 class="header-title">Section Performance</h4><?php foreach(($analytics['sections'] ?? array()) as $section): ?><div class="mb-3"><div class="d-flex justify-content-between"><b><?php echo html_escape($section['section_name']); ?></b><span><?php echo (float)$section['score_percentage']; ?>%</span></div><div class="performance-bar"><span style="width:<?php echo max(0,min(100,(float)$section['score_percentage'])); ?>%"></span></div><small class="text-muted"><?php echo (int)$section['questions']; ?> questions · <?php echo (float)$section['accuracy']; ?>% accuracy</small></div><?php endforeach; ?><?php if(empty($analytics['sections'])): ?><p class="text-muted">Section insights appear after Phase 4 attempts are submitted.</p><?php endif; ?></div></div></div>
+</div>
+<div class="row">
+    <div class="col-lg-7"><div class="card"><div class="card-body"><h4 class="header-title">Weak Topic Analysis</h4><div class="table-responsive"><table class="table table-striped weak-row"><thead><tr><th>Topic</th><th>Questions</th><th>Accuracy</th><th>Score</th></tr></thead><tbody><?php foreach(($analytics['topics'] ?? array()) as $topic): ?><tr><td><b><?php echo html_escape($topic['topic']); ?></b></td><td><?php echo (int)$topic['questions']; ?></td><td><?php echo (float)$topic['accuracy']; ?>%</td><td style="min-width:150px"><div class="performance-bar"><span style="width:<?php echo max(0,min(100,(float)$topic['score_percentage'])); ?>%"></span></div><small><?php echo (float)$topic['score_percentage']; ?>%</small></td></tr><?php endforeach; ?><?php if(empty($analytics['topics'])): ?><tr><td colspan="4" class="text-center text-muted">No topic insights yet.</td></tr><?php endif; ?></tbody></table></div></div></div></div>
+    <div class="col-lg-5"><div class="card"><div class="card-body"><h4 class="header-title">Recent Results</h4><div class="table-responsive"><table class="table table-sm"><thead><tr><th>Participant</th><th>Exam</th><th>Score</th></tr></thead><tbody><?php foreach(($analytics['recent'] ?? array()) as $attempt): ?><tr><td><?php echo html_escape($attempt['participant_name'] ?: 'Student #'.(int)$attempt['user_id']); ?><br><small class="text-muted"><?php echo html_escape($attempt['submitted_at']); ?></small></td><td><?php echo html_escape($attempt['exam_title']); ?></td><td><span class="badge badge-<?php echo $attempt['result_status']==='pass'?'success':'danger'; ?>"><?php echo (float)$attempt['percentage']; ?>%</span></td></tr><?php endforeach; ?><?php if(empty($analytics['recent'])): ?><tr><td colspan="3" class="text-center text-muted">No completed attempts.</td></tr><?php endif; ?></tbody></table></div></div></div></div>
+</div>

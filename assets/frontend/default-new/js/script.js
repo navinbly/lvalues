@@ -741,14 +741,19 @@ $('#headerSearchBarLg').on('keyup', function () {
 
 
 
-const searchInputDropdown = document.querySelector('.search-input-form button.btn.dropdown-toggle')
-searchInputDropdown.addEventListener('show.bs.dropdown', event => {
-  setTimeout(function(){
-    $('#headerSearchBarLg').focus();
-    var headerSearchBarLg = $('#headerSearchBarLg')[0];
-    var textLength = headerSearchBarLg.value.length;
-    // Set the selection range to the end of the text
-    headerSearchBarLg.setSelectionRange(textLength, textLength);
-  }, 200);
-});
+const searchInputDropdown = document.querySelector('.search-input-form button.btn.dropdown-toggle');
+if (searchInputDropdown) {
+  searchInputDropdown.addEventListener('show.bs.dropdown', event => {
+    setTimeout(function(){
+      $('#headerSearchBarLg').focus();
+      var headerSearchBarLg = $('#headerSearchBarLg')[0];
+      if (!headerSearchBarLg) {
+        return;
+      }
+      var textLength = headerSearchBarLg.value.length;
+      // Set the selection range to the end of the text
+      headerSearchBarLg.setSelectionRange(textLength, textLength);
+    }, 200);
+  });
+}
 //End header search bar

@@ -27,7 +27,7 @@
                     </div>
 
                     <div class="col-sm-6 col-xl-3">
-                        <a href="<?php echo site_url('admin/admin/courses?category_id=all&status=pending&instructor_id=all&price=all&button='); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('admin/courses?category_id=all&status=pending&instructor_id=all&price=all&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0 border-left">
                                 <div class="card-body text-center">
                                     <i class="dripicons-link-broken text-muted" style="font-size: 24px;"></i>
@@ -66,6 +66,32 @@
             </div>
         </div> <!-- end card-box-->
     </div> <!-- end col-->
+</div>
+<div class="row">
+    <div class="col-xl-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h4 class="mb-1 header-title">Course table workflow controls</h4>
+                        <p class="text-muted mb-0">Phase 7 readiness for saved catalog filters, bulk publish review, taxonomy cleanup, and async course exports.</p>
+                    </div>
+                    <span class="badge badge-warning-lighten mt-2 mt-md-0">Phase 7</span>
+                </div>
+                <div class="table-workflow-toolbar mt-3">
+                    <div>
+                        <strong class="d-block">Saved catalog views</strong>
+                        <span class="text-muted">Recommended views: pending publish, missing lessons, no SEO, low taxonomy quality, export-ready.</span>
+                    </div>
+                    <div class="btn-group mt-2 mt-md-0" role="group" aria-label="Course table workflow actions">
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Save view</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Bulk review</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Async export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <div class="row">
     <div class="col-xl-12">
@@ -156,6 +182,19 @@
                                     $sections = $this->crud_model->get_section('course', $course['id']);
                                     $lessons = $this->crud_model->get_lessons('course', $course['id']);
                                     $enroll_history = $this->crud_model->enrol_history($course['id']);
+                                    $quality_flags = array();
+                                    if ($course['course_type'] == 'general' && $sections->num_rows() == 0) {
+                                        $quality_flags[] = 'No sections';
+                                    }
+                                    if ($course['course_type'] == 'general' && $lessons->num_rows() == 0) {
+                                        $quality_flags[] = 'No lessons';
+                                    }
+                                    if (empty(strip_tags($course['short_description'] ?? '')) && empty(strip_tags($course['description'] ?? ''))) {
+                                        $quality_flags[] = 'Missing description';
+                                    }
+                                    if ($course['status'] == 'pending') {
+                                        $quality_flags[] = 'Needs publish review';
+                                    }
                                     if ($course['status'] == 'draft') {
                                         continue;
                                     }
@@ -177,6 +216,15 @@
                                             <?php else: ?>
                                                 <span class="badge badge-info-lighten"><?= $course['course_type']; ?></span>
                                             <?php endif; ?>
+                                            <div class="mt-1">
+                                                <?php if (count($quality_flags) > 0): ?>
+                                                    <?php foreach ($quality_flags as $quality_flag): ?>
+                                                        <span class="badge badge-warning-lighten mr-1 mb-1" data-toggle="tooltip" title="Course quality signal"><?php echo $quality_flag; ?></span>
+                                                    <?php endforeach; ?>
+                                                <?php else: ?>
+                                                    <span class="badge badge-success-lighten" data-toggle="tooltip" title="Course has baseline content signals">Ready baseline</span>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                         <td>
                                             <small class="text-muted"><?php echo '<b>' . get_phrase('total_enrolment') . '</b>: ' . $enroll_history->num_rows(); ?></small>
@@ -201,7 +249,7 @@
                                         </td>
                                         <td>
                                             <div class="dropright dropright">
-                                                <button type="button" class="btn btn-sm btn-outline-primary btn-rounded btn-icon" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <button type="button" class="btn btn-sm btn-outline-primary btn-rounded btn-icon" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" data-toggle-second="tooltip" title="Open course actions">
                                                     <i class="mdi mdi-dots-vertical"></i>
                                                 </button>
                                                 <ul class="dropdown-menu">

@@ -1,13 +1,32 @@
-<?php include 'breadcrumb.php'; ?>
-<section class="grid-view courses-list-view pb-5">
+<?php
+$user_details = isset($user_details) && is_array($user_details) ? $user_details : $this->user_model->get_all_user($this->session->userdata('user_id'))->row_array();
+$is_dashboard_embed = !empty($is_dashboard_embed);
+?>
+<?php if (!$is_dashboard_embed): ?>
+    <?php include 'breadcrumb.php'; ?>
+<?php endif; ?>
+<section class="wish-list-body message pb-5">
     <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10">
-                <div class="card border-0 shadow-sm">
+        <div class="row">
+            <?php if (!$is_dashboard_embed): ?>
+                <div class="col-lg-3 col-md-4">
+                    <?php include 'profile_menus.php'; ?>
+                </div>
+            <?php endif; ?>
+            <div class="<?php echo $is_dashboard_embed ? 'col-12' : 'col-lg-9 col-md-8'; ?>">
+                <div class="common-card p-4">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h4 class="mb-0">My Batch Invites</h4>
-                            
+                        <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                            <div>
+                                <h4 class="mb-1">My Batch Invites</h4>
+                                <p class="text-muted mb-0">Review tutor invitations and accept batches that match your learning profile.</p>
+                            </div>
+                            <?php if (!$is_dashboard_embed): ?>
+                            <div class="mt-2 mt-md-0">
+                                <a href="<?php echo site_url('home/student_dashboard'); ?>" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+                                <a href="<?php echo site_url('student_batch/my_batches'); ?>" class="btn btn-outline-primary btn-sm">My Batches</a>
+                            </div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="table-responsive">
@@ -30,8 +49,8 @@
                                         <td><?php echo nl2br(html_escape((string)($invite['invite_message'] ?? ''))); ?></td>
                                         <td>
                                             <?php if (($invite['invite_status'] ?? '') === 'pending'): ?>
-                                                <a class="btn btn-success btn-sm" href="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/accepted'); ?>">Accept</a>
-                                                <a class="btn btn-outline-danger btn-sm" href="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/rejected'); ?>">Reject</a>
+                                                <form method="post" class="d-inline" action="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/accepted' . ($is_dashboard_embed ? '?dashboard=1' : '')); ?>"><button class="btn btn-success btn-sm">Accept</button></form>
+                                                <form method="post" class="d-inline" action="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/rejected' . ($is_dashboard_embed ? '?dashboard=1' : '')); ?>"><button class="btn btn-outline-danger btn-sm">Reject</button></form>
                                             <?php else: ?>
                                                 <span class="text-muted">Already <?php echo html_escape($invite['invite_status']); ?></span>
                                             <?php endif; ?>

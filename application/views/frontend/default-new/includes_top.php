@@ -1,3 +1,12 @@
+<link rel="preload" href="<?php echo base_url() . 'assets/frontend/default-new/css/all.min.css'; ?>" as="style">
+<?php if($language_dir == 'rtl'): ?>
+    <link rel="preload" href="<?php echo base_url() . 'assets/frontend/default-new/css/bootstrap.rtl.min.css'; ?>" as="style">
+<?php else: ?>
+    <link rel="preload" href="<?php echo base_url() . 'assets/frontend/default-new/css/bootstrap.min.css'; ?>" as="style">
+<?php endif; ?>
+<link rel="preload" href="<?php echo base_url() . 'assets/frontend/default-new/css/style.css'; ?>" as="style">
+<link rel="preload" href="<?php echo base_url() . 'assets/frontend/default-new/css/new-style.css'; ?>" as="style">
+
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/all.min.css'; ?>">
 
 <?php if($language_dir == 'rtl'): ?>
@@ -9,7 +18,6 @@
 
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/jquery.webui-popover.min.css'; ?>">
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/h-2-carousel.css'; ?>">
-<link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/jquery.webui-popover.min.css'; ?>">
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/nice-select.css'; ?>">
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/owl.carousel.min.css'; ?>">
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/owl.theme.default.min.css'; ?>">
@@ -23,6 +31,7 @@
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/global/toastr/toastr.css' ?>">
 
 <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/custom.css'; ?>">
+<link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/lvalues-chatbot.css'; ?>">
 
 <?php if($language_dir == 'rtl'): ?>
     <link rel="stylesheet" href="<?php echo base_url() . 'assets/frontend/default-new/css/rtl.css'; ?>">

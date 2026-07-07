@@ -65,6 +65,7 @@ $sections = $this->crud_model->get_section('course', $course_id)->result_array()
                                             
                                             <a href="javascript:;" onclick="showAjaxModal('<?php echo site_url('modal/popup/lesson_edit/'.$lesson['id'].'/'.$course_id); ?>', '<?php echo get_phrase('update_lesson'); ?>')" data-toggle="tooltip" title="<?php echo get_phrase('edit'); ?>"><i class="mdi mdi-pencil-outline"></i></a>
                                         <?php endif; ?>
+                                        <form method="post" action="<?php echo site_url('course-workflow/library/save/'.$lesson['id']);?>" class="d-inline"><button type="submit" class="btn btn-link btn-sm p-0" data-toggle="tooltip" title="Save to reusable lesson library"><i class="mdi mdi-content-save-outline"></i></button></form>
                                         <a href="javascript:;" onclick="confirm_modal('<?php echo site_url('user/lessons/'.$course_id.'/delete'.'/'.$lesson['id']); ?>');" data-toggle="tooltip" title="<?php echo get_phrase('delete'); ?>"><i class="mdi mdi-window-close"></i></a>
                                     </div>
                                     <h5 class="card-title mb-0">

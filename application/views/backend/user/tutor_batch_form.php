@@ -1,4 +1,9 @@
-<?php $is_edit = !empty($batch['id']); ?>
+<?php
+$is_edit = !empty($batch['id']);
+$minimum_start_date = $is_edit && !empty($batch['start_date']) && $batch['start_date'] < date('Y-m-d')
+    ? $batch['start_date']
+    : date('Y-m-d');
+?>
 <div class="row">
     <div class="col-12">
         <div class="card">
@@ -12,7 +17,15 @@
                         </div>
                         <div class="col-md-3 mb-3">
                             <label>Batch Code</label>
-                            <input type="text" name="batch_code" class="form-control" value="<?php echo html_escape($batch['batch_code'] ?? ''); ?>">
+                            <input type="text" name="batch_code" class="form-control" value="<?php echo html_escape($batch['batch_code'] ?? ''); ?>" placeholder="Generated automatically">
+                            <small class="text-muted">Leave blank to generate a unique code.</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label>Enrollment</label>
+                            <select name="enrollment_mode" class="form-control"><option value="approval" <?php echo (($batch['enrollment_mode'] ?? 'approval')==='approval')?'selected':'';?>>Teacher approval</option><option value="open" <?php echo (($batch['enrollment_mode'] ?? '')==='open')?'selected':'';?>>Open enrollment</option></select>
+                        </div>
+                        <div class="col-md-3 mb-3 d-flex align-items-end">
+                            <label class="mb-2"><input type="checkbox" name="waitlist_enabled" value="1" <?php echo !isset($batch['waitlist_enabled']) || !empty($batch['waitlist_enabled']) ? 'checked' : ''; ?>> Enable waitlist when full</label>
                         </div>
                         <div class="col-md-3 mb-3">
                             <label>Capacity</label>
@@ -28,11 +41,11 @@
                         </div>
                         <div class="col-md-4 mb-3">
                             <label>Start Date</label>
-                            <input type="date" name="start_date" class="form-control" value="<?php echo html_escape($batch['start_date'] ?? ''); ?>">
+                            <input type="date" id="batch_start_date" name="start_date" class="form-control" min="<?php echo html_escape($minimum_start_date); ?>" required value="<?php echo html_escape($batch['start_date'] ?? ''); ?>">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label>End Date</label>
-                            <input type="date" name="end_date" class="form-control" value="<?php echo html_escape($batch['end_date'] ?? ''); ?>">
+                            <input type="date" id="batch_end_date" name="end_date" class="form-control" min="<?php echo html_escape($batch['start_date'] ?? $minimum_start_date); ?>" required value="<?php echo html_escape($batch['end_date'] ?? ''); ?>">
                         </div>
                         <div class="col-md-4 mb-3">
                             <label>Status</label>
@@ -58,3 +71,21 @@
         </div>
     </div>
 </div>
+<script>
+(function () {
+    const startDate = document.getElementById('batch_start_date');
+    const endDate = document.getElementById('batch_end_date');
+    if (!startDate || !endDate) return;
+
+    function syncEndDate() {
+        const minimum = startDate.value || startDate.min;
+        endDate.min = minimum;
+        if (endDate.value && minimum && endDate.value < minimum) {
+            endDate.value = minimum;
+        }
+    }
+
+    startDate.addEventListener('change', syncEndDate);
+    syncEndDate();
+})();
+</script>

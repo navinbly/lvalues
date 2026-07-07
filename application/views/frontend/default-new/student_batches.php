@@ -21,7 +21,10 @@ foreach (($invites ?? []) as $invite_item) {
                             <h4 class="mb-1">My Batches</h4>
                             <p class="text-muted mb-0">Accept batch invites, join live sessions, view recordings, and track assignments.</p>
                         </div>
-                        <a href="<?php echo site_url('student_batch/invites'); ?>" class="btn btn-outline-primary btn-sm mt-2 mt-md-0">Batch Invites</a>
+                        <div class="mt-2 mt-md-0">
+                            <a href="<?php echo site_url('home/student_dashboard'); ?>" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+                            <a href="<?php echo site_url('student_batch/invites'); ?>" class="btn btn-outline-primary btn-sm">Batch Invites</a>
+                        </div>
                     </div>
 
                     <div class="row mb-4">
@@ -73,8 +76,8 @@ foreach (($invites ?? []) as $invite_item) {
                                         </td>
                                         <td><?php echo nl2br(html_escape($invite['invite_message'] ?? '')); ?></td>
                                         <td class="text-nowrap">
-                                            <a class="btn btn-success btn-sm" href="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/accepted'); ?>">Accept</a>
-                                            <a class="btn btn-outline-danger btn-sm" href="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/rejected'); ?>">Reject</a>
+                                            <form method="post" class="d-inline" action="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/accepted'); ?>"><button class="btn btn-success btn-sm">Accept</button></form>
+                                            <form method="post" class="d-inline" action="<?php echo site_url('student_batch/respond/' . $invite['invite_token'] . '/rejected'); ?>"><button class="btn btn-outline-danger btn-sm">Reject</button></form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>

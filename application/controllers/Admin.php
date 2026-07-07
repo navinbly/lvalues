@@ -3,6 +3,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 
 class Admin extends CI_Controller
 {
+    private $workflow_action_token = '';
+
     public function __construct()
     {
         parent::__construct();
@@ -11,6 +13,12 @@ class Admin extends CI_Controller
 
         $this->load->database();
         $this->load->library('session');
+
+        $this->workflow_action_token = (string)$this->session->userdata('workflow_action_token');
+        if ($this->workflow_action_token === '') {
+            $this->workflow_action_token = bin2hex(random_bytes(32));
+            $this->session->set_userdata('workflow_action_token', $this->workflow_action_token);
+        }
 		
 		// ✅ Load Content Docs model here
         $this->load->model('Content_docs_model', 'content_docs_model');
@@ -46,6 +54,273 @@ class Admin extends CI_Controller
         $page_data['page_name'] = 'dashboard';
         $page_data['page_title'] = get_phrase('dashboard');
         $this->load->view('backend/index.php', $page_data);
+    }
+
+    public function phase2_security()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('admin');
+
+        $page_data['page_name'] = 'phase2_security';
+        $page_data['page_title'] = 'Security & RBAC';
+        $page_data['admins'] = $this->user_model->get_admins()->result_array();
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function audit_activity()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('admin');
+
+        $page_data['page_name'] = 'audit_activity';
+        $page_data['page_title'] = 'Audit activity';
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function support_tickets()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('contact');
+
+        $page_data['page_name'] = 'support_tickets';
+        $page_data['page_title'] = 'Support tickets';
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function navigation_alias($alias = '', $action = '', $id = '')
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $aliases = array(
+            'users_admin_roles' => array('view' => 'phase2_security', 'title' => 'Admins & Roles', 'permissions' => array('admin')),
+            'users_verification_queue' => array('view' => 'application_list', 'title' => 'Verification Queue', 'permissions' => array('instructor')),
+            'marketplace_availability' => array('view' => 'tutor_performance', 'title' => 'Tutor Availability', 'permissions' => array('user', 'instructor')),
+            'marketplace_reviews' => array('view' => 'support_tickets', 'title' => 'Marketplace Reviews & Complaints', 'permissions' => array('contact')),
+            'learning_certificates' => array('view' => 'student_success', 'title' => 'Certificates', 'permissions' => array('user', 'student')),
+            'learning_cohorts' => array('view' => 'student_success', 'title' => 'Cohorts & Batches', 'permissions' => array('user', 'student')),
+            'finance_commission_rules' => array('view' => 'finance_ops', 'title' => 'Commission Rules', 'permissions' => array('revenue')),
+            'support_complaints' => array('view' => 'support_tickets', 'title' => 'Support Complaints', 'permissions' => array('contact')),
+            'support_escalations' => array('view' => 'support_tickets', 'title' => 'Support Escalations', 'permissions' => array('contact')),
+            'content_seo' => array('view' => 'content_pages', 'title' => 'Content SEO', 'permissions' => array('blog')),
+            'analytics_growth' => array('view' => 'finance_ops', 'title' => 'Growth Analytics', 'permissions' => array('revenue')),
+            'analytics_course' => array('view' => 'course_quality', 'title' => 'Course Analytics', 'permissions' => array('course')),
+            'analytics_student_success' => array('view' => 'student_success', 'title' => 'Student Success Analytics', 'permissions' => array('user', 'student')),
+            'analytics_tutor' => array('view' => 'tutor_performance', 'title' => 'Tutor Analytics', 'permissions' => array('user', 'instructor')),
+            'analytics_operations' => array('view' => 'operational_quality', 'title' => 'Operational Quality', 'permissions' => array('admin')),
+            'settings_security' => array('view' => 'phase2_security', 'title' => 'Security Review', 'permissions' => array('admin')),
+            'settings_roadmap' => array('view' => 'implementation_roadmap', 'title' => 'Implementation Roadmap', 'permissions' => array('admin')),
+            'settings_ai_guardrails' => array('view' => 'ai_readiness', 'title' => 'AI Guardrails', 'permissions' => array('admin')),
+            'settings_scale_readiness' => array('view' => 'scalability_review', 'title' => 'Scale Readiness', 'permissions' => array('admin')),
+        );
+
+        if (!isset($aliases[$alias])) {
+            show_404();
+        }
+
+        foreach ($aliases[$alias]['permissions'] as $permission) {
+            check_permission($permission);
+        }
+
+        if ($aliases[$alias]['view'] === 'application_list') {
+            if ($action === 'approve' || $action === 'reject' || $action === 'delete') {
+                $this->user_model->update_status_of_application($action, $id);
+            }
+            $page_data['approved_applications'] = $this->user_model->get_approved_applications();
+            $page_data['pending_applications'] = $this->user_model->get_pending_applications();
+            $page_data['rejected_applications'] = $this->user_model->get_rejected_applications();
+            $page_data['application_action_base'] = site_url('admin/navigation_alias/' . $alias);
+        }
+
+        if ($aliases[$alias]['view'] === 'phase2_security') {
+            $page_data['admins'] = $this->user_model->get_admins()->result_array();
+        }
+        if (in_array($aliases[$alias]['view'], array('tutor_performance','student_success','course_quality','operational_quality'), true)) {
+            $this->load->model('Analytics_quality_model','analytics_quality');
+            if ($aliases[$alias]['view'] === 'tutor_performance') $page_data['teacher_quality'] = $this->analytics_quality->admin_teacher_quality();
+            if ($aliases[$alias]['view'] === 'student_success') $page_data['student_success_rows'] = $this->analytics_quality->admin_student_success();
+            if ($aliases[$alias]['view'] === 'course_quality') $page_data['content_quality'] = $this->analytics_quality->content_quality();
+            if ($aliases[$alias]['view'] === 'operational_quality') $page_data['operations'] = $this->analytics_quality->operations_dashboard();
+        }
+
+        $page_data['page_name'] = $alias;
+        $page_data['view_name'] = $aliases[$alias]['view'];
+        $page_data['page_title'] = $aliases[$alias]['title'];
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function student_success()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('user');
+        check_permission('student');
+
+        $page_data['page_name'] = 'student_success';
+        $page_data['page_title'] = 'Student success';
+        $this->load->model('Analytics_quality_model','analytics_quality');
+        $page_data['student_success_rows'] = $this->analytics_quality->admin_student_success();
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function course_quality()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('course');
+
+        $page_data['page_name'] = 'course_quality';
+        $page_data['page_title'] = 'Course quality';
+        $this->load->model('Analytics_quality_model','analytics_quality');
+        $page_data['content_quality'] = $this->analytics_quality->content_quality();
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function sponsored_courses($action = 'list', $id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('course');
+
+        $this->load->model('Sponsored_course_model', 'sponsored_course_model');
+        $id = (int)$id;
+
+        if ($action === 'save' && strtoupper((string)$this->input->method(true)) === 'POST') {
+            $banner_path = $this->upload_sponsored_course_banner();
+            $input = $this->input->post(NULL, true);
+            if ($banner_path !== '') {
+                $input['banner_image'] = $banner_path;
+            }
+            $result = $this->sponsored_course_model->save($input, (int)$this->session->userdata('user_id'), (int)$this->input->post('id'));
+            $this->session->set_flashdata($result['status'] ? 'flash_message' : 'error_message', $result['message']);
+            redirect(site_url('admin/sponsored_courses'), 'refresh');
+        }
+
+        if ($action === 'publish' || $action === 'unpublish' || $action === 'archive') {
+            $status = $action === 'publish' ? 'published' : ($action === 'unpublish' ? 'unpublished' : 'archived');
+            $this->sponsored_course_model->update_status($id, $status);
+            $this->session->set_flashdata('flash_message', 'Sponsored course status updated.');
+            redirect(site_url('admin/sponsored_courses'), 'refresh');
+        }
+
+        $page_data['page_name'] = 'sponsored_courses';
+        $page_data['page_title'] = 'Sponsored Courses';
+        $page_data['sponsored_courses'] = $this->sponsored_course_model->get_all();
+        $page_data['edit_sponsored_course'] = $action === 'edit' ? $this->sponsored_course_model->get($id) : [];
+        $this->load->view('backend/index', $page_data);
+    }
+
+    private function upload_sponsored_course_banner(): string
+    {
+        if (empty($_FILES['banner_image']['name'])) {
+            return '';
+        }
+
+        $upload_dir = FCPATH . 'uploads/sponsored_courses/';
+        if (!is_dir($upload_dir)) {
+            @mkdir($upload_dir, 0755, true);
+        }
+
+        $this->load->library('upload');
+        $config = [
+            'upload_path' => $upload_dir,
+            'allowed_types' => 'jpg|jpeg|png|webp',
+            'max_size' => 2048,
+            'encrypt_name' => true,
+        ];
+        $this->upload->initialize($config);
+
+        if (!$this->upload->do_upload('banner_image')) {
+            $this->session->set_flashdata('error_message', 'Banner upload failed: ' . $this->upload->display_errors('', ''));
+            return '';
+        }
+
+        $uploaded = $this->upload->data();
+        return 'uploads/sponsored_courses/' . $uploaded['file_name'];
+    }
+
+    public function finance_ops()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('revenue');
+
+        $page_data['page_name'] = 'finance_ops';
+        $page_data['page_title'] = 'Finance operations';
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function tutor_performance()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('user');
+        check_permission('instructor');
+
+        $page_data['page_name'] = 'tutor_performance';
+        $page_data['page_title'] = 'Tutor performance';
+        $this->load->model('Analytics_quality_model','analytics_quality');
+        $page_data['teacher_quality'] = $this->analytics_quality->admin_teacher_quality();
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function operational_quality()
+    {
+        if ($this->session->userdata('admin_login') != true) redirect(site_url('login'), 'refresh');
+        check_permission('admin');
+        $this->load->model('Analytics_quality_model','analytics_quality');
+        $page_data['page_name']='operational_quality';
+        $page_data['page_title']='Operational Quality';
+        $page_data['operations']=$this->analytics_quality->operations_dashboard();
+        $this->load->view('backend/index',$page_data);
+    }
+
+    public function ai_readiness()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('admin');
+
+        $page_data['page_name'] = 'ai_readiness';
+        $page_data['page_title'] = 'AI readiness';
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function scalability_review()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('admin');
+
+        $page_data['page_name'] = 'scalability_review';
+        $page_data['page_title'] = 'Scalability review';
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function implementation_roadmap()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('admin');
+
+        $page_data['page_name'] = 'implementation_roadmap';
+        $page_data['page_title'] = 'Implementation roadmap';
+        $this->load->view('backend/index', $page_data);
     }
 
     public function categories($param1 = "", $param2 = "")
@@ -294,10 +569,8 @@ class Admin extends CI_Controller
                                 <i class="mdi mdi-dots-vertical"></i>
                             </button>
                             <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="' . site_url('admin/user_form/view_user_form/' . $student['id']) . '">' . get_phrase('view') . '</a></li>
                                 <li><a class="dropdown-item" href="' . site_url('admin/user_form/edit_user_form/' . $student['id']) . '">' . get_phrase('edit') . '</a></li>
-
-                                <li><a class="dropdown-item" href="#" onclick="confirm_modal(&#39;' . site_url('admin/users/delete/' . $student['id']) . '&#39;);">' . get_phrase('delete') . '</a></li>
-                                
                                 <li><a class="dropdown-item" href="#" onclick="confirm_modal(&#39;' . site_url('admin/users/delete/' . $student['id']) . '&#39;);">' . get_phrase('delete') . '</a></li>
                             </ul>
                         </div>';
@@ -468,6 +741,16 @@ class Admin extends CI_Controller
             $page_data['page_name'] = 'user_edit';
             $page_data['user_id'] = $param2;
             $page_data['page_title'] = get_phrase('student_edit');
+            $this->load->view('backend/index', $page_data);
+        } elseif ($param1 == 'view_user_form') {
+            $student = $this->db->get_where('users', array('id' => (int)$param2, 'role_id' => 2), 1)->row_array();
+            if (!$student) {
+                show_404();
+            }
+            $page_data['page_name'] = 'user_view';
+            $page_data['user_id'] = (int)$param2;
+            $page_data['student'] = $student;
+            $page_data['page_title'] = get_phrase('student_details');
             $this->load->view('backend/index', $page_data);
         }
     }
@@ -1015,6 +1298,30 @@ class Admin extends CI_Controller
                     $price = get_phrase('free');
                 }
 
+                $quality_flags = array();
+                if ($row['course_type'] == 'general' && $sections->num_rows() == 0) {
+                    $quality_flags[] = 'No sections';
+                }
+                if ($row['course_type'] == 'general' && $lessons->num_rows() == 0) {
+                    $quality_flags[] = 'No lessons';
+                }
+                if (empty(strip_tags($row['short_description'] ?? '')) && empty(strip_tags($row['description'] ?? ''))) {
+                    $quality_flags[] = 'Missing description';
+                }
+                if ($row['status'] == 'pending') {
+                    $quality_flags[] = 'Needs publish review';
+                }
+
+                $quality_field = '<div class="mt-1">';
+                if (count($quality_flags) > 0) {
+                    foreach ($quality_flags as $quality_flag) {
+                        $quality_field .= '<span class="badge badge-warning-lighten mr-1 mb-1" title="Course quality signal">' . $quality_flag . '</span>';
+                    }
+                } else {
+                    $quality_field .= '<span class="badge badge-success-lighten" title="Course has baseline content signals">Ready baseline</span>';
+                }
+                $quality_field .= '</div>';
+
                 $price_field = '<span class="badge ' . $price_badge . '">' . $price . '</span>';
                 if ($row['expiry_period'] > 0) {
                     $price_field .= '<p class="text-12">' . $row['expiry_period'] . ' ' . get_phrase('Months') . '</p>';
@@ -1095,7 +1402,8 @@ class Admin extends CI_Controller
                 } elseif ($row['course_type'] == 'general') {
                     $nestedData['lesson_and_section'] = '
                     <small class="text-muted"><b>' . get_phrase('Section') . '</b>: ' . $sections->num_rows() . '</small><br>
-                    <small class="text-muted"><b>' . get_phrase('Lesson') . '</b>: ' . $lessons->num_rows() . '</small>';
+                    <small class="text-muted"><b>' . get_phrase('Lesson') . '</b>: ' . $lessons->num_rows() . '</small>
+                    ' . $quality_field;
                 }
 
                 $nestedData['enrolled_student'] = '<small class="text-muted"><b>' . get_phrase('Enrollments') . '</b>: ' . $enroll_history->num_rows() . '</small>';
@@ -1214,10 +1522,7 @@ class Admin extends CI_Controller
             redirect(site_url('login'), 'refresh');
         }
         $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
-        if ($course_details['status'] == 'draft') {
-            $this->session->set_flashdata('error_message', get_phrase('you_do_not_have_right_to_access_this_course'));
-            redirect(site_url('admin/courses'), 'refresh');
-        }
+        if (empty($course_details)) show_404();
     }
 
     public function change_course_status($updated_status = "")
@@ -1396,18 +1701,24 @@ class Admin extends CI_Controller
         check_permission('messaging');
 
         if ($param1 == 'send_new') {
+            if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
             $message_thread_code = $this->crud_model->send_new_private_message();
             $this->session->set_flashdata('flash_message', get_phrase('message_sent'));
             redirect(site_url('admin/message/message_read/' . $message_thread_code), 'refresh');
         }
 
         if ($param1 == 'send_reply') {
-            $this->crud_model->send_reply_message($param2); //$param2 = message_thread_code
-            $this->session->set_flashdata('flash_message', get_phrase('message_sent'));
+            if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+            $sent = $this->crud_model->send_reply_message($param2);
+            $this->session->set_flashdata($sent ? 'flash_message' : 'error_message', $sent ? get_phrase('message_sent') : 'Message thread not found or access denied.');
             redirect(site_url('admin/message/message_read/' . $param2), 'refresh');
         }
 
         if ($param1 == 'message_read') {
+            if (!$this->crud_model->can_access_message_thread($param2, (int)$this->session->userdata('user_id'))) {
+                show_error('Message thread not found or access denied.', 403);
+                return;
+            }
             $page_data['current_message_thread_code'] = $param2; // $param2 = message_thread_code
             $this->crud_model->mark_thread_messages_read($param2);
         }
@@ -1778,13 +2089,15 @@ class Admin extends CI_Controller
         // CHECK ACCESS PERMISSION
         check_permission('instructor');
 
-        if ($param1 == 'approve' || $param1 == 'delete') {
+        if ($param1 == 'approve' || $param1 == 'reject' || $param1 == 'delete') {
             $this->user_model->update_status_of_application($param1, $param2);
         }
         $page_data['page_name']  = 'application_list';
         $page_data['page_title'] = get_phrase('instructor_application');
         $page_data['approved_applications'] = $this->user_model->get_approved_applications();
         $page_data['pending_applications'] = $this->user_model->get_pending_applications();
+        $page_data['rejected_applications'] = $this->user_model->get_rejected_applications();
+        $page_data['application_action_base'] = site_url('admin/instructor_application');
         $this->load->view('backend/index', $page_data);
     }
 
@@ -2188,6 +2501,68 @@ public function content_nodes($param1 = "", $param2 = "")
         redirect(site_url('admin/content_nodes'), 'refresh');
     }
 
+    if ($param1 === 'create_book') {
+        $res = $this->content_docs_model->create_book_wizard(
+            $user_id,
+            $this->input->post('book_title', true),
+            $this->input->post('chapter_title', true),
+            $this->input->post('page_title', true)
+        );
+        $this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    if ($param1 === 'create_article') {
+        $res = $this->content_docs_model->create_article($user_id, $this->input->post('article_title', true));
+        $this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    if ($param1 === 'import_book') {
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        if (empty($_FILES['book_file']['name'])) {
+            $this->session->set_flashdata('error_message', 'Choose a DOC, DOCX, or PDF book file.');
+            redirect(site_url('admin/content_nodes'), 'refresh');
+        }
+        $this->load->library('Secure_upload');
+        $stored = $this->secure_upload->store($_FILES['book_file'], FCPATH.'uploads/books/source', [
+            'extensions'=>['doc','docx','pdf'], 'max_bytes'=>50*1024*1024, 'actor_user_id'=>$user_id,
+            'owner_user_id'=>$user_id, 'is_admin'=>true, 'entity_type'=>'content_book_import'
+        ]);
+        if (empty($stored['ok'])) {
+            $this->session->set_flashdata('error_message', $stored['message']);
+            redirect(site_url('admin/content_nodes'), 'refresh');
+        }
+        $title = trim((string)$this->input->post('book_title', true));
+        if ($title === '') $title = pathinfo((string)$_FILES['book_file']['name'], PATHINFO_FILENAME);
+        $extension = strtolower(pathinfo($stored['file_name'], PATHINFO_EXTENSION));
+        $relative = 'uploads/books/source/'.$stored['file_name'];
+        try {
+            if ($extension === 'pdf') {
+                $result = $this->content_docs_model->import_book($user_id, $title, [], 'pdf', $relative, $stored['mime']);
+            } else {
+                $this->load->library('Book_import_service');
+                $imageRelative = 'uploads/books/images/'.pathinfo($stored['file_name'], PATHINFO_FILENAME);
+                $imageDirectory = FCPATH.$imageRelative;
+                if (!is_dir($imageDirectory)) @mkdir($imageDirectory, 0755, true);
+                $chapters = $this->book_import_service->word_to_structure($stored['path'], $imageDirectory, base_url($imageRelative));
+                $result = $this->content_docs_model->import_book($user_id, $title, $chapters, 'interactive', $relative, $stored['mime']);
+            }
+        } catch (Throwable $exception) {
+            log_message('error', 'Book import failed: '.$exception->getMessage());
+            $result = ['ok'=>false,'message'=>'The book could not be parsed. For legacy DOC files, save as DOCX and retry.'];
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
+    if ($param1 === 'book_status') {
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $result = $this->content_docs_model->set_book_status((int)$this->input->post('book_id'), $user_id, (string)$this->input->post('status'));
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/content_nodes'), 'refresh');
+    }
+
     // ======================================================
     // ✅ UPDATE NODE TITLE (Fix for /admin/content_nodes/update)
     // URL: /admin/content_nodes/update   (POST)
@@ -2248,65 +2623,80 @@ public function content_nodes_pending($action = "", $node_id = "")
 
     $admin_user_id = (int) $this->session->userdata('user_id');
     $this->load->model('email_model');
+    $this->load->model('Content_docs_model', 'content_docs_model');
+    $this->load->model('Moderation_model', 'moderation');
 
-    if ($action === 'approve' && $node_id) {
-        $resp = $this->content_docs_model->approve_node($node_id, $admin_user_id);
-        if (!empty($resp['ok'])) {
-            $this->crud_model->sync_blog_status_from_node((int)$node_id, 'published', $admin_user_id);
-            $node = $this->db->get_where('content_nodes', ['node_id' => (int)$node_id])->row_array();
-            if (!empty($node['created_by'])) {
-                $this->email_model->notify(
-                    'content_page_approved',
-                    (int)$node['created_by'],
-                    'Content approved',
-                    'Your content node "' . html_escape($node['title'] ?? ('Node #' . (int)$node_id)) . '" has been approved by admin.',
-                    $admin_user_id
-                );
-            }
+    $review_actions = array(
+        'approve' => array('status' => 'published', 'mail_key' => 'content_page_approved', 'title' => 'Content approved'),
+        'reject' => array('status' => 'rejected', 'mail_key' => 'content_page_rejected', 'title' => 'Content rejected'),
+        'hold' => array('status' => 'on_hold', 'mail_key' => 'content_page_on_hold', 'title' => 'Content put on hold'),
+        'ask_update' => array('status' => 'update_required', 'mail_key' => 'content_page_update_required', 'title' => 'Content update required')
+    );
+
+    if (isset($review_actions[$action]) && $node_id) {
+        $this->require_workflow_action();
+        $note = trim((string)$this->input->post('review_note'));
+        if ($action !== 'approve' && $note === '') {
+            $this->session->set_flashdata('error_message', 'A reason is required for hold, update request, or rejection.');
+            redirect(site_url('admin/content_nodes_pending'), 'refresh');
+            return;
+        }
+        $node = $this->db->get_where('content_nodes', array('node_id' => (int)$node_id))->row_array();
+        $resp = $this->content_docs_model->review_node((int)$node_id, $review_actions[$action]['status'], $admin_user_id, $note);
+        if (!empty($resp['ok']) && $node) {
+            $this->moderation->record(
+                (($node['content_type'] ?? '') === 'article' ? 'article' : 'book'),
+                (int)$node_id,
+                $action,
+                $node['review_status'] ?: $node['status'],
+                $review_actions[$action]['status'],
+                $note,
+                $admin_user_id,
+                (int)$node['created_by']
+            );
+        }
+        if (!empty($resp['ok']) && !empty($node['created_by'])) {
+            $message = 'Your content "' . html_escape($node['title'] ?? ('Node #' . (int)$node_id)) . '" status is now ' . $review_actions[$action]['status'] . '.';
+            if ($note !== '') { $message .= ' Admin note: ' . html_escape($note); }
+            $this->email_model->notify($review_actions[$action]['mail_key'], (int)$node['created_by'], $review_actions[$action]['title'], $message, $admin_user_id);
         }
         $this->session->set_flashdata(!empty($resp['ok']) ? 'flash_message' : 'error_message', $resp['message']);
         redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
-    if ($action === 'reject' && $node_id) {
-        $node = $this->db->get_where('content_nodes', ['node_id' => (int)$node_id])->row_array();
-        $resp = $this->content_docs_model->reject_node($node_id, $admin_user_id);
-        if (!empty($resp['ok'])) {
-            $this->crud_model->sync_blog_status_from_node((int)$node_id, 'rejected', $admin_user_id);
-            if (!empty($node['created_by'])) {
-                $this->email_model->notify(
-                    'content_page_rejected',
-                    (int)$node['created_by'],
-                    'Content rejected',
-                    'Your content node "' . html_escape($node['title'] ?? ('Node #' . (int)$node_id)) . '" has been rejected by admin.',
-                    $admin_user_id
-                );
-            }
-        }
+    if ($action === 'restore' && $node_id) {
+        $this->require_workflow_action();
+        $resp = $this->content_docs_model->restore_content((int)$node_id, $admin_user_id);
+        $this->session->set_flashdata(!empty($resp['ok']) ? 'flash_message' : 'error_message', $resp['message']);
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
+    if ($action === 'soft_delete' && $node_id) {
+        $this->require_workflow_action();
+        $resp = $this->content_docs_model->delete_node($admin_user_id, 'admin', (int)$node_id);
+        $ok = is_array($resp) ? !empty($resp['ok']) : (bool)$resp;
+        $message = is_array($resp) && !empty($resp['message']) ? $resp['message'] : ($ok ? 'Content moved to the recycle bin.' : 'Unable to delete content.');
+        $this->session->set_flashdata($ok ? 'flash_message' : 'error_message', $message);
+        redirect(site_url('admin/content_nodes_pending'), 'refresh');
+    }
+
+    if ($action === 'permanent_delete' && $node_id) {
+        $this->require_workflow_action();
+        $resp = $this->content_docs_model->permanently_delete_content((int)$node_id);
         $this->session->set_flashdata(!empty($resp['ok']) ? 'flash_message' : 'error_message', $resp['message']);
         redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     if ($action === 'approve_blog' && $node_id) {
+        $this->require_workflow_action();
         $blog_id = (int) $node_id;
         $blog = $this->crud_model->get_all_blogs($blog_id)->row_array();
-        $pending_statuses = ['pending', '0', 0, '', null];
+        $pending_statuses = array('pending', '0', 0, '', null);
         if (empty($blog) || !in_array($blog['status'], $pending_statuses, true)) {
             $this->session->set_flashdata('error_message', 'Pending blog not found.');
             redirect(site_url('admin/content_nodes_pending'), 'refresh');
         }
-
         if ($this->crud_model->approve_blog($blog_id)) {
-            $creator = $this->db->get_where('users', ['id' => (int)$blog['user_id']])->row_array();
-            if (!empty($creator)) {
-                $this->email_model->notify(
-                    'blog_approved',
-                    (int) $creator['id'],
-                    'Blog approved',
-                    'Your blog "' . html_escape($blog['title']) . '" has been approved by admin.',
-                    $admin_user_id
-                );
-            }
             $this->session->set_flashdata('flash_message', 'Blog approved successfully.');
         } else {
             $this->session->set_flashdata('error_message', 'Unable to approve blog.');
@@ -2315,38 +2705,20 @@ public function content_nodes_pending($action = "", $node_id = "")
     }
 
     if ($action === 'reject_blog' && $node_id) {
+        $this->require_workflow_action();
         $blog_id = (int) $node_id;
-        $blog = $this->crud_model->get_all_blogs($blog_id)->row_array();
-        $pending_statuses = ['pending', '0', 0, '', null];
-        if (empty($blog) || !in_array($blog['status'], $pending_statuses, true)) {
-            $this->session->set_flashdata('error_message', 'Pending blog not found.');
-            redirect(site_url('admin/content_nodes_pending'), 'refresh');
-        }
-
-        $creator = $this->db->get_where('users', ['id' => (int)$blog['user_id']])->row_array();
-        $title = $blog['title'];
         $ok = $this->crud_model->blog_delete($blog_id);
-        if ($ok) {
-            if (!empty($creator)) {
-                $this->email_model->notify(
-                    'blog_rejected',
-                    (int) $creator['id'],
-                    'Blog rejected',
-                    'Your blog "' . html_escape($title) . '" has been rejected by admin.',
-                    $admin_user_id
-                );
-            }
-            $this->session->set_flashdata('flash_message', 'Blog rejected successfully.');
-        } else {
-            $this->session->set_flashdata('error_message', 'Unable to reject blog.');
-        }
+        $this->session->set_flashdata($ok ? 'flash_message' : 'error_message', $ok ? 'Blog rejected successfully.' : 'Unable to reject blog.');
         redirect(site_url('admin/content_nodes_pending'), 'refresh');
     }
 
     $page_data['pending_nodes'] = $this->content_docs_model->get_pending_nodes();
+    $page_data['deleted_nodes'] = $this->content_docs_model->get_deleted_content();
+    $page_data['published_nodes'] = $this->content_docs_model->get_published_content();
     $page_data['pending_blogs'] = $this->crud_model->get_instructors_pending_blog();
-    $page_data['page_title']    = 'Content (Docs) - Pending Nodes';
+    $page_data['page_title']    = 'Book / Article Review';
     $page_data['page_name']     = 'content_nodes_pending';
+    $page_data['workflow_action_token'] = $this->workflow_action_token;
     $this->load->view('backend/index', $page_data);
 }
 
@@ -2408,9 +2780,10 @@ public function content_nodes_add_root()
 function content_nodes_delete($node_id = 0)
 {
     $this->user_model->check_session_data('admin'); // ensure admin session
+    if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
 
     $node_id = (int)$node_id;
-    $force   = ($this->input->get('force') == '1');
+    $force   = ($this->input->post('force') == '1');
 
     // Always return JSON (because frontend uses fetch)
     if ($node_id <= 0) {
@@ -2434,8 +2807,11 @@ public function update_node_order()
     $this->user_model->check_session_data('admin'); // admin only
 
     $payload = json_decode($this->input->raw_input_stream, true);
-    $parent_id = isset($payload['parent_id']) ? (int)$payload['parent_id'] : 0;
-    $ordered_ids = $payload['ordered_ids'] ?? [];
+    if (!is_array($payload)) $payload = array();
+    $parent_id = (int)($this->input->post('parent_id') ?? ($payload['parent_id'] ?? 0));
+    $ordered_ids = $this->input->post('ordered_ids');
+    if ($ordered_ids === null) $ordered_ids = $payload['ordered_ids'] ?? [];
+    if (is_string($ordered_ids)) $ordered_ids = json_decode($ordered_ids, true);
 
     header('Content-Type: application/json');
 
@@ -2445,7 +2821,12 @@ public function update_node_order()
     }
 
     $this->load->model('Content_docs_model', 'content_docs_model');
-    $resp = $this->content_docs_model->update_node_order($parent_id, $ordered_ids);
+    $resp = $this->content_docs_model->update_node_order(
+        $parent_id,
+        $ordered_ids,
+        (int)$this->session->userdata('user_id'),
+        'admin'
+    );
 
     echo json_encode($resp);
     return;
@@ -3677,7 +4058,8 @@ public function update_node_order()
     }
 
     // Save using model signature: save_page($node_id, $html, $meta, $user_id, $user_role)
-    $res = $this->Content_pages_model->save_page($node_id, $html, $meta, $user_id, $role);
+    $save_status = (string)$this->input->post('save_status', true);
+    $res = $this->Content_pages_model->save_page($node_id, $html, $meta, $user_id, $role, $save_status);
 
     if (!empty($res['ok'])) {
         $this->session->set_flashdata('flash_message', $res['message']);
@@ -3712,9 +4094,13 @@ public function content_page_get($node_id = 0)
                 'node_id' => (int)$row['node_id'],
                 'html' => $row['html'],
                 'status' => $row['status'],
+                'review_status' => $row['review_status'] ?? $row['status'],
+                'admin_remark' => $row['admin_remark'] ?? '',
+                'review_note' => $row['review_note'] ?? '',
                 'meta_title' => $row['meta_title'],
                 'meta_description' => $row['meta_description'],
                 'meta_keywords' => $row['meta_keywords'],
+                'canonical_url' => $row['canonical_url'] ?? '',
             ]
         ]);
     } else {
@@ -3725,15 +4111,41 @@ public function content_page_get($node_id = 0)
     }
 }
 
+public function content_preview($node_id = 0)
+{
+    if ($this->session->userdata('admin_login') != true) {
+        show_error('Unauthorized', 401);
+    }
+
+    $node_id = (int)$node_id;
+    $node = $this->db->get_where('content_nodes', array('node_id' => $node_id), 1)->row_array();
+    if (!$node) {
+        show_404();
+    }
+
+    if (($node['content_type'] ?? '') === 'book') {
+        redirect(site_url('books/' . $node['slug'] . '?preview=1'), 'refresh');
+        return;
+    }
+
+    $this->load->model('Content_pages_model');
+    $page = $this->Content_pages_model->get_page_by_node_id($node_id);
+    $title = html_escape($page['meta_title'] ?? $node['title'] ?? 'Content Preview');
+    $html = $page['html'] ?? '';
+
+    $this->output
+        ->set_content_type('text/html', 'utf-8')
+        ->set_output('<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>' . $title . '</title><style>body{font-family:Arial,sans-serif;max-width:960px;margin:32px auto;padding:0 20px;line-height:1.65;color:#111827}img,iframe,video{max-width:100%;height:auto}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #d1d5db;padding:8px}blockquote{border-left:4px solid #c7d2fe;margin-left:0;padding-left:16px;color:#475569}</style></head><body><h1>' . $title . '</h1>' . $html . '</body></html>');
+}
+
 private function ckeditor_upload_response($funcNum, $url = '', $message = '')
 {
     $funcNum = (int)$funcNum;
 
-    // escape single quotes to avoid breaking JS
-    $url = str_replace("'", "\\'", $url);
-    $message = str_replace("'", "\\'", $message);
+    $url = json_encode((string)$url, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    $message = json_encode((string)$message, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 
-    echo "<script>window.parent.CKEDITOR.tools.callFunction($funcNum, '$url', '$message');</script>";
+    echo "<script>window.parent.CKEDITOR.tools.callFunction($funcNum, $url, $message);</script>";
     exit;
 }
 
@@ -4027,5 +4439,485 @@ public function content_page_pdf_upload()
         redirect(site_url('admin/content_exam_builder/'.$node_id), 'refresh');
     }
 
+
+
+    // ===================== Content Publishing Phase 2: Public Exam Admin Visibility =====================
+    public function content_public_exams($action = '', $exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        $this->load->model('Exam_model', 'exam_model');
+        if ($action === 'unpublish' && (int)$exam_id > 0) {
+            $this->require_workflow_action();
+            $res = $this->exam_model->admin_unpublish((int)$exam_id);
+            $this->session->set_flashdata(!empty($res['ok']) ? 'flash_message' : 'error_message', $res['message']);
+            redirect(site_url('admin/content_public_exams'), 'refresh');
+            return;
+        }
+        $page_data['page_name'] = 'content_public_exams';
+        $page_data['page_title'] = 'Public Exams';
+        $page_data['workflow_action_token'] = $this->workflow_action_token;
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function exam_analytics()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        $this->load->model('Exam_model', 'exam_model');
+        $examId = max(0, (int)$this->input->get('exam_id'));
+        $page_data['page_name'] = 'exam_analytics';
+        $page_data['page_title'] = 'Exam Analytics';
+        $page_data['selected_exam_id'] = $examId;
+        $page_data['exams'] = $this->exam_model->get_all_public_exams_for_admin();
+        $page_data['analytics'] = $this->exam_model->get_exam_analytics_dashboard($examId);
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function exam_pattern_builder($exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $this->load->model('Question_bank_model', 'question_bank');
+        $exam_id = (int)$exam_id;
+        $exam = $exam_id > 0 ? $this->exam_pattern->get_exam($exam_id) : null;
+        if ($exam_id > 0 && !$exam) show_404();
+        if ($exam && ((int)($exam['managed_by_admin'] ?? 0) !== 1 || (int)($exam['created_by'] ?? 0) !== (int)$this->session->userdata('user_id'))) {
+            show_error('You can edit only admin-owned exam patterns in this builder.', 403);
+        }
+        $page_data['page_name'] = 'exam_pattern_builder';
+        $page_data['page_title'] = $exam ? 'Edit Exam Pattern' : 'Create Exam Pattern';
+        $page_data['exam'] = $exam;
+        $page_data['sections'] = $exam ? $this->exam_pattern->get_sections($exam_id) : array();
+        $admin_id = (int)$this->session->userdata('user_id');
+        $page_data['bank_questions'] = $this->exam_pattern->get_active_bank_questions(1000, $admin_id);
+        $page_data['filter_options'] = $this->question_bank->get_filter_options($admin_id);
+        $page_data['workflow_action_token'] = $this->workflow_action_token;
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function moderation_center()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        $this->load->model('Moderation_model', 'moderation');
+        $queue = $this->moderation->get_review_queue();
+        $page_data['page_name'] = 'moderation_center';
+        $page_data['page_title'] = 'Admin Review Center';
+        $page_data['review_exams'] = $queue['exams'];
+        $page_data['review_questions'] = $queue['questions'];
+        $page_data['recent_events'] = $this->moderation->get_recent_events(30);
+        $page_data['workflow_action_token'] = $this->workflow_action_token;
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function moderation_action($entity_type = '', $entity_id = 0, $action = '')
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Moderation_model', 'moderation');
+        $reason = trim((string)$this->input->post('reason'));
+        $adminId = (int)$this->session->userdata('user_id');
+        if ($entity_type === 'exam') {
+            $result = $this->moderation->review_exam((int)$entity_id, (string)$action, $reason, $adminId);
+        } elseif ($entity_type === 'question') {
+            $result = $this->moderation->review_question((int)$entity_id, (string)$action, $reason, $adminId);
+        } else {
+            $result = array('ok'=>false,'message'=>'Invalid moderation entity.');
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/moderation_center'), 'refresh');
+    }
+
+    public function exam_pattern_save($exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $this->load->model('Moderation_model', 'moderation');
+        $before = (int)$exam_id > 0 ? $this->exam_pattern->get_exam((int)$exam_id) : null;
+        if ((int)$exam_id > 0 && (!$before || (int)($before['managed_by_admin'] ?? 0) !== 1 || (int)($before['created_by'] ?? 0) !== (int)$this->session->userdata('user_id'))) {
+            show_error('You can save only admin-owned exam patterns in this builder.', 403);
+        }
+        $result = $this->exam_pattern->save_pattern(
+            (int)$this->session->userdata('user_id'),
+            $this->input->post(null, false),
+            (int)$exam_id
+        );
+        if (!empty($result['ok']) && (string)$this->input->post('status') === 'in_review') {
+            $targetId = (int)($result['exam_id'] ?? $exam_id);
+            $this->moderation->record('exam', $targetId, 'submit', $before['review_status'] ?? 'draft', 'in_review', '', (int)$this->session->userdata('user_id'), (int)($before['created_by'] ?? $this->session->userdata('user_id')));
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        $target = !empty($result['exam_id']) ? (int)$result['exam_id'] : (int)$exam_id;
+        redirect($target > 0 ? site_url('admin/exam_pattern_builder/'.$target) : site_url('admin/exam_pattern_builder'), 'refresh');
+    }
+
+    public function exam_pattern_archive($exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $exam = $this->exam_pattern->get_exam((int)$exam_id);
+        if (!$exam || (int)($exam['managed_by_admin'] ?? 0) !== 1 || (int)($exam['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can archive only admin-owned exam patterns in this builder.', 403);
+        }
+        $result = $this->exam_pattern->archive_exam((int)$this->session->userdata('user_id'), (int)$exam_id);
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/content_public_exams'), 'refresh');
+    }
+
+    // ===================== Admin Question Bank =====================
+    public function question_bank()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        $this->load->model('Question_bank_model', 'question_bank');
+
+        $filters = array(
+            'search' => trim((string)$this->input->get('search')),
+            'difficulty' => trim((string)$this->input->get('difficulty')),
+            'exam_type' => trim((string)$this->input->get('exam_type')),
+            'topic' => trim((string)$this->input->get('topic')),
+            'question_section' => trim((string)$this->input->get('question_section')),
+            'question_type' => trim((string)$this->input->get('question_type')),
+            'status' => trim((string)$this->input->get('status')),
+            'class_id' => (int)$this->input->get('class_id'),
+            'subject_id' => (int)$this->input->get('subject_id'),
+            'chapter' => trim((string)$this->input->get('chapter')),
+            'learning_outcome' => trim((string)$this->input->get('learning_outcome')),
+            'cognitive_level' => trim((string)$this->input->get('cognitive_level')),
+        );
+        $per_page = 25;
+        $page = max(1, (int)$this->input->get('page'));
+        $admin_id = (int)$this->session->userdata('user_id');
+        $result = $this->question_bank->search($filters, $per_page, ($page - 1) * $per_page, $admin_id);
+
+        $page_data['page_name'] = 'question_bank';
+        $page_data['page_title'] = 'Question Bank';
+        $page_data['questions'] = $result['rows'];
+        $page_data['total_questions'] = $result['total'];
+        $page_data['summary'] = $this->question_bank->get_summary($admin_id);
+        $page_data['quality_summary'] = $this->question_bank->get_quality_summary($admin_id);
+        $page_data['recent_imports'] = $this->question_bank->get_recent_imports(10, $admin_id);
+        $page_data['filter_options'] = $this->question_bank->get_filter_options($admin_id);
+        $page_data['filters'] = $filters;
+        $page_data['current_page'] = $page;
+        $page_data['per_page'] = $per_page;
+        $edit_question = null;
+        $edit_id = (int)$this->input->get('edit');
+        if ($edit_id > 0) {
+            $candidate = $this->question_bank->get_question($edit_id);
+            if ($candidate && (int)($candidate['created_by'] ?? 0) === $admin_id) {
+                $edit_question = $candidate;
+            } else {
+                $this->session->set_flashdata('error_message', 'You can edit only questions created by you in this Question Bank.');
+            }
+        }
+        $page_data['edit_question'] = $edit_question;
+        $page_data['workflow_action_token'] = $this->workflow_action_token;
+        $this->load->view('backend/index', $page_data);
+    }
+
+    public function question_bank_exam_master_save()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Question_bank_model', 'question_bank');
+        $result = $this->question_bank->save_exam_master(
+            (int)$this->session->userdata('user_id'),
+            (string)$this->input->post('exam_name', true),
+            (string)$this->input->post('description', true)
+        );
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect($this->input->server('HTTP_REFERER') ?: site_url('admin/question_bank'), 'refresh');
+    }
+
+    public function question_bank_section_master_save()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Question_bank_model', 'question_bank');
+        $result = $this->question_bank->save_section_master(
+            (int)$this->session->userdata('user_id'),
+            (string)$this->input->post('exam_name', true),
+            (string)$this->input->post('section_name', true),
+            (string)$this->input->post('description', true)
+        );
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect($this->input->server('HTTP_REFERER') ?: site_url('admin/question_bank'), 'refresh');
+    }
+
+    public function question_bank_save($question_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') {
+            show_error('Method not allowed', 405);
+        }
+        $this->require_workflow_action();
+        $requestedStatus = (string)$this->input->post('status');
+        if (!in_array($requestedStatus, array('draft','in_review','archived'), true)) {
+            $this->session->set_flashdata('error_message', 'Question activation and review decisions must use the Admin Review Center.');
+            redirect($this->input->server('HTTP_REFERER') ?: site_url('admin/question_bank'), 'refresh');
+            return;
+        }
+        $this->load->model('Question_bank_model', 'question_bank');
+        $this->load->model('Moderation_model', 'moderation');
+        $admin_id = (int)$this->session->userdata('user_id');
+        $before = (int)$question_id > 0 ? $this->question_bank->get_question((int)$question_id) : null;
+        if ((int)$question_id > 0 && (!$before || (int)($before['created_by'] ?? 0) !== $admin_id)) {
+            show_error('You can save only questions created by you in this Question Bank.', 403);
+        }
+        $result = $this->question_bank->save_question(
+            $admin_id,
+            $this->input->post(null, false),
+            (int)$question_id
+        );
+        if (!empty($result['ok']) && (string)$this->input->post('status') === 'in_review') {
+            $targetId = (int)($result['question_id'] ?? $question_id);
+            $this->moderation->record('question', $targetId, 'submit', $before['review_status'] ?? 'draft', 'in_review', '', $admin_id, (int)($before['created_by'] ?? $admin_id));
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/question_bank'), 'refresh');
+    }
+
+    public function question_bank_status($question_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') {
+            show_error('Method not allowed', 405);
+        }
+        $this->require_workflow_action();
+        $requestedStatus = (string)$this->input->post('status');
+        if (!in_array($requestedStatus, array('draft','in_review','archived'), true)) {
+            $this->session->set_flashdata('error_message', 'Question activation and review decisions must use the Admin Review Center.');
+            redirect($this->input->server('HTTP_REFERER') ?: site_url('admin/question_bank'), 'refresh');
+            return;
+        }
+        $this->load->model('Question_bank_model', 'question_bank');
+        $this->load->model('Moderation_model', 'moderation');
+        $before = $this->question_bank->get_question((int)$question_id);
+        if (!$before || (int)($before['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can update only questions created by you in this Question Bank.', 403);
+        }
+        $result = $this->question_bank->change_status(
+            (int)$this->session->userdata('user_id'),
+            (int)$question_id,
+            $requestedStatus,
+            (string)$this->input->post('admin_remark')
+        );
+        if (!empty($result['ok']) && (string)$this->input->post('status') === 'in_review' && $before) {
+            $this->moderation->record('question', (int)$question_id, 'submit', $before['review_status'] ?? $before['status'], 'in_review', '', (int)$this->session->userdata('user_id'), (int)$before['created_by']);
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect($this->input->server('HTTP_REFERER') ?: site_url('admin/question_bank'), 'refresh');
+    }
+
+    public function question_bank_duplicate($question_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) redirect(site_url('login'),'refresh');
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed',405);
+        $this->require_workflow_action();
+        $this->load->model('Question_bank_model','question_bank');
+        $question = $this->question_bank->get_question((int)$question_id);
+        if (!$question || (int)($question['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can duplicate only questions created by you in this Question Bank.', 403);
+        }
+        $result=$this->question_bank->duplicate_question((int)$this->session->userdata('user_id'),(int)$question_id);
+        $this->session->set_flashdata(!empty($result['ok'])?'flash_message':'error_message',$result['message']);
+        redirect(site_url('admin/question_bank'),'refresh');
+    }
+
+    public function question_bank_delete($question_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) redirect(site_url('login'),'refresh');
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed',405);
+        $this->require_workflow_action();
+        $this->load->model('Question_bank_model','question_bank');
+        $question = $this->question_bank->get_question((int)$question_id);
+        if (!$question || (int)($question['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can delete only questions created by you in this Question Bank.', 403);
+        }
+        $result=$this->question_bank->delete_question((int)$question_id);
+        $this->session->set_flashdata(!empty($result['ok'])?'flash_message':'error_message',$result['message']);
+        redirect(site_url('admin/question_bank'),'refresh');
+    }
+
+
+    public function question_bank_export()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        $this->load->model('Question_bank_model', 'question_bank');
+        $filters = array(
+            'search' => trim((string)$this->input->get('search')),
+            'difficulty' => trim((string)$this->input->get('difficulty')),
+            'exam_type' => trim((string)$this->input->get('exam_type')),
+            'topic' => trim((string)$this->input->get('topic')),
+            'question_section' => trim((string)$this->input->get('question_section')),
+            'question_type' => trim((string)$this->input->get('question_type')),
+            'status' => trim((string)$this->input->get('status')),
+        );
+        $rows = $this->question_bank->export_rows($filters, 50000, (int)$this->session->userdata('user_id'));
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="lvalues_question_bank_export_' . date('Ymd_His') . '.csv"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('exam_name','sub_category','topic','question_code','question_text','question_type','option_a','option_b','option_c','option_d','option_e','correct_answers','difficulty','tags','marks','negative_marks','explanation','status'));
+        foreach ($rows as $row) {
+            $optText = array_fill(0, 5, '');
+            $correct = array();
+            foreach (($row['options'] ?? array()) as $i => $option) {
+                if ($i > 4) break;
+                $optText[$i] = (string)$option['option_text'];
+                if (!empty($option['is_correct'])) $correct[] = chr(65 + $i);
+            }
+            fputcsv($out, array(
+                $row['exam_type'] ?? '',
+                ($row['question_section'] ?? '') ?: ($row['topic'] ?? ''),
+                $row['topic'] ?? '',
+                $row['question_code'] ?? '',
+                $row['question_text'] ?? '',
+                $row['question_type'] ?? '',
+                $optText[0], $optText[1], $optText[2], $optText[3], $optText[4],
+                implode(',', $correct),
+                $row['difficulty'] ?? '',
+                $row['tags'] ?? '',
+                $row['marks'] ?? '',
+                $row['negative_marks'] ?? '',
+                strip_tags((string)($row['explanation'] ?? '')),
+                $row['status'] ?? ''
+            ));
+        }
+        fclose($out);
+        exit;
+    }
+
+    public function question_bank_import_template()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="lvalues_admin_question_bank_template.csv"');
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('exam_name','sub_category','topic','question_text','question_type','option_a','option_b','option_c','option_d','option_e','correct_answers','difficulty','tags','marks','negative_marks','explanation','status'));
+        fputcsv($out, array('SBI PO PRE','Quantitative Aptitude','Percentage','What is 20% of 150?','single','20','25','30','35','','C','Beginner','percentage,aptitude','1','0.25','20 percent of 150 is 30.','draft'));
+        fclose($out);
+        exit;
+    }
+
+    public function question_bank_import()
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') {
+            show_error('Method not allowed', 405);
+        }
+        $this->require_workflow_action();
+        if (empty($_FILES['question_file']['name'])) {
+            $this->session->set_flashdata('error_message', 'Please choose a CSV or XLSX file.');
+            redirect(site_url('admin/question_bank'), 'refresh');
+        }
+        $name = (string)$_FILES['question_file']['name'];
+        $extension = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (!in_array($extension, ['csv','xlsx'], true) || (int)$_FILES['question_file']['size'] > 10 * 1024 * 1024) {
+            $this->session->set_flashdata('error_message', 'Upload a CSV or XLSX file no larger than 10 MB.');
+            redirect(site_url('admin/question_bank'), 'refresh');
+        }
+        $this->load->library('Tabular_import');
+        try { $tableRows = $this->tabular_import->rows($_FILES['question_file']['tmp_name'], $extension); }
+        catch (Throwable $exception) { $tableRows=[]; log_message('error','Question import parse failed: '.$exception->getMessage()); }
+        $header = !empty($tableRows) ? array_shift($tableRows) : false;
+        if (!$header) {
+            $this->session->set_flashdata('error_message', 'Import file is empty or unreadable.');
+            redirect(site_url('admin/question_bank'), 'refresh');
+        }
+        $header = array_map(function($value){ return strtolower(trim((string)$value)); }, $header);
+        $required = array('exam_name','sub_category','question_text','question_type','option_a','option_b','correct_answers','marks');
+        $missing = array_diff($required, $header);
+        if ($missing) {
+            $this->session->set_flashdata('error_message', 'Missing required columns: ' . implode(', ', $missing));
+            redirect(site_url('admin/question_bank'), 'refresh');
+        }
+        $rows = array();
+        $line = 1;
+        foreach ($tableRows as $values) {
+            $line++;
+            if (!array_filter($values, 'strlen')) continue;
+            $row = array();
+            foreach ($header as $index => $column) {
+                $value = isset($values[$index]) ? trim((string)$values[$index]) : '';
+                if ($value !== '' && preg_match('/^(?:[=+@]|-\D)/', $value)) $value = "'" . $value;
+                $row[$column] = $value;
+            }
+            $rows[$line] = $row;
+        }
+
+        $this->load->model('Question_bank_model', 'question_bank');
+        $summary = $this->question_bank->import_rows((int)$this->session->userdata('user_id'), $rows, $name);
+        $message = 'Import complete. Total: ' . $summary['total']
+            . ', Imported: ' . $summary['imported']
+            . ', Duplicates: ' . $summary['duplicates']
+            . ', Failed: ' . $summary['failed'] . '.';
+        if (!empty($summary['errors'])) {
+            $message .= ' First errors: ' . implode(' | ', array_slice($summary['errors'], 0, 5));
+        }
+        $this->session->set_flashdata($summary['imported'] > 0 ? 'flash_message' : 'error_message', $message);
+        redirect(site_url('admin/question_bank'), 'refresh');
+    }
+
+    private function require_workflow_action()
+    {
+        if ($this->input->method(true) !== 'POST') {
+            show_error('Method not allowed', 405);
+        }
+        $submitted = (string)$this->input->post('workflow_action_token');
+        if ($submitted === '' || !hash_equals($this->workflow_action_token, $submitted)) {
+            show_error('This admin action could not be verified. Refresh the page and try again.', 403);
+        }
+    }
 
 }

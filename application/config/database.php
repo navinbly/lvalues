@@ -73,21 +73,32 @@ defined('BASEPATH') or exit('No direct script access allowed');
 $active_group = 'default';
 $query_builder = TRUE;
 
+$environment_databases = array(
+    'development' => 'lvalues_database',
+    'testing' => 'lvalues_test_database',
+    'staging' => 'lvalues_staging_database',
+    'production' => 'lvalues_production_database',
+);
+$selected_database = getenv('LVALUES_DB_NAME') ?: ($environment_databases[ENVIRONMENT] ?? '');
+if ($selected_database === '') {
+    throw new RuntimeException('No database is configured for environment: ' . ENVIRONMENT);
+}
+
 $db['default'] = array(
 	'dsn'	=> '',
-	'hostname' => '127.0.0.1', // localhost also works
+	'hostname' => getenv('LVALUES_DB_HOST') ?: '127.0.0.1',
 	/*'hostname' => 'localhost',
 	'username' => 'u854944287_academy_usr',
 	'password' => '4Om$3Bs;y',*/
-	'username' => 'root',
-	'password' => '12345',
+	'username' => getenv('LVALUES_DB_USER') ?: (ENVIRONMENT === 'development' ? 'root' : ''),
+	'password' => getenv('LVALUES_DB_PASSWORD') ?: (ENVIRONMENT === 'development' ? '12345' : ''),
 	/*'database' => 'u854944287_academy',*/
-	'database' => 'lvalues_database',
+	'database' => $selected_database,
 	'dbdriver' => 'mysqli',
-	'port'     => 3307,  	
+	'port'     => (int)(getenv('LVALUES_DB_PORT') ?: 3307),
 	'dbprefix' => '',
 	'pconnect' => FALSE,
-	'db_debug' => (ENVIRONMENT !== 'production'),
+	'db_debug' => FALSE,
 	'cache_on' => FALSE,
 	'cachedir' => '',
 	'char_set' => 'utf8',
@@ -95,7 +106,7 @@ $db['default'] = array(
 	'swap_pre' => '',
 	'encrypt' => FALSE,
 	'compress' => FALSE,
-	'stricton' => FALSE,
+	'stricton' => TRUE,
 	'failover' => array(),
-	'save_queries' => TRUE
+	'save_queries' => ENVIRONMENT !== 'production'
 );

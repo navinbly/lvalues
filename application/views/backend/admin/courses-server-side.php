@@ -83,6 +83,32 @@
     <div class="col-xl-12">
         <div class="card">
             <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h4 class="mb-1 header-title">Course table workflow controls</h4>
+                        <p class="text-muted mb-0">Phase 7 readiness for saved catalog filters, bulk publish review, taxonomy cleanup, and async course exports.</p>
+                    </div>
+                    <span class="badge badge-warning-lighten mt-2 mt-md-0">Phase 7</span>
+                </div>
+                <div class="table-workflow-toolbar mt-3">
+                    <div>
+                        <strong class="d-block">Saved catalog views</strong>
+                        <span class="text-muted">Recommended views: pending publish, missing lessons, no SEO, low taxonomy quality, export-ready.</span>
+                    </div>
+                    <div class="btn-group mt-2 mt-md-0" role="group" aria-label="Course table workflow actions">
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Save view</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Bulk review</button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" disabled>Async export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-xl-12">
+        <div class="card">
+            <div class="card-body">
                 <h4 class="mb-3 header-title"><?php echo get_phrase('course_list'); ?></h4>
                 <form class="row justify-content-center" action="<?php echo site_url('admin/courses'); ?>" method="get">
                     <!-- Course Categories -->

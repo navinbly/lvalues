@@ -13,7 +13,9 @@ class Login extends CI_Controller
         // Your own constructor code
         $this->load->database();
         $this->load->library('session');
-        $this->load->model('Tutor_master_model', 'tutor_master_model');
+                $this->load->library('Oauth_provider');
+        $this->load->model('Auth_identity_model', 'auth_identity_model');
+$this->load->model('Tutor_master_model', 'tutor_master_model');
         /*cache control*/
         $this->output->set_header('Cache-Control: no-store, no-cache, must-revalidate, post-check=0, pre-check=0');
         $this->output->set_header('Pragma: no-cache');
@@ -21,6 +23,12 @@ class Login extends CI_Controller
 
         //Check custom session data
         $this->user_model->check_session_data();
+    }
+
+    private function testing_verification_disabled(): bool
+    {
+        // Temporary testing switch: set to false after registration/login testing is complete.
+        return true;
     }
 
     public function index()
@@ -54,36 +62,22 @@ class Login extends CI_Controller
 			redirect(site_url('login'), 'refresh');
 		}
 
-		$email = $this->input->post('email');
+		$email = strtolower(trim((string)$this->input->post('email')));
 		$password = $this->input->post('password');
 
-		$credential = array(
-			'email'    => $email,
-			'password' => sha1($password),
-			'status'   => 1
-		);
+		$query = $this->db->where('LOWER(email)', $email)->where('status', 1)->limit(1)->get('users');
 
-		$query = $this->db->get_where('users', $credential);
-
-		if ($query->num_rows() <= 0) {
+		if ($query->num_rows() <= 0 || !$this->user_model->password_matches($password, $query->row()->password)) {
 			$this->session->set_flashdata('error_message', get_phrase('invalid_login_credentials'));
 			redirect(site_url('login'), 'refresh');
 		}
 
 		$row = $query->row();
 
-		// ✅ Block login if instructor application is pending approval
-		// Condition: applied (applications row exists) but not approved (is_instructor != 1)
-		if ((int)$row->is_instructor !== 1) {
-			$app = $this->db->get_where('applications', ['user_id' => (int)$row->id], 1)->row_array();
-			if (!empty($app)) {
-				// If application has a status column use it, otherwise treat existence as pending
-				$status = isset($app['status']) ? (int)$app['status'] : 0;
-				if ($status !== 1) {
-					$this->session->set_flashdata('error_message', 'Your instructor application is pending admin approval. Please wait for approval.');
-					redirect(site_url('login'), 'refresh');
-				}
-			}
+		$tutor_login_block_message = $this->user_model->pending_tutor_login_block_message((int)$row->id);
+		if ($tutor_login_block_message !== '') {
+			$this->session->set_flashdata('error_message', $tutor_login_block_message);
+			redirect(site_url('login'), 'refresh');
 		}
 
 		$this->user_model->new_device_login_tracker($row->id);
@@ -95,6 +89,107 @@ class Login extends CI_Controller
 			redirect(site_url('home/my_courses'), 'refresh');
 		}
 	}
+    public function oauth($provider = 'entra')
+    {
+        try {
+            $provider = $this->oauth_provider->normalize_provider($provider);
+            $login_hint = trim((string)($this->input->post('login_hint') ?: $this->input->get('login_hint')));
+            $registration_type = strtolower(trim((string)($this->input->post('registration_type') ?: $this->input->get('registration_type'))));
+            if (!in_array($registration_type, ['student', 'tutor'], true)) {
+                $registration_type = 'student';
+            }
+            if ($login_hint !== '' && !filter_var($login_hint, FILTER_VALIDATE_EMAIL)) {
+                $this->session->set_flashdata('error_message', 'Please enter a valid email address for Microsoft login.');
+                redirect(site_url('login'), 'refresh');
+            }
+
+            $state = $this->oauth_provider->random_string(32);
+            $nonce = $this->oauth_provider->random_string(32);
+            $code_verifier = $this->oauth_provider->random_string(64);
+
+            $this->session->set_userdata('oauth_provider', $provider);
+            $this->session->set_userdata('oauth_state', $state);
+            $this->session->set_userdata('oauth_nonce', $nonce);
+            $this->session->set_userdata('oauth_code_verifier', $code_verifier);
+            $this->session->set_userdata('oauth_started_at', time());
+            $this->session->set_userdata('oauth_registration_type', $registration_type);
+            $this->session->set_userdata('oauth_flow', ($this->input->post('registration_type') || $this->input->get('registration_type')) ? 'signup' : 'login');
+
+            redirect($this->oauth_provider->build_authorization_url($provider, $state, $nonce, $code_verifier, $login_hint), 'refresh');
+        } catch (Exception $e) {
+            $this->clear_oauth_session();
+            $this->session->set_flashdata('error_message', $e->getMessage());
+            redirect(site_url('login'), 'refresh');
+        }
+    }
+
+    public function oauth_callback($provider = '')
+    {
+        try {
+            if ($this->input->get('error')) {
+                $message = $this->input->get('error_description') ?: $this->input->get('error');
+                throw new Exception('Login cancelled or failed: ' . $message);
+            }
+
+            $expected_provider = $this->session->userdata('oauth_provider');
+            $provider = $this->oauth_provider->normalize_provider($provider ?: $expected_provider);
+            if (!$expected_provider || $provider !== $expected_provider) {
+                throw new Exception('Authentication session provider mismatch.');
+            }
+            if ((int)$this->session->userdata('oauth_started_at') < (time() - 900)) {
+                throw new Exception('Authentication session expired. Please try again.');
+            }
+            $callback_state = $this->input->get_post('state');
+            $callback_code = $this->input->get_post('code');
+            if (!$callback_state || !hash_equals((string)$this->session->userdata('oauth_state'), (string)$callback_state)) {
+                throw new Exception('Authentication state validation failed.');
+            }
+            if (!$this->input->get('code')) {
+                throw new Exception('Authentication code was not returned.');
+            }
+
+            $tokens = $this->oauth_provider->exchange_code($provider, $this->input->get('code'), $this->session->userdata('oauth_code_verifier'));
+            $profile = $this->oauth_provider->get_profile($provider, $tokens, $this->session->userdata('oauth_nonce'));
+            $registration_type = $this->session->userdata('oauth_registration_type') ?: 'student';
+            $oauth_flow = $this->session->userdata('oauth_flow') ?: 'login';
+
+            if ($oauth_flow === 'signup') {
+                $this->session->set_userdata('oauth_signup_profile', $profile);
+                $this->session->set_userdata('oauth_signup_registration_type', $registration_type);
+                $this->clear_oauth_session();
+                $this->session->set_flashdata('flash_message', 'Authentication successful. Please complete the remaining registration steps.');
+                redirect(site_url('sign_up' . ($registration_type === 'tutor' ? '?tutor=1' : '')), 'refresh');
+            }
+
+            $user = $this->auth_identity_model->find_or_create_user_from_oauth($profile, $registration_type);
+
+            $this->clear_oauth_session();
+
+            if ($registration_type === 'tutor' && (int)($user['is_instructor'] ?? 0) !== 1) {
+                $this->session->set_userdata('url_history', site_url('user/become_an_instructor'));
+                $this->session->set_flashdata('info_message', 'You are signed in. Please complete the tutor application details for admin approval.');
+            }
+
+            $this->user_model->new_device_login_tracker((int)$user['id']);
+            $this->user_model->set_login_userdata((int)$user['id']);
+        } catch (Exception $e) {
+            $this->clear_oauth_session();
+            $this->session->set_flashdata('error_message', $e->getMessage());
+            redirect(site_url('login'), 'refresh');
+        }
+    }
+
+    private function clear_oauth_session()
+    {
+        $this->session->unset_userdata('oauth_provider');
+        $this->session->unset_userdata('oauth_state');
+        $this->session->unset_userdata('oauth_nonce');
+        $this->session->unset_userdata('oauth_code_verifier');
+        $this->session->unset_userdata('oauth_started_at');
+        $this->session->unset_userdata('oauth_registration_type');
+        $this->session->unset_userdata('oauth_flow');
+    }
+
 
     function new_login_confirmation($param1 = ""){
         $new_device_code_expiration_time = $this->session->userdata('new_device_code_expiration_time');
@@ -165,7 +260,9 @@ class Login extends CI_Controller
 		$this->form_validation->set_rules('first_name', 'First Name', 'required|trim|min_length[2]|max_length[50]|regex_match[/^[a-zA-Z ]+$/]');
 		$this->form_validation->set_rules('last_name', 'Last Name', 'required|trim|min_length[1]|max_length[50]|regex_match[/^[a-zA-Z ]+$/]');
 		$this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email|max_length[120]');
-		$this->form_validation->set_rules('password', 'Password', 'required|callback__strong_password');
+		if (!$is_oauth_registration) {
+			$this->form_validation->set_rules('password', 'Password', 'required|callback__strong_password');
+		}
 
 		if ($is_instructor) {
 			$this->form_validation->set_rules('phone_country_code', 'Country code', 'required|trim');
@@ -173,6 +270,11 @@ class Login extends CI_Controller
 			$this->form_validation->set_rules('tutor_category_ids[]', 'Category', 'required');
 			$this->form_validation->set_rules('tutor_class_ids[]', 'Class / Course Group', 'required');
 			$this->form_validation->set_rules('tutor_subject_ids[]', 'Subject', 'required');
+			$this->form_validation->set_rules('tutor_headline', 'Profile Headline', 'trim|max_length[160]');
+			$this->form_validation->set_rules('tutor_qualification', 'Education / Qualification', 'required|trim|callback__valid_tutor_qualification|max_length[255]');
+			$this->form_validation->set_rules('tutor_experience_years', 'Teaching Experience', 'required|trim|callback__valid_tutor_experience');
+			$this->form_validation->set_rules('tutor_current_role', 'Current Role', 'trim|max_length[160]');
+			$this->form_validation->set_rules('tutor_bio', 'Teaching Bio', 'trim|max_length[1500]');
 			$this->form_validation->set_rules('tutor_teaching_mode', 'Mode', 'required|in_list[online,offline,both]');
 			$this->form_validation->set_rules('tutor_address_line1', 'Address', 'required|trim|min_length[3]|max_length[255]');
 			$this->form_validation->set_rules('tutor_city', 'City', 'required|trim|min_length[2]|max_length[120]');
@@ -180,9 +282,14 @@ class Login extends CI_Controller
 			$this->form_validation->set_rules('tutor_country', 'Country', 'required|trim|min_length[2]|max_length[120]');
 			$this->form_validation->set_rules('tutor_pincode', 'Pincode', 'trim|max_length[20]');
 			$this->form_validation->set_rules('tutor_location', 'Location', 'required|trim|min_length[3]|max_length[255]');
-			$this->form_validation->set_rules('tutor_lat', 'Current latitude', 'required|trim|callback__valid_latitude');
-			$this->form_validation->set_rules('tutor_lng', 'Current longitude', 'required|trim|callback__valid_longitude');
+			if (trim((string)$this->input->post('tutor_lat')) !== '') {
+				$this->form_validation->set_rules('tutor_lat', 'Current latitude', 'trim|callback__valid_latitude');
+			}
+			if (trim((string)$this->input->post('tutor_lng')) !== '') {
+				$this->form_validation->set_rules('tutor_lng', 'Current longitude', 'trim|callback__valid_longitude');
+			}
 			$this->form_validation->set_rules('fee_type', 'Fee type', 'required|in_list[per_hour,per_subject]');
+			$this->form_validation->set_rules('fee_currency', 'Currency', 'required|in_list[INR,USD,GBP,AED,CAD,AUD]');
 
 			$fee_type = $this->input->post('fee_type');
 			if ($fee_type === 'per_hour') {
@@ -221,15 +328,13 @@ class Login extends CI_Controller
 				$this->session->set_flashdata('error_message', 'Selected subjects do not belong to the chosen class/course group.');
 				redirect(site_url('sign_up?tutor=1'), 'refresh');
 			}
-			if (!isset($_FILES['document']) || empty($_FILES['document']['name'])) {
-				$this->session->set_flashdata('error_message', 'Document is required for tutor registration.');
-				redirect(site_url('sign_up?tutor=1'), 'refresh');
-			}
-			$accepted_ext = array('doc', 'docs', 'pdf', 'txt', 'png', 'jpg', 'jpeg');
-			$ext = strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION));
-			if (!in_array($ext, $accepted_ext)) {
-				$this->session->set_flashdata('error_message', 'Invalid document file. Allowed: doc, docs, pdf, txt, png, jpg, jpeg');
-				redirect(site_url('sign_up?tutor=1'), 'refresh');
+			if (isset($_FILES['document']) && !empty($_FILES['document']['name'])) {
+				$accepted_ext = array('doc', 'docx', 'docs', 'pdf', 'txt', 'png', 'jpg', 'jpeg');
+				$ext = strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION));
+				if (!in_array($ext, $accepted_ext, true)) {
+					$this->session->set_flashdata('error_message', 'Invalid document file. Allowed: doc, docx, pdf, txt, png, jpg, jpeg');
+					redirect(site_url('sign_up?tutor=1'), 'refresh');
+				}
 			}
 		}
 
@@ -254,7 +359,9 @@ class Login extends CI_Controller
 			}
 		}
 
-		$email = html_escape($this->input->post('email'));
+		$email = $is_oauth_registration
+			? strtolower(trim((string)$oauth_profile['email']))
+			: strtolower(trim((string)$this->input->post('email')));
 		$validity = $this->user_model->check_duplication('on_create', $email);
 		if (!($validity === 'unverified_user' || $validity === true)) {
 			$this->session->set_flashdata('error_message', get_phrase('you_have_already_registered'));
@@ -267,22 +374,50 @@ class Login extends CI_Controller
 			'first_name' => html_escape($this->input->post('first_name')),
 			'last_name'  => html_escape($this->input->post('last_name')),
 			'email'      => $email,
-			'password'   => sha1($this->input->post('password')),
+			'password'   => $is_oauth_registration ? sha1(bin2hex(openssl_random_pseudo_bytes(16))) : sha1($this->input->post('password')),
 			'verification_code' => $verification_code,
 			'last_modified' => $now,
-			'status' => (get_settings('student_email_verification') == 'enable') ? 0 : 1,
+			'status' => $email_verification_required ? 0 : 1,
+			'skills' => json_encode([]),
 			'wishlist' => json_encode([]),
 			'date_added' => $now,
 			'role_id' => 2,
+			'is_instructor' => 0,
+			'image' => md5(rand(10000, 10000000)),
 			'social_links' => json_encode(['facebook'=>'','twitter'=>'','linkedin'=>'']),
-			'payment_keys' => json_encode([])
+			'payment_keys' => json_encode([]),
+			'sessions' => json_encode([])
 		];
+
+		if ($is_instructor) {
+			$this->db->trans_begin();
+		}
 
 		if ($validity === true) {
 			$user_id = $this->user_model->register_user($data);
 		} else {
 			$this->user_model->register_user_update_code($data, $data['status']);
 			$user_id = $this->db->get_where('users', ['email' => $email])->row('id');
+		}
+
+		if (empty($user_id)) {
+			if ($is_instructor) {
+				$this->db->trans_rollback();
+			}
+			$db_error = $this->db->error();
+			$detail = !empty($db_error['message']) ? $db_error['message'] : 'User insert failed. Check application/logs.';
+			log_message('error', 'Registration failed for ' . $email . ': ' . $detail);
+			$this->session->set_flashdata('error_message', 'Registration could not be completed: ' . $detail);
+			redirect($signup_redirect, 'refresh');
+		}
+
+		// Critical safety: do not show successful registration if the user row was not created.
+		if (empty($user_id)) {
+			$db_error = $this->db->error();
+			$detail = !empty($db_error['message']) ? $db_error['message'] : 'User insert failed. Check application/logs.';
+			log_message('error', 'Registration failed for ' . $email . ': ' . $detail);
+			$this->session->set_flashdata('error_message', 'Registration could not be completed: ' . $detail);
+			redirect($signup_redirect, 'refresh');
 		}
 
 		if ($is_instructor) {
@@ -319,6 +454,9 @@ class Login extends CI_Controller
 
 		$this->load->library('form_validation');
 
+		$oauth_profile = $this->session->userdata('oauth_signup_profile');
+		$is_oauth_registration = is_array($oauth_profile) && !empty($oauth_profile['email']);
+
 		$registration_type = strtolower((string)$this->input->post('registration_type'));
 		$is_instructor = get_settings('allow_instructor') && $registration_type === 'tutor';
 		$signup_redirect = $is_instructor ? site_url('sign_up?tutor=1') : site_url('sign_up');
@@ -337,7 +475,9 @@ class Login extends CI_Controller
 		$this->form_validation->set_rules('first_name', 'First Name', 'required|trim|min_length[2]|max_length[50]|regex_match[/^[a-zA-Z ]+$/]');
 		$this->form_validation->set_rules('last_name', 'Last Name', 'required|trim|min_length[1]|max_length[50]|regex_match[/^[a-zA-Z ]+$/]');
 		$this->form_validation->set_rules('email', 'Email', 'required|trim|valid_email|max_length[120]');
-		$this->form_validation->set_rules('password', 'Password', 'required|callback__strong_password');
+		if (!$is_oauth_registration) {
+			$this->form_validation->set_rules('password', 'Password', 'required|callback__strong_password');
+		}
 
 		// Mobile number for both student and tutor
 		$this->form_validation->set_rules('phone_country_code', 'Country code', 'required|trim');
@@ -349,12 +489,27 @@ class Login extends CI_Controller
 			$this->form_validation->set_rules('student_class_id', 'Current Class / Level', 'required|integer');
 			$this->form_validation->set_rules('student_subject_interest_id', 'Subject Interest', 'integer');
                 $this->form_validation->set_rules('student_learning_message', 'Learning Message', 'trim|max_length[1000]');
+			$this->form_validation->set_rules('student_academic_year', 'Academic Year', 'required|trim|regex_match[/^\d{4}-\d{2}$/]');
+			if ($this->student_category_is_school((int)$this->input->post('student_category_id'))) {
+				$this->form_validation->set_rules('student_board', 'Board', 'required|trim|callback__valid_student_board');
+			} elseif (trim((string)$this->input->post('student_board')) !== '') {
+				$this->form_validation->set_rules('student_board', 'Board', 'trim|callback__valid_student_board');
+			}
+			// Wizard step 3: student address fields.
+			$this->form_validation->set_rules('address_line1', 'Address', 'required|trim|min_length[3]|max_length[255]');
+			$this->form_validation->set_rules('address_city', 'City', 'required|trim|min_length[2]|max_length[120]');
+			$this->form_validation->set_rules('address_state', 'State', 'trim|max_length[120]');
+			$this->form_validation->set_rules('address_country', 'Country', 'required|trim|min_length[2]|max_length[120]');
+			$this->form_validation->set_rules('address_pincode', 'Pincode', 'trim|max_length[20]');
 		}
 
 		if ($is_instructor) {
 			$this->form_validation->set_rules('tutor_category_ids[]', 'Category', 'required');
 			$this->form_validation->set_rules('tutor_class_ids[]', 'Class / Course Group', 'required');
 			$this->form_validation->set_rules('tutor_subject_ids[]', 'Subject', 'required');
+			$this->form_validation->set_rules('tutor_qualification', 'Education / Qualification', 'required|trim|callback__valid_tutor_qualification|max_length[255]');
+			$this->form_validation->set_rules('tutor_experience_years', 'Teaching Experience', 'required|trim|callback__valid_tutor_experience');
+			$this->form_validation->set_rules('tutor_bio', 'Teaching Bio', 'trim|max_length[1500]');
 			$this->form_validation->set_rules('tutor_teaching_mode', 'Mode', 'required|in_list[online,offline,both]');
 			$this->form_validation->set_rules('tutor_address_line1', 'Address', 'required|trim|min_length[3]|max_length[255]');
 			$this->form_validation->set_rules('tutor_city', 'City', 'required|trim|min_length[2]|max_length[120]');
@@ -362,9 +517,14 @@ class Login extends CI_Controller
 			$this->form_validation->set_rules('tutor_country', 'Country', 'required|trim|min_length[2]|max_length[120]');
 			$this->form_validation->set_rules('tutor_pincode', 'Pincode', 'trim|max_length[20]');
 			$this->form_validation->set_rules('tutor_location', 'Location', 'required|trim|min_length[3]|max_length[255]');
-			$this->form_validation->set_rules('tutor_lat', 'Current latitude', 'required|trim|callback__valid_latitude');
-			$this->form_validation->set_rules('tutor_lng', 'Current longitude', 'required|trim|callback__valid_longitude');
+			if (trim((string)$this->input->post('tutor_lat')) !== '') {
+				$this->form_validation->set_rules('tutor_lat', 'Current latitude', 'trim|callback__valid_latitude');
+			}
+			if (trim((string)$this->input->post('tutor_lng')) !== '') {
+				$this->form_validation->set_rules('tutor_lng', 'Current longitude', 'trim|callback__valid_longitude');
+			}
 			$this->form_validation->set_rules('fee_type', 'Fee type', 'required|in_list[per_hour,per_subject]');
+			$this->form_validation->set_rules('fee_currency', 'Currency', 'required|in_list[INR,USD,GBP,AED,CAD,AUD]');
 
 			$fee_type = $this->input->post('fee_type');
 			if ($fee_type === 'per_hour') {
@@ -407,20 +567,19 @@ class Login extends CI_Controller
 				redirect($signup_redirect, 'refresh');
 			}
 
-			if (!isset($_FILES['document']) || empty($_FILES['document']['name'])) {
-				$this->session->set_flashdata('error_message', 'Document is required for tutor registration.');
-				redirect($signup_redirect, 'refresh');
-			}
-
-			$accepted_ext = array('doc', 'docs', 'pdf', 'txt', 'png', 'jpg', 'jpeg');
-			$ext = strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION));
-			if (!in_array($ext, $accepted_ext)) {
-				$this->session->set_flashdata('error_message', 'Invalid document file. Allowed: doc, docs, pdf, txt, png, jpg, jpeg');
-				redirect($signup_redirect, 'refresh');
+			if (isset($_FILES['document']) && !empty($_FILES['document']['name'])) {
+				$accepted_ext = array('doc', 'docx', 'docs', 'pdf', 'txt', 'png', 'jpg', 'jpeg');
+				$ext = strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION));
+				if (!in_array($ext, $accepted_ext, true)) {
+					$this->session->set_flashdata('error_message', 'Invalid document file. Allowed: doc, docx, pdf, txt, png, jpg, jpeg');
+					redirect($signup_redirect, 'refresh');
+				}
 			}
 		}
 
-		$email = html_escape($this->input->post('email'));
+		$email = $is_oauth_registration
+			? strtolower(trim((string)$oauth_profile['email']))
+			: strtolower(trim((string)$this->input->post('email')));
 		$validity = $this->user_model->check_duplication('on_create', $email);
 
 		if (!($validity === 'unverified_user' || $validity === true)) {
@@ -431,9 +590,23 @@ class Login extends CI_Controller
 		$cc = trim((string)$this->input->post('phone_country_code'));
 		$pn = preg_replace('/\D+/', '', (string)$this->input->post('phone_number'));
 		$full_phone = $cc . $pn;
+		$address_parts = $is_instructor ? [
+			trim((string)$this->input->post('tutor_address_line1')),
+			trim((string)$this->input->post('tutor_city')),
+			trim((string)$this->input->post('tutor_state')),
+			trim((string)$this->input->post('tutor_country')),
+			trim((string)$this->input->post('tutor_pincode')),
+		] : [
+			trim((string)$this->input->post('address_line1')),
+			trim((string)$this->input->post('address_city')),
+			trim((string)$this->input->post('address_state')),
+			trim((string)$this->input->post('address_country')),
+			trim((string)$this->input->post('address_pincode')),
+		];
+		$full_address = implode(', ', array_filter($address_parts));
 
 		// Prevent reusing same previous password for same email
-		if ($validity === 'unverified_user') {
+		if (!$is_oauth_registration && $validity === 'unverified_user') {
 			$existing_user = $this->db->get_where('users', ['email' => $email])->row_array();
 			if (is_array($existing_user) && !empty($existing_user['password']) && $existing_user['password'] === sha1($this->input->post('password'))) {
 				$this->session->set_flashdata('error_message', 'Please choose a different password from your previous password.');
@@ -442,6 +615,7 @@ class Login extends CI_Controller
 		}
 
 		$verification_code = rand(100000, 999999);
+		$email_verification_required = !$this->testing_verification_disabled() && !$is_oauth_registration && get_settings('student_email_verification') == 'enable';
 		$now = time();
 
 		$data = [
@@ -449,22 +623,42 @@ class Login extends CI_Controller
 			'last_name'  => html_escape($this->input->post('last_name')),
 			'email'      => $email,
 			'phone'      => $full_phone,
-			'password'   => sha1($this->input->post('password')),
+			'address'   => $full_address,
+			'password'   => $is_oauth_registration ? sha1(bin2hex(openssl_random_pseudo_bytes(16))) : sha1($this->input->post('password')),
 			'verification_code' => $verification_code,
 			'last_modified' => $now,
-			'status' => (get_settings('student_email_verification') == 'enable') ? 0 : 1,
+			'status' => $email_verification_required ? 0 : 1,
+			'skills' => json_encode([]),
 			'wishlist' => json_encode([]),
 			'date_added' => $now,
 			'role_id' => 2,
+			'is_instructor' => 0,
+			'image' => md5(rand(10000, 10000000)),
 			'social_links' => json_encode(['facebook'=>'','twitter'=>'','linkedin'=>'']),
-			'payment_keys' => json_encode([])
+			'payment_keys' => json_encode([]),
+			'sessions' => json_encode([])
 		];
+
+		if ($is_instructor) {
+			$this->db->trans_begin();
+		}
 
 		if ($validity === true) {
 			$user_id = $this->user_model->register_user($data);
 		} else {
 			$this->user_model->register_user_update_code($data, $data['status']);
 			$user_id = $this->db->get_where('users', ['email' => $email])->row('id');
+		}
+
+		if (empty($user_id)) {
+			if ($is_instructor) {
+				$this->db->trans_rollback();
+			}
+			$db_error = $this->db->error();
+			$detail = !empty($db_error['message']) ? $db_error['message'] : 'User insert failed. Check application/logs.';
+			log_message('error', 'Registration failed for ' . $email . ': ' . $detail);
+			$this->session->set_flashdata('error_message', 'Registration could not be completed: ' . $detail);
+			redirect($signup_redirect, 'refresh');
 		}
 
 		if (!$is_instructor && !empty($user_id)) {
@@ -475,6 +669,7 @@ class Login extends CI_Controller
 				'class_id' => (int)$this->input->post('student_class_id'),
 				'subject_interest_id' => $student_subject_interest_id > 0 ? $student_subject_interest_id : null,
 				'current_level_label' => trim((string)$this->input->post('student_current_level_label')),
+				'board' => $this->student_category_is_school((int)$this->input->post('student_category_id')) ? trim((string)$this->input->post('student_board')) : null,
 				'academic_year' => trim((string)$this->input->post('student_academic_year')) ?: date('Y'),
                     'student_learning_message' => trim((string)$this->input->post('student_learning_message', true)),
 				'status' => 1,
@@ -484,6 +679,9 @@ class Login extends CI_Controller
 
                 if (!$this->db->field_exists('student_learning_message', 'student_learning_profiles')) {
                     unset($student_profile['student_learning_message']);
+                }
+                if (!$this->db->field_exists('board', 'student_learning_profiles')) {
+                    unset($student_profile['board']);
                 }
 
 			$existing_profile = $this->db
@@ -503,13 +701,37 @@ class Login extends CI_Controller
 			$_POST['email'] = $email;
 			$_POST['message'] = trim((string)$this->input->post('message'));
 			$_POST['instructor'] = 'yes';
-			$this->user_model->instructor_application();
+			$application_result = $this->user_model->instructor_application((int)$user_id, false);
+			if (empty($application_result['success'])) {
+				$this->db->trans_rollback();
+				$detail = !empty($application_result['message']) ? $application_result['message'] : 'Tutor application insert failed.';
+				log_message('error', 'Tutor registration rolled back for ' . $email . ': ' . $detail);
+				$this->session->set_flashdata('error_message', 'Tutor registration could not be completed: ' . $detail);
+				redirect($signup_redirect, 'refresh');
+			}
+
+			if ($this->db->trans_status() === FALSE) {
+				$this->db->trans_rollback();
+				$db_error = $this->db->error();
+				$detail = !empty($db_error['message']) ? $db_error['message'] : 'Database transaction failed.';
+				log_message('error', 'Tutor registration transaction failed for ' . $email . ': ' . $detail);
+				$this->session->set_flashdata('error_message', 'Tutor registration could not be completed: ' . $detail);
+				redirect($signup_redirect, 'refresh');
+			}
+
+			$this->db->trans_commit();
 		}
 
-		if (get_settings('student_email_verification') == 'enable') {
+		if ($email_verification_required) {
 			$this->email_model->send_email_verification_mail($email, $verification_code);
 			$this->session->set_userdata('register_email', $email);
 			redirect(site_url('sign_up/verification_code'), 'refresh');
+		}
+
+		if ($is_oauth_registration && !empty($user_id)) {
+			$this->auth_identity_model->find_or_create_user_from_oauth($oauth_profile, $registration_type);
+			$this->session->unset_userdata('oauth_signup_profile');
+			$this->session->unset_userdata('oauth_signup_registration_type');
 		}
 
 		if (!empty($user_id)) {
@@ -552,16 +774,186 @@ class Login extends CI_Controller
 
 	public function _valid_phone_by_country($phone_number)
 	{
-		$phone_number = preg_replace('/\D+/', '', (string)$phone_number);
+		$raw_phone_number = trim((string)$phone_number);
+		$phone_number = preg_replace('/\D+/', '', $raw_phone_number);
 		$country_code = trim((string)$this->input->post('phone_country_code'));
+		$country_digits = preg_replace('/\D+/', '', $country_code);
+
+		if (strpos($raw_phone_number, '+') !== false || ($country_digits !== '' && strpos($phone_number, $country_digits) === 0 && strlen($phone_number) > $this->expected_national_phone_length($country_code))) {
+			$this->form_validation->set_message('_valid_phone_by_country', 'Enter mobile number without country code. Select the country code only from the dropdown.');
+			return false;
+		}
 
 		if ($country_code === '+91' && !preg_match('/^[6-9][0-9]{9}$/', $phone_number)) {
 			$this->form_validation->set_message('_valid_phone_by_country', 'Enter a valid 10-digit Indian mobile number');
 			return false;
 		}
 
-		if ($country_code !== '+91' && (strlen($phone_number) < 6 || strlen($phone_number) > 15)) {
+		$country_patterns = [
+			'+1' => ['pattern' => '/^[2-9][0-9]{9}$/', 'message' => 'Enter a valid 10-digit US/Canada phone number'],
+			'+44' => ['pattern' => '/^[0-9]{10}$/', 'message' => 'Enter a valid 10-digit UK phone number'],
+			'+61' => ['pattern' => '/^[0-9]{9}$/', 'message' => 'Enter a valid 9-digit Australia phone number'],
+			'+971' => ['pattern' => '/^[0-9]{9}$/', 'message' => 'Enter a valid 9-digit UAE phone number'],
+		];
+
+		if (isset($country_patterns[$country_code]) && !preg_match($country_patterns[$country_code]['pattern'], $phone_number)) {
+			$this->form_validation->set_message('_valid_phone_by_country', $country_patterns[$country_code]['message']);
+			return false;
+		}
+
+		if (!isset($country_patterns[$country_code]) && $country_code !== '+91' && (strlen($phone_number) < 6 || strlen($phone_number) > 15)) {
 			$this->form_validation->set_message('_valid_phone_by_country', 'Enter a valid phone number');
+			return false;
+		}
+
+		return true;
+	}
+
+	private function expected_national_phone_length($country_code)
+	{
+		$lengths = [
+			'+91' => 10,
+			'+1' => 10,
+			'+44' => 10,
+			'+61' => 9,
+			'+971' => 9,
+		];
+
+		return $lengths[$country_code] ?? 15;
+	}
+
+	private function tutor_qualification_options()
+	{
+		return [
+			'10th - Secondary School',
+			'12th - Senior Secondary',
+			'Diploma - Diploma',
+			'PG Diploma - Post Graduate Diploma',
+			'B.A. - Bachelor of Arts',
+			'B.Com. - Bachelor of Commerce',
+			'B.Sc. - Bachelor of Science',
+			'B.B.A. - Bachelor of Business Administration',
+			'B.C.A. - Bachelor of Computer Applications',
+			'B.E. - Bachelor of Engineering',
+			'B.Tech. - Bachelor of Technology',
+			'B.Arch. - Bachelor of Architecture',
+			'B.Plan. - Bachelor of Planning',
+			'B.Des. - Bachelor of Design',
+			'B.F.A. - Bachelor of Fine Arts',
+			'B.P.A. - Bachelor of Performing Arts',
+			'B.S.W. - Bachelor of Social Work',
+			'B.Lib.I.Sc. - Bachelor of Library and Information Science',
+			'B.J.M.C. - Bachelor of Journalism and Mass Communication',
+			'B.H.M. - Bachelor of Hotel Management',
+			'B.T.T.M. - Bachelor of Travel and Tourism Management',
+			'B.Ed. - Bachelor of Education',
+			'B.El.Ed. - Bachelor of Elementary Education',
+			'B.P.Ed. - Bachelor of Physical Education',
+			'LL.B. - Bachelor of Laws',
+			'MBBS - Bachelor of Medicine and Bachelor of Surgery',
+			'BDS - Bachelor of Dental Surgery',
+			'BAMS - Bachelor of Ayurvedic Medicine and Surgery',
+			'BHMS - Bachelor of Homeopathic Medicine and Surgery',
+			'BUMS - Bachelor of Unani Medicine and Surgery',
+			'BSMS - Bachelor of Siddha Medicine and Surgery',
+			'BNYS - Bachelor of Naturopathy and Yogic Sciences',
+			'BPT - Bachelor of Physiotherapy',
+			'BOT - Bachelor of Occupational Therapy',
+			'B.Optom. - Bachelor of Optometry',
+			'BMLT - Bachelor of Medical Laboratory Technology',
+			'B.Pharm. - Bachelor of Pharmacy',
+			'Pharm.D. - Doctor of Pharmacy',
+			'B.Sc. Nursing - Bachelor of Science in Nursing',
+			'BASLP - Bachelor of Audiology and Speech Language Pathology',
+			'B.Sc. Agriculture - Bachelor of Science in Agriculture',
+			'B.Sc. Horticulture - Bachelor of Science in Horticulture',
+			'B.Sc. Forestry - Bachelor of Science in Forestry',
+			'B.F.Sc. - Bachelor of Fisheries Science',
+			'B.V.Sc. & A.H. - Bachelor of Veterinary Science and Animal Husbandry',
+			'B.F.Tech. - Bachelor of Fashion Technology',
+			'B.V.A. - Bachelor of Visual Arts',
+			'B.Sc. Nautical Science - Bachelor of Science in Nautical Science',
+			'M.A. - Master of Arts',
+			'M.Com. - Master of Commerce',
+			'M.Sc. - Master of Science',
+			'M.B.A. - Master of Business Administration',
+			'M.C.A. - Master of Computer Applications',
+			'M.E. - Master of Engineering',
+			'M.Tech. - Master of Technology',
+			'M.Arch. - Master of Architecture',
+			'M.Plan. - Master of Planning',
+			'M.Des. - Master of Design',
+			'M.F.A. - Master of Fine Arts',
+			'M.P.A. - Master of Performing Arts',
+			'M.S.W. - Master of Social Work',
+			'M.Lib.I.Sc. - Master of Library and Information Science',
+			'M.J.M.C. - Master of Journalism and Mass Communication',
+			'M.H.M. - Master of Hotel Management',
+			'M.T.T.M. - Master of Travel and Tourism Management',
+			'M.Ed. - Master of Education',
+			'M.P.Ed. - Master of Physical Education',
+			'LL.M. - Master of Laws',
+			'MD - Doctor of Medicine',
+			'MS - Master of Surgery',
+			'MDS - Master of Dental Surgery',
+			'MPT - Master of Physiotherapy',
+			'MOT - Master of Occupational Therapy',
+			'M.Pharm. - Master of Pharmacy',
+			'M.Sc. Nursing - Master of Science in Nursing',
+			'MHA - Master of Hospital Administration',
+			'MPH - Master of Public Health',
+			'MASLP - Master of Audiology and Speech Language Pathology',
+			'M.Sc. Agriculture - Master of Science in Agriculture',
+			'M.Sc. Horticulture - Master of Science in Horticulture',
+			'M.Sc. Forestry - Master of Science in Forestry',
+			'M.F.Sc. - Master of Fisheries Science',
+			'M.V.Sc. - Master of Veterinary Science',
+			'M.F.Tech. - Master of Fashion Technology',
+			'M.V.A. - Master of Visual Arts',
+			'Ph.D. - Doctor of Philosophy',
+			'D.Sc. - Doctor of Science',
+			'D.Litt. - Doctor of Literature',
+			'Other',
+		];
+	}
+
+	public function _valid_tutor_qualification($value)
+	{
+		if (!in_array(trim((string)$value), $this->tutor_qualification_options(), true)) {
+			$this->form_validation->set_message('_valid_tutor_qualification', 'Please select a valid Education / Qualification.');
+			return false;
+		}
+
+		return true;
+	}
+
+	public function _valid_tutor_experience($value)
+	{
+		$value = trim((string)$value);
+		if ($value === '' || !ctype_digit($value) || (int)$value < 0 || (int)$value > 50) {
+			$this->form_validation->set_message('_valid_tutor_experience', 'Teaching Experience must be between 0 and 50 years.');
+			return false;
+		}
+
+		return true;
+	}
+
+	private function student_category_is_school($category_id)
+	{
+		$category_id = (int)$category_id;
+		if ($category_id <= 0 || !$this->db->table_exists('tutor_categories')) {
+			return false;
+		}
+
+		$category = $this->db->select('name')->get_where('tutor_categories', ['id' => $category_id], 1)->row_array();
+		return strtolower(trim((string)($category['name'] ?? ''))) === 'school courses';
+	}
+
+	public function _valid_student_board($value)
+	{
+		$allowed_boards = ['CBSE', 'ICSE', 'State Board', 'Other'];
+		if (!in_array(trim((string)$value), $allowed_boards, true)) {
+			$this->form_validation->set_message('_valid_student_board', 'Please select a valid Board.');
 			return false;
 		}
 
@@ -571,7 +963,7 @@ class Login extends CI_Controller
 	public function _valid_latitude($value)
 	{
 		if (!is_numeric($value) || (float)$value < -90 || (float)$value > 90) {
-			$this->form_validation->set_message('_valid_latitude', 'Current device location is required. Please allow location access.');
+			$this->form_validation->set_message('_valid_latitude', 'Current latitude is invalid. Clear it or verify current location again.');
 			return false;
 		}
 		return true;
@@ -580,7 +972,7 @@ class Login extends CI_Controller
 	public function _valid_longitude($value)
 	{
 		if (!is_numeric($value) || (float)$value < -180 || (float)$value > 180) {
-			$this->form_validation->set_message('_valid_longitude', 'Current device location is required. Please allow location access.');
+			$this->form_validation->set_message('_valid_longitude', 'Current longitude is invalid. Clear it or verify current location again.');
 			return false;
 		}
 		return true;
@@ -638,7 +1030,10 @@ class Login extends CI_Controller
         $email = $this->input->post('email');
         $query = $this->db->get_where('users', array('email' => $email, 'status' => 1));
         if ($query->num_rows() > 0) {
-            $this->crud_model->forgot_password();
+            $verification_code = $this->crud_model->forgot_password();
+            if ($this->testing_verification_disabled() && !empty($verification_code)) {
+                redirect(site_url('login/change_password/' . $verification_code), 'refresh');
+            }
             redirect(site_url('login'), 'refresh');
         } else {
             $this->session->set_flashdata('error_message', get_phrase('user_not_found'));
@@ -745,6 +1140,7 @@ class Login extends CI_Controller
 		// Activate user email
 		$this->db->where('id', $user['id']);
 		$this->db->update('users', array('status' => 1));
+		$this->email_model->send_welcome_email((int)$user['id']);
 
 		// ✅ If instructor was applied, tell user approval pending (D)
 		$app = $this->db->get_where('applications', ['user_id' => (int)$user['id']], 1)->row_array();
@@ -778,6 +1174,7 @@ class Login extends CI_Controller
 
 			$this->db->where('id', $user['id']);
 			$this->db->update('users', array('status' => 1));
+			$this->email_model->send_welcome_email((int)$user['id']);
 
 			$this->session->set_flashdata('flash_message', 'Email verified successfully.');
 			$this->session->set_userdata('register_email', null);

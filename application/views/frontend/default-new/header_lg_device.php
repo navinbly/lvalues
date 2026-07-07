@@ -115,12 +115,24 @@
         <?php $header_menu_counter += 1; ?>
         <ul class="navbar-nav main-nav-wrap mb-2 mb-lg-0 ms-2">
           <li class="nav-item">
-          <a class="nav-link header-dropdown bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('tutors'); ?>" id="navbarDropdown2">
+          <a class="nav-link header-dropdown bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('home/search?search_for=tutor'); ?>" id="navbarDropdown2">
               <?php echo get_phrase('Find a Tutor'); ?>    
             </a>
           </li>
         </ul>
       <?php endif; ?>
+
+      <ul class="navbar-nav main-nav-wrap mb-2 mb-lg-0 ms-2 lvalues-platform-nav">
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('home/courses?query=school'); ?>">School</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('home/courses?query=IT%20Training'); ?>">IT Training</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesCorporateTraining'); ?>">Corporate</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesAudiencePaths'); ?>">For Parents</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('blog'); ?>">Blog</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesPricing'); ?>">Pricing</a></li>
+        <?php if(!$user_id && get_settings('allow_instructor') == 1): ?>
+          <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('sign_up?instructor=yes'); ?>">Become a Tutor</a></li>
+        <?php endif; ?>
+      </ul>
 
       <?php $custom_page_menus = $this->crud_model->get_custom_pages('', 'header'); ?>
       <?php if($custom_page_menus->num_rows() == 1): ?>
@@ -246,36 +258,53 @@
 
 
         <?php if(!$user_id): ?>
-          <a href="<?php echo site_url('login'); ?>" class="mx-3"> <?php echo get_phrase('Login'); ?></a>
-          <a href="<?php echo site_url('sign_up'); ?>" class="mx-3 text-capitalize" style="min-width: 70px"> <?php echo get_phrase('Join Now'); ?></a>
+          <a href="<?php echo site_url('login'); ?>" class="mx-3" data-lvalues-auth="login"> <?php echo get_phrase('Login'); ?></a>
+          <a href="<?php echo site_url('sign_up'); ?>" class="mx-3 text-capitalize" style="min-width: 70px" data-lvalues-auth="signup"> <?php echo get_phrase('Join Now'); ?></a>
         <?php endif; ?>
 
           <?php if($user_login || $admin_login): ?>
+            <?php
+              $is_tutor_account = $user_login && !empty($user_details) && (int)($user_details['is_instructor'] ?? 0) === 1;
+              $frontend_dashboard_url = $is_tutor_account ? site_url('user/dashboard') : ($user_login ? site_url('home/student_dashboard') : site_url('admin/dashboard'));
+            ?>
             <!-- Profile Area -->
             <div class="menu_pro_tgl_div">
               <div class="menu_pro_tgl-2div">
-                <a class="menu_pro_tgl profile-dropdown" href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
+                <a class="menu_pro_tgl profile-dropdown" href="<?php echo $frontend_dashboard_url; ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image" /></a>
               </div>
               <div class="menu_pro_tgl_bg">
                 <div class="path-pos">
-                  <a href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
-                  <a href="<?php echo site_url('dashboard'); ?>"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
+                  <a href="<?php echo $frontend_dashboard_url; ?>"><img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($user_id); ?>" alt="User Image"/></a>
+                  <a href="<?php echo $frontend_dashboard_url; ?>"><h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4></a>
                   <p><?php echo $user_details['email']; ?></p>
                   <ul>
                     <?php if($user_login): ?>
                       
-                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('dashboard'); ?>"><i class="fas fa-tachometer-alt"></i><?php echo site_phrase('dashboard'); ?></a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo $frontend_dashboard_url; ?>"><i class="fas fa-tachometer-alt"></i><?php echo site_phrase('dashboard'); ?></a></li>
                       <?php if($user_details['is_instructor'] != 1): ?>
                         <?php if (get_settings('allow_instructor') == 1) : ?>
                           <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/become_an_instructor'); ?>"><i class="fas fa-columns"></i><?php echo site_phrase('Become an instructor'); ?></a></li>
                         <?php endif; ?>
                       <?php endif; ?>
 
+                      <?php if($is_tutor_account): ?>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/tutor_teaching_profile'); ?>"><i class="fas fa-chalkboard-teacher"></i>Teaching Profile</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/student_requests'); ?>"><i class="fas fa-user-check"></i>Student Requests</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('tutor_batch'); ?>"><i class="fas fa-users"></i>Batch Management</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/courses'); ?>"><i class="fas fa-book-open"></i>Course Manager</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/content_nodes'); ?>"><i class="fas fa-file-alt"></i>Content (Docs)</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/message'); ?>"><i class="far fa-envelope"></i><?php echo site_phrase('message'); ?></a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('user/manage_profile'); ?>"><i class="fas fa-user"></i><?php echo site_phrase('manage_profile'); ?></a></li>
+                      <?php else: ?>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem"></i><?php echo site_phrase('my_courses'); ?></a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('student_batch/invites'); ?>"><i class="fas fa-envelope-open-text"></i>Batch Invites</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('student_batch/my_batches'); ?>"><i class="fas fa-users"></i>My Batches</a></li>
+                      <li class="user-dropdown-menu-item"><a href="<?php echo site_url('notifications'); ?>"><i class="far fa-bell"></i>Notifications</a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope"></i><?php echo site_phrase('my_messages'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart"></i><?php echo site_phrase('purchase_history'); ?></a></li>
                       <li class="user-dropdown-menu-item"><a href="<?php echo site_url('home/profile/user_profile'); ?>"><i class="fas fa-user"></i><?php echo site_phrase('user_profile'); ?></a></li>
+                      <?php endif; ?>
                       <?php if (addon_status('affiliate_course') ) :
                           $CI    = &get_instance();
                           $CI->load->model('addons/affiliate_course_model');

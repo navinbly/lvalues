@@ -1,10 +1,4 @@
 <?php
-// Source - https://stackoverflow.com/a/5438125
-// Posted by txyoji, modified by community. See post 'Timeline' for change history
-// Retrieved 2025-12-07, License - CC BY-SA 4.0
-
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
 
 /**
  * CodeIgniter
@@ -60,11 +54,13 @@ ini_set('display_errors', '1');
  *
  * NOTE: If you change these, also change the error_reporting() code below
  */
-/*
-define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : 'production');
- */
- 
-define('ENVIRONMENT', 'development');
+$host = isset($_SERVER['HTTP_HOST']) ? strtolower($_SERVER['HTTP_HOST']) : '';
+$is_local_request = PHP_SAPI === 'cli'
+    || in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+    || strpos($host, 'localhost:') === 0
+    || strpos($host, '127.0.0.1:') === 0;
+
+define('ENVIRONMENT', isset($_SERVER['CI_ENV']) ? $_SERVER['CI_ENV'] : ($is_local_request ? 'development' : 'production'));
 
 /*
  *---------------------------------------------------------------
@@ -77,12 +73,17 @@ define('ENVIRONMENT', 'development');
 switch (ENVIRONMENT) {
 	case 'development':
 		error_reporting(-1);
-		ini_set('display_errors', 1);
+		ini_set('display_errors', 0);
+		ini_set('display_startup_errors', 0);
+		ini_set('log_errors', 1);
 		break;
 
 	case 'testing':
+	case 'staging':
 	case 'production':
 		ini_set('display_errors', 0);
+		ini_set('display_startup_errors', 0);
+		ini_set('log_errors', 1);
 		if (version_compare(PHP_VERSION, '5.3', '>=')) {
 			error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
 		} else {

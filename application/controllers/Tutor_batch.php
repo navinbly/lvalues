@@ -13,6 +13,7 @@ class Tutor_batch extends CI_Controller
 
         $this->load->model('Tutor_batch_model', 'tutor_batch_model');
         $this->load->model('Tutor_master_model', 'tutor_master_model');
+        $this->load->model('Teacher_workflow_model', 'teacher_workflow');
 
         if ($this->session->userdata('user_login') != true) {
             redirect(site_url('login'), 'refresh');
@@ -41,6 +42,11 @@ class Tutor_batch extends CI_Controller
         $user_id = (int)$this->session->userdata('user_id');
 
         $page_data['batches']    = $this->tutor_batch_model->get_tutor_batches($user_id);
+        foreach ($page_data['batches'] as &$batch_row) {
+            $batch_row['health'] = $this->teacher_workflow->calculate_batch_health((int)$batch_row['id'], $user_id);
+        }
+        unset($batch_row);
+        $page_data['templates'] = $this->teacher_workflow->get_templates($user_id);
         $page_data['page_name']  = 'tutor_batches';
         $page_data['page_title'] = 'my_batches';
 
@@ -73,7 +79,7 @@ $user_id  = (int)$this->session->userdata('user_id');
         );
 
         $this->session->set_flashdata(
-            $result['status'] ? 'flash_message' : 'error_message',
+            !empty($result['flash_type']) ? $result['flash_type'] : ($result['status'] ? 'flash_message' : 'error_message'),
             $result['message']
         );
 
@@ -102,12 +108,19 @@ $user_id  = (int)$this->session->userdata('user_id');
         $page_data['tasks']     = $this->tutor_batch_model->get_batch_tasks($batch_id);
 		$page_data['assignment_submissions'] = $this->tutor_batch_model->get_assignment_submissions_for_batch($batch_id, $user_id);
         $page_data['summary']   = $this->tutor_batch_model->get_batch_summary($batch_id);
+        $page_data['batch_360'] = $this->tutor_batch_model->get_batch_360_foundation($batch_id, $user_id);
+        $page_data['progress_reports'] = $this->tutor_batch_model->get_batch_student_progress_reports($batch_id, $user_id);
+        $page_data['batch_health'] = $this->teacher_workflow->calculate_batch_health($batch_id, $user_id);
+        $page_data['batch_templates'] = $this->teacher_workflow->get_templates($user_id);
+        $page_data['enrollment_requests'] = $this->db->select('r.*,u.first_name,u.last_name,u.email')->from('tutor_batch_enrollment_requests r')->join('users u','u.id=r.student_user_id','left')->where('r.batch_id',$batch_id)->order_by('r.created_at','DESC')->get()->result_array();
+        $page_data['waitlist'] = $this->db->select('w.*,u.first_name,u.last_name,u.email')->from('tutor_batch_waitlist w')->join('users u','u.id=w.student_user_id','left')->where('w.batch_id',$batch_id)->order_by('w.position')->get()->result_array();
+        $page_data['student_history'] = $this->db->where('batch_id',$batch_id)->order_by('created_at','DESC')->limit(100)->get('tutor_batch_student_history')->result_array();
+        $page_data['assessment_rubrics'] = $this->db->group_start()->where('owner_user_id',$user_id)->or_where('is_shared',1)->group_end()->order_by('title')->get('assessment_rubrics')->result_array();
 
         // Correct model alias is tutor_batch_model, not Tutor_batch_model
         $page_data['invites']   = $this->tutor_batch_model->get_batch_invites($batch_id);
-        $page_data['eligible_students'] = $this->tutor_batch_model->get_eligible_students_for_batch($batch_id, $user_id);
 
-        $allowed_sections = ['overview','invite','schedule','tasks','students','sessions','assignments'];
+        $allowed_sections = ['overview','invite','schedule','tasks','students','sessions','assignments','progress'];
         $section = in_array($section, $allowed_sections, true) ? $section : 'overview';
         $page_data['manage_section'] = $section;
 
@@ -115,7 +128,9 @@ $user_id  = (int)$this->session->userdata('user_id');
         $page_data['page_title'] = 'manage_batch';
 
 		$page_data['tutor_registration_tree'] = $this->tutor_master_model->get_registration_tree();
-		$page_data['eligible_students'] = $this->tutor_batch_model->get_all_classified_students_for_invite($batch_id);
+		$page_data['invite_students'] = $this->tutor_batch_model->get_all_classified_students_for_invite($batch_id);
+		$page_data['enrolled_students'] = $this->tutor_batch_model->get_enrolled_students_for_batch($batch_id, $user_id);
+		$page_data['eligible_students'] = $page_data['invite_students']; // Backward-compatible alias for older view references.
 		
 		$page_data['tests'] = $this->tutor_batch_model->get_batch_tests($batch_id, $user_id);
 
@@ -135,7 +150,7 @@ $batch_id = (int)$batch_id;
         );
 
         $this->session->set_flashdata(
-            $result['status'] ? 'flash_message' : 'error_message',
+            !empty($result['flash_type']) ? $result['flash_type'] : ($result['status'] ? 'flash_message' : 'error_message'),
             $result['message']
         );
 
@@ -155,7 +170,7 @@ $batch_id = (int)$batch_id;
         );
 
         $this->session->set_flashdata(
-            $result['status'] ? 'flash_message' : 'error_message',
+            !empty($result['flash_type']) ? $result['flash_type'] : ($result['status'] ? 'flash_message' : 'error_message'),
             $result['message']
         );
 
@@ -175,7 +190,7 @@ $batch_id = (int)$batch_id;
         );
 
         $this->session->set_flashdata(
-            $result['status'] ? 'flash_message' : 'error_message',
+            !empty($result['flash_type']) ? $result['flash_type'] : ($result['status'] ? 'flash_message' : 'error_message'),
             $result['message']
         );
 

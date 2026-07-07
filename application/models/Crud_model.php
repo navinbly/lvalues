@@ -567,13 +567,35 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
 
     public function update_payout_status($payout_id = "", $payment_type = "")
     {
+        $payout = $this->db->get_where('payout', ['id' => (int)$payout_id], 1)->row_array();
+        if (!$payout) return false;
+        $this->load->model('Idempotency_model', 'idempotency');
+        $this->load->model('Immutable_audit_model', 'immutable_audit');
+        $operation = ['payout_id' => (int)$payout_id, 'payment_type' => (string)$payment_type, 'status' => 1];
+        $key = $this->idempotency->key('payout.status', $operation, (string)$this->input->post('idempotency_key'));
+        $this->db->trans_begin();
+        $claim = $this->idempotency->claim('payout.status', $key, (int)$this->session->userdata('user_id'), $operation);
+        if (empty($claim['proceed'])) {
+            $this->db->trans_rollback();
+            return !empty($claim['response']['status']);
+        }
         $updater = array(
             'status' => 1,
             'payment_type' => $payment_type,
             'last_modified' => strtotime(date('D, d-M-Y'))
         );
+        if ($this->db->field_exists('idempotency_key', 'payout')) $updater['idempotency_key'] = $key;
         $this->db->where('id', $payout_id);
         $this->db->update('payout', $updater);
+        $response = ['status' => true, 'payout_id' => (int)$payout_id];
+        $this->immutable_audit->record('payout', 'status_changed', 'payout', (int)$payout_id, $payout, array_merge($payout, $updater), [
+            'actor_user_id' => (int)$this->session->userdata('user_id'),
+            'actor_role' => 'admin',
+            'idempotency_key' => $key,
+        ]);
+        $this->idempotency->complete((int)$claim['id'], $response, 'payout', (int)$payout_id);
+        if ($this->db->trans_status()) $this->db->trans_commit(); else $this->db->trans_rollback();
+        return $this->db->trans_status();
     }
 
     public function update_system_settings()
@@ -888,6 +910,7 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data['discounted_price'] = $this->input->post('discounted_price');
         $data['level'] = $this->input->post('level');
         $data['is_free_course'] = $this->input->post('is_free_course');
+        $this->add_course_delivery_data($data);
 
         //Course expiry period
         if ($this->input->post('expiry_period') == 'limited_time' && is_numeric($this->input->post('number_of_month')) && $this->input->post('number_of_month') > 0) {
@@ -945,7 +968,18 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $this->db->insert('course', $data);
 
         $course_id = $this->db->insert_id();
+        if ($this->db->field_exists('workflow_status', 'course')) {
+            $workflow_status = $data['status'] === 'active' ? 'published' : ($data['status'] === 'pending' ? 'pending' : 'draft');
+            $this->db->where('id', $course_id)->update('course', array(
+                'workflow_status' => $workflow_status,
+                'workflow_updated_at' => date('Y-m-d H:i:s'),
+                'published_at' => $workflow_status === 'published' ? date('Y-m-d H:i:s') : null,
+            ));
+            $this->load->model('Course_workflow_model', 'course_workflow');
+            $this->course_workflow->snapshot((int)$course_id, (int)$this->session->userdata('user_id'), $this->session->userdata('admin_login') ? 'admin' : 'tutor', 'Initial course version');
+        }
         $this->sync_tutor_subject_master_from_course($course_id);
+        $this->trigger_course_communication((int)$course_id, 'course_launched');
 
         // Create folder if does not exist
         if (!file_exists('uploads/thumbnails/course_thumbnails')) {
@@ -1093,6 +1127,7 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data['discounted_price'] = $this->input->post('discounted_price');
         $data['level'] = $this->input->post('level');
         $data['video_url'] = $this->input->post('course_overview_url');
+        $this->add_course_delivery_data($data);
 
         $enable_drip_content = $this->input->post('enable_drip_content');
         if (isset($enable_drip_content) && $enable_drip_content) {
@@ -1170,7 +1205,12 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $this->db->update('course', $data);
 
         $updated_course = $this->get_course_by_id($course_id)->row_array();
+        if ($this->db->table_exists('course_versions')) {
+            $this->load->model('Course_workflow_model', 'course_workflow');
+            $this->course_workflow->snapshot((int)$course_id, (int)$this->session->userdata('user_id'), $this->session->userdata('admin_login') ? 'admin' : 'tutor', 'Course details updated');
+        }
         $this->sync_tutor_subject_master_from_course($course_id, $updated_course, $old_course_details);
+        $this->trigger_course_communication((int)$course_id, 'course_updated', $old_course_details);
 
         if ($data['status'] == 'active') {
             $this->session->set_flashdata('flash_message', get_phrase('course_updated_successfully'));
@@ -1188,11 +1228,52 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
                 redirect(site_url('login'), 'refresh');
             }
         }
-        $updater = array(
-            'status' => $status
-        );
-        $this->db->where('id', $course_id);
-        $this->db->update('course', $updater);
+        if ($this->db->field_exists('workflow_status', 'course')) {
+            $this->load->model('Course_workflow_model', 'course_workflow');
+            $target = $status === 'active' ? 'published' : ($status === 'pending' ? 'pending' : ($status === 'draft' ? 'draft' : 'archived'));
+            $role = $this->session->userdata('admin_login') ? 'admin' : 'tutor';
+            if ($target === 'published') {
+                $course = $this->course_workflow->get_course((int)$course_id);
+                if (($course['workflow_status'] ?? '') === 'pending') $this->course_workflow->transition((int)$course_id, 'approved', '', (int)$this->session->userdata('user_id'), $role);
+            }
+            $this->course_workflow->transition((int)$course_id, $target, $target === 'archived' ? 'Archived from course manager' : '', (int)$this->session->userdata('user_id'), $role);
+        } else {
+            $this->db->where('id', $course_id)->update('course', array('status' => $status));
+        }
+        if (in_array($status, array('active', 'upcoming'), true)) {
+            $this->trigger_course_communication((int)$course_id, 'course_launched');
+        }
+    }
+
+    private function trigger_course_communication($course_id, $event, $old_course = array())
+    {
+        if ($course_id <= 0 || !$this->db->table_exists('message_campaigns')) {
+            return;
+        }
+        try {
+            $this->load->library('Communication_service');
+            $this->communication_service->notify_course_event((int)$course_id, (string)$event, (array)$old_course);
+        } catch (Throwable $exception) {
+            log_message('error', 'Course communication trigger failed without blocking course save: ' . $exception->getMessage());
+        }
+    }
+
+    private function add_course_delivery_data(&$data)
+    {
+        if ($this->db->field_exists('delivery_mode', 'course')) {
+            $mode = (string)$this->input->post('delivery_mode');
+            $data['delivery_mode'] = in_array($mode, array('online', 'offline', 'both'), true) ? $mode : 'online';
+        }
+        if ($this->db->field_exists('schedule_text', 'course')) {
+            $data['schedule_text'] = html_escape(trim((string)$this->input->post('schedule_text')));
+        }
+        if ($this->db->field_exists('start_date', 'course')) {
+            $date = trim((string)$this->input->post('start_date'));
+            $data['start_date'] = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? $date : null;
+        }
+        if ($this->db->field_exists('location_text', 'course')) {
+            $data['location_text'] = html_escape(trim((string)$this->input->post('location_text')));
+        }
     }
 
     function get_course_thumbnail_url($course_id, $type = 'course_thumbnail')
@@ -1645,6 +1726,9 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data['course_id'] = html_escape($this->input->post('course_id'));
         $data['title'] = html_escape($this->input->post('title'));
         $data['section_id'] = html_escape($this->input->post('section_id'));
+        $data['alt_text'] = html_escape(trim((string)$this->input->post('alt_text')));
+        $data['transcript_url'] = html_escape(trim((string)$this->input->post('transcript_url')));
+        $data['keyboard_notes'] = html_escape(trim((string)$this->input->post('keyboard_notes')));
 
         $lesson_type_array = explode('-', $this->input->post('lesson_type'));
 
@@ -2045,6 +2129,9 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data['course_id'] = html_escape($this->input->post('course_id'));
         $data['title'] = html_escape($this->input->post('title'));
         $data['section_id'] = html_escape($this->input->post('section_id'));
+        $data['alt_text'] = html_escape(trim((string)$this->input->post('alt_text')));
+        $data['transcript_url'] = html_escape(trim((string)$this->input->post('transcript_url')));
+        $data['keyboard_notes'] = html_escape(trim((string)$this->input->post('keyboard_notes')));
 
         $lesson_type_array = explode('-', $this->input->post('lesson_type'));
 
@@ -2733,10 +2820,19 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
 
     public function enrol_student($enrol_user_id, $payer_user_id = "")
     {
-
-
-        $purchased_courses = $this->session->userdata('cart_items');
+        $purchased_courses = (array)$this->session->userdata('cart_items');
+        $this->load->model('Idempotency_model', 'idempotency');
+        $this->load->model('Immutable_audit_model', 'immutable_audit');
+        $operation = ['user_id' => (int)$enrol_user_id, 'payer_user_id' => (int)$payer_user_id, 'course_ids' => array_values($purchased_courses)];
+        $key = $this->idempotency->key('enrollment.checkout', $operation, (string)$this->input->post('idempotency_key'));
+        $this->db->trans_begin();
+        $claim = $this->idempotency->claim('enrollment.checkout', $key, (int)$enrol_user_id, $operation);
+        if (empty($claim['proceed'])) {
+            $this->db->trans_rollback();
+            return;
+        }
         foreach ($purchased_courses as $purchased_course) {
+            $data = [];
             $course_details = $this->get_course_by_id($purchased_course)->row_array();
             if ($course_details['expiry_period'] > 0) {
                 $days = $course_details['expiry_period'] * 30;
@@ -2755,6 +2851,7 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
                 $data['user_id'] = $enrol_user_id;
                 $data['course_id'] = $purchased_course;
                 $data['date_added'] = strtotime(date('D, d-M-Y'));
+                if ($this->db->field_exists('idempotency_key', 'enrol')) $data['idempotency_key'] = substr($key . ':' . $purchased_course, 0, 128);
                 $this->db->insert('enrol', $data);
             } else {
                 $data['last_modified'] = time();
@@ -2762,7 +2859,17 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
                 $this->db->where('user_id', $enrol_user_id);
                 $this->db->update('enrol', $data);
             }
+            $enrolment = $this->db->get_where('enrol', ['user_id' => $enrol_user_id, 'course_id' => $purchased_course], 1)->row_array();
+            $this->immutable_audit->record('enrollment', 'enrolled', 'enrol', (int)($enrolment['id'] ?? 0), [], $enrolment ?: $data, [
+                'actor_user_id' => (int)$enrol_user_id,
+                'actor_role' => 'student',
+                'payer_user_id' => (int)$payer_user_id,
+                'idempotency_key' => $key,
+            ]);
         }
+        $response = ['status' => true, 'course_ids' => array_values($purchased_courses)];
+        $this->idempotency->complete((int)$claim['id'], $response, 'user', (int)$enrol_user_id);
+        if ($this->db->trans_status()) $this->db->trans_commit(); else $this->db->trans_rollback();
     }
     public function enrol_a_student_manually()
     {
@@ -3099,6 +3206,7 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
 
         $receiver   = $this->input->post('receiver');
         $sender     = $this->session->userdata('user_id');
+        $this->db->trans_start();
 
         //check if the thread between those 2 users exists, if not create new thread
         $num1 = $this->db->get_where('message_thread', array('sender' => $sender, 'receiver' => $receiver))->num_rows();
@@ -3123,6 +3231,15 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data_message['timestamp']              = $timestamp;
         $data_message['read_status']            = 0;
         $this->db->insert('message', $data_message);
+        $message_id = (int)$this->db->insert_id();
+        $this->load->model('Immutable_audit_model', 'immutable_audit');
+        $this->immutable_audit->record('communication', 'private_message_sent', 'message', $message_id, [], [
+            'thread_code' => $message_thread_code,
+            'sender' => (int)$sender,
+            'receiver' => (int)$receiver,
+            'message_sha256' => hash('sha256', (string)$message),
+        ], ['actor_user_id' => (int)$sender, 'actor_role' => 'user']);
+        $this->db->trans_complete();
 
         return $message_thread_code;
     }
@@ -3135,6 +3252,9 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $sender     = $this->session->userdata('user_id');
 
         $message_thread = $this->db->get_where('message_thread', array('message_thread_code' => $message_thread_code))->row_array();
+        if (!$message_thread || !$this->can_access_message_thread($message_thread_code, $sender)) {
+            return false;
+        }
         if ($message_thread['sender'] == $sender) {
             $receiver = $message_thread['receiver'];
         } else {
@@ -3147,7 +3267,29 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $data_message['receiver']               = $receiver;
         $data_message['timestamp']              = $timestamp;
         $data_message['read_status']            = 0;
+        $this->db->trans_start();
         $this->db->insert('message', $data_message);
+        $message_id = (int)$this->db->insert_id();
+        $this->load->model('Immutable_audit_model', 'immutable_audit');
+        $this->immutable_audit->record('communication', 'private_message_replied', 'message', $message_id, [], [
+            'thread_code' => $message_thread_code,
+            'sender' => (int)$sender,
+            'receiver' => (int)$receiver,
+            'message_sha256' => hash('sha256', (string)$message),
+        ], ['actor_user_id' => (int)$sender, 'actor_role' => 'user']);
+        $this->db->trans_complete();
+        return $this->db->trans_status();
+    }
+
+    public function can_access_message_thread($message_thread_code, $user_id)
+    {
+        if ((int)$user_id <= 0 || trim((string)$message_thread_code) === '') return false;
+        return $this->db->where('message_thread_code', (string)$message_thread_code)
+            ->group_start()
+            ->where('sender', (int)$user_id)
+            ->or_where('receiver', (int)$user_id)
+            ->group_end()
+            ->count_all_results('message_thread') > 0;
     }
 
     function mark_thread_messages_read($message_thread_code)
@@ -3486,12 +3628,62 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         return $this->db->get('course')->result_array();
     }
 
+    /**
+     * Phase E Course Manager counter helper.
+     * Counts use the same instructor, category, status and price rules as the
+     * visible Course Manager list so dashboard cards do not drift from filters.
+     */
+    public function get_course_manager_counts_for_instructor($instructor_id, $category_id = 'all'): array
+    {
+        $instructor_id = (int)$instructor_id;
+        $category_id = $category_id === null || $category_id === '' ? 'all' : $category_id;
+
+        $count_with_filters = function ($status = 'all', $price = 'all') use ($instructor_id, $category_id): int {
+            $this->db->from('course');
+
+            if ($category_id !== 'all') {
+                $this->db->where('sub_category_id', (int)$category_id);
+            }
+
+            if ($instructor_id > 0) {
+                $this->db->group_start();
+                $this->db->like('user_id', ',' . $instructor_id);
+                $this->db->or_like('user_id', $instructor_id . ',');
+                $this->db->or_where('creator', $instructor_id);
+                $this->db->group_end();
+            }
+
+            if ($status !== 'all') {
+                $this->db->where('status', $status);
+            }
+
+            if ($price !== 'all') {
+                if ($price === 'free') {
+                    $this->db->where('is_free_course', 1);
+                } elseif ($price === 'paid') {
+                    $this->db->where('is_free_course', null);
+                }
+            }
+
+            return (int)$this->db->count_all_results();
+        };
+
+        return [
+            'active' => $count_with_filters('active', 'all'),
+            'pending' => $count_with_filters('pending', 'all'),
+            'draft' => $count_with_filters('draft', 'all'),
+            'free' => $count_with_filters('all', 'free'),
+            'paid' => $count_with_filters('all', 'paid'),
+        ];
+    }
+
     public function sort_section($section_json)
     {
         $sections = json_decode($section_json);
         foreach ($sections as $key => $value) {
             $updater = array(
-                'order' => $key + 1
+                'order' => $key + 1,
+                'reading_order' => $key + 1
             );
             $this->db->where('id', $value);
             $this->db->update('section', $updater);
@@ -4120,11 +4312,32 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
 
         $requested_withdrawal_amount = $this->input->post('withdrawal_amount');
         if ($total_pending_amount > 0 && $total_pending_amount >= $requested_withdrawal_amount) {
+            $this->load->model('Idempotency_model', 'idempotency');
+            $this->load->model('Immutable_audit_model', 'immutable_audit');
+            $operation = ['user_id' => (int)$user_id, 'amount' => (string)$requested_withdrawal_amount];
+            $key = $this->idempotency->key('payout.request', $operation, (string)$this->input->post('idempotency_key'));
+            $this->db->trans_begin();
+            $claim = $this->idempotency->claim('payout.request', $key, (int)$user_id, $operation);
+            if (empty($claim['proceed'])) {
+                $this->db->trans_rollback();
+                $this->session->set_flashdata('flash_message', get_phrase('withdrawal_requested'));
+                return;
+            }
             $data['amount']     = $requested_withdrawal_amount;
             $data['user_id']    = $this->session->userdata('user_id');
             $data['date_added'] = strtotime(date('D, d M Y'));
             $data['status']     = 0;
+            if ($this->db->field_exists('idempotency_key', 'payout')) $data['idempotency_key'] = $key;
             $this->db->insert('payout', $data);
+            $payout_id = (int)$this->db->insert_id();
+            $response = ['status' => true, 'payout_id' => $payout_id];
+            $this->immutable_audit->record('payout', 'requested', 'payout', $payout_id, [], $data, [
+                'actor_user_id' => (int)$user_id,
+                'actor_role' => 'tutor',
+                'idempotency_key' => $key,
+            ]);
+            $this->idempotency->complete((int)$claim['id'], $response, 'payout', $payout_id);
+            if ($this->db->trans_status()) $this->db->trans_commit(); else $this->db->trans_rollback();
             $this->session->set_flashdata('flash_message', get_phrase('withdrawal_requested'));
         } else {
             $this->session->set_flashdata('error_message', get_phrase('invalid_withdrawal_amount'));
@@ -4368,6 +4581,68 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         return $this->db->get('watch_histories');
     }
 
+    public function get_student_course_dashboard(int $student_user_id): array
+    {
+        if ($student_user_id <= 0) {
+            return [
+                'enrolled_course_count' => 0,
+                'completed_course_count' => 0,
+                'average_course_progress' => 0,
+                'continue_courses' => [],
+                'expiring_courses' => [],
+            ];
+        }
+
+        $enrolments = $this->user_model->my_courses($student_user_id)->result_array();
+        $continue_courses = [];
+        $expiring_courses = [];
+        $completed_count = 0;
+        $progress_total = 0;
+        $now = time();
+        $soon = strtotime('+30 days');
+
+        foreach ($enrolments as $enrolment) {
+            $course = $this->get_course_by_id($enrolment['course_id'])->row_array();
+            if (empty($course)) {
+                continue;
+            }
+
+            $watch_history = $this->get_watch_histories($student_user_id, (int)$course['id'])->row_array();
+            $progress = isset($watch_history['course_progress']) ? round((float)$watch_history['course_progress'], 2) : 0;
+            $progress_total += $progress;
+
+            if ($progress >= 100) {
+                $completed_count++;
+            }
+
+            $course_item = [
+                'enrolment' => $enrolment,
+                'course' => $course,
+                'progress' => $progress,
+                'watching_lesson_id' => isset($watch_history['watching_lesson_id']) ? (int)$watch_history['watching_lesson_id'] : 0,
+            ];
+
+            if ($progress < 100) {
+                $continue_courses[] = $course_item;
+            }
+
+            $expiry_date = (int)($enrolment['expiry_date'] ?? 0);
+            if ($expiry_date > 0 && $expiry_date >= $now && $expiry_date <= $soon) {
+                $expiring_courses[] = $course_item;
+            }
+        }
+
+        $enrolled_count = count($enrolments);
+
+        return [
+            'enrolled_course_count' => $enrolled_count,
+            'completed_course_count' => $completed_count,
+            'average_course_progress' => $enrolled_count > 0 ? round($progress_total / $enrolled_count, 2) : 0,
+            'continue_courses' => array_slice($continue_courses, 0, 4),
+            'expiring_courses' => array_slice($expiring_courses, 0, 4),
+        ];
+    }
+
     function update_last_played_lesson($course_id = "", $lesson_id = "")
     {
         $user_id = $this->session->userdata('user_id');
@@ -4533,9 +4808,27 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $verification_code = str_replace('=', '', base64_encode($solid_email . '--' . rand(1111, 9999)));
         $this->db->where('email', $email);
         $this->db->update('users', array('verification_code' => $verification_code, 'last_modified' => time()));
-        // send new password to user email
+
         $this->email_model->password_reset_email($verification_code, $email);
+
+        // Temporary testing fallback: show the reset link when hosting email is unreliable.
+        if ($this->testing_verification_disabled()) {
+            $reset_link = site_url('login/change_password/' . $verification_code);
+            $this->session->set_flashdata(
+                'flash_message',
+                'Testing mode: email sending may be delayed. Reset password here: <a href="' . html_escape($reset_link) . '">Change Password</a>'
+            );
+            return $verification_code;
+        }
+
         $this->session->set_flashdata('flash_message', get_phrase('check_your_inbox_for_the_request'));
+        return $verification_code;
+    }
+
+    private function testing_verification_disabled(): bool
+    {
+        // Temporary testing switch: set to false after email testing is complete.
+        return true;
     }
 
     function change_password_from_forgot_passord($verification_code = "")

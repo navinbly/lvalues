@@ -14,6 +14,42 @@
     <div class="col-xl-12">
         <div class="card">
             <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start flex-wrap">
+                    <div>
+                        <h4 class="mb-1 header-title">Security and role readiness</h4>
+                        <p class="text-muted mb-0">Phase 1 makes privileged access easier to audit by bringing admins and permissions into the main navigation.</p>
+                    </div>
+                    <a href="<?php echo site_url('admin/admin_form/add_admin_form'); ?>" class="btn btn-outline-primary btn-sm mt-2 mt-md-0">Add admin</a>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-4 mb-2">
+                        <div class="border rounded p-3 h-100">
+                            <strong>Least privilege</strong>
+                            <p class="text-muted mb-0 small">Assign only the modules each admin needs for daily work.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="border rounded p-3 h-100">
+                            <strong>Approval discipline</strong>
+                            <p class="text-muted mb-0 small">Finance, content publishing, and settings access should be limited to trusted roles.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <div class="border rounded p-3 h-100">
+                            <strong>Phase 5 hardening</strong>
+                            <p class="text-muted mb-0 small">Require MFA, password policy, active session review, and dual approval for privileged admins.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-xl-12">
+        <div class="card">
+            <div class="card-body">
                 <h4 class="mb-3 header-title"><?php echo get_phrase('admins'); ?></h4>
                 <div class="table-responsive-sm mt-4">
                     <table id="basic-datatable" class="table table-striped table-centered mb-0">

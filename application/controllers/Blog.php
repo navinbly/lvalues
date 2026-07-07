@@ -161,7 +161,7 @@ class Blog extends CI_Controller
 	
 public function content($a=null, $b=null, $c=null, $d=null)
 {
-    $this->load->model('content_docs_model');
+    $this->load->model('Content_docs_model', 'content_docs_model');
 
     // 1) Build full_path from URL segments
     $parts = array_filter([$a,$b,$c,$d]);

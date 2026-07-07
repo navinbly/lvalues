@@ -10,6 +10,7 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
         </div> <!-- end card -->
     </div><!-- end col-->
 </div>
+<?php include APPPATH.'views/backend/course_workflow_panel.php'; ?>
 
 <div class="row">
     <div class="col-xl-12">
@@ -22,10 +23,11 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h4 class="header-title my-1"><?php echo get_phrase('course_manager'); ?></h4>
+                        <h4 class="header-title my-1">Video Course Manager</h4>
+                        <p class="text-muted mb-0">Editing a structured video/LMS course. Books and notes are managed from Publish Books.</p>
                     </div>
                     <div class="col-md-6">
-                        <a href="<?php echo site_url('user/preview/' . $course_id); ?>" class="alignToTitle btn btn-outline-secondary btn-rounded btn-sm ml-1 my-1" target="_blank"><?php echo get_phrase('view_on_frontend'); ?> <i class="mdi mdi-arrow-right"></i> </a>
+                        <a href="<?php echo site_url('user/preview/' . $course_id); ?>" class="alignToTitle btn btn-outline-secondary btn-rounded btn-sm ml-1 my-1" target="_blank" rel="noopener" aria-label="Preview course on frontend"><?php echo get_phrase('view_on_frontend'); ?> <i class="mdi mdi-arrow-right"></i> </a>
 
                         <a href="<?php echo site_url('user/courses'); ?>" class="alignToTitle btn btn-outline-secondary btn-rounded btn-sm my-1"> <i class=" mdi mdi-keyboard-backspace"></i> <?php echo get_phrase('back_to_course_list'); ?></a>
                     </div>
@@ -33,7 +35,30 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
 
                 <div class="row">
                     <div class="col-xl-12">
-                        <form class="required-form" action="<?php echo site_url('user/course_actions/edit/' . $course_id); ?>" method="post" enctype="multipart/form-data">
+                                        <?php
+                    $builder_checks = [
+                        'title' => !empty($course_details['title']),
+                        'category' => !empty($course_details['sub_category_id']),
+                        'description' => !empty(strip_tags((string)$course_details['description'])),
+                    ];
+                    $builder_complete = count(array_filter($builder_checks));
+                    $builder_percent = (int) round(($builder_complete / max(1, count($builder_checks))) * 100);
+                ?>
+                <div class="alert alert-light border mb-3" role="status">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <strong>Course builder checklist</strong>
+                            <span class="ml-2"><span class="badge badge-<?php echo $builder_checks['title'] ? 'success' : 'warning'; ?>-lighten mr-1" data-course-check="course_title"><?php echo $builder_checks['title'] ? 'Done' : 'Missing'; ?></span>Title</span>
+                            <span class="ml-2"><span class="badge badge-<?php echo $builder_checks['category'] ? 'success' : 'warning'; ?>-lighten mr-1" data-course-check="sub_category_id"><?php echo $builder_checks['category'] ? 'Done' : 'Missing'; ?></span>Category</span>
+                            <span class="ml-2"><span class="badge badge-<?php echo $builder_checks['description'] ? 'success' : 'warning'; ?>-lighten mr-1" data-course-check="description"><?php echo $builder_checks['description'] ? 'Done' : 'Missing'; ?></span>Description</span>
+                        </div>
+                        <small id="courseBuilderAutosaveStatus" class="text-muted">Autosave ready</small>
+                    </div>
+                    <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="<?php echo $builder_percent; ?>">
+                        <div id="courseBuilderProgress" class="progress-bar" style="width: <?php echo $builder_percent; ?>%;"></div>
+                    </div>
+                </div>
+<form class="required-form" data-course-id="<?php echo (int)$course_id; ?>" action="<?php echo site_url('user/course_actions/edit/' . $course_id); ?>" method="post" enctype="multipart/form-data">
                             <div class="scrollable-tab-section" id="basicwizard">
 
                                 <button type="button" class="scrollable-tab-btn-left" ><i class="mdi mdi-arrow-left"></i></button>
@@ -289,19 +314,19 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="course_title"><?php echo get_phrase('course_title'); ?><span class="required">*</span></label>
                                                     <div class="col-md-10">
-                                                        <input type="text" class="form-control" id="course_title" name="title" placeholder="<?php echo get_phrase('enter_course_title'); ?>" value="<?php echo $course_details['title']; ?>" required>
+                                                        <input type="text" class="form-control" id="course_title" maxlength="120" name="title" placeholder="<?php echo get_phrase('enter_course_title'); ?>" value="<?php echo $course_details['title']; ?>" required>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="short_description"><?php echo get_phrase('short_description'); ?></label>
                                                     <div class="col-md-10">
-                                                        <textarea name="short_description" id="short_description" class="form-control"><?php echo $course_details['short_description']; ?></textarea>
+                                                        <textarea name="short_description" id="short_description" class="form-control" maxlength="220"><?php echo $course_details['short_description']; ?></textarea>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="description"><?php echo get_phrase('description'); ?></label>
                                                     <div class="col-md-10">
-                                                        <textarea name="description" id="description" class="form-control"><?php echo $course_details['description']; ?></textarea>
+                                                        <textarea name="description" id="description" class="form-control" required aria-describedby="courseDescriptionHelp"><?php echo $course_details['description']; ?></textarea><small id="courseDescriptionHelp" class="text-muted">Add enough detail for students to understand the course before publishing.</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
@@ -331,6 +356,7 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
                                                         </select>
                                                     </div>
                                                 </div>
+                                                <?php include APPPATH . 'views/backend/course_delivery_fields.php'; ?>
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="language_made_in"><?php echo get_phrase('language_made_in'); ?></label>
                                                     <div class="col-md-10">
@@ -815,4 +841,122 @@ $course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
             }
         }, 1000);
     <?php endif; ?>
+</script>
+<script type="text/javascript">
+(function () {
+  var form = document.querySelector('form.required-form');
+  if (!form) return;
+
+  var courseId = form.getAttribute('data-course-id') || 'new';
+  var storageKey = 'lvalues_course_builder_draft_' + courseId;
+  var statusEl = document.getElementById('courseBuilderAutosaveStatus');
+  var requiredMap = [
+    { selector: '#course_title', label: 'Title' },
+    { selector: '#sub_category_id', label: 'Category' },
+    { selector: '#description', label: 'Description' }
+  ];
+
+  function fieldValue(selector) {
+    var el = form.querySelector(selector);
+    if (!el) return '';
+    if (window.CKEDITOR && el.id && CKEDITOR.instances[el.id]) {
+      return CKEDITOR.instances[el.id].getData();
+    }
+    if (window.jQuery && jQuery(el).data('summernote')) {
+      return jQuery(el).summernote('code');
+    }
+    return el.value || '';
+  }
+
+  function setFieldValue(selector, value) {
+    var el = form.querySelector(selector);
+    if (!el || value === undefined || value === null) return;
+    if (window.jQuery && jQuery(el).hasClass('select2')) {
+      jQuery(el).val(value).trigger('change');
+      return;
+    }
+    el.value = value;
+  }
+
+  function collectDraft() {
+    var data = {};
+    ['#course_title', '#short_description', '#description', '#sub_category_id', '#level', '#language_made_in', '#price', '#discounted_price', '#course_overview_url', '#meta_keywords', 'textarea[name="meta_description"]'].forEach(function (selector) {
+      var el = form.querySelector(selector);
+      if (el) data[selector] = fieldValue(selector);
+    });
+    data.savedAt = new Date().toISOString();
+    return data;
+  }
+
+  function updateChecklist() {
+    var complete = 0;
+    requiredMap.forEach(function (item) {
+      var el = form.querySelector(item.selector);
+      var badge = document.querySelector('[data-course-check="' + item.selector.replace('#', '') + '"]');
+      var value = fieldValue(item.selector).replace(/<[^>]*>/g, '').trim();
+      var done = !!value;
+      if (done) complete++;
+      if (badge) {
+        badge.className = 'badge badge-' + (done ? 'success' : 'warning') + '-lighten mr-1';
+        badge.textContent = done ? 'Done' : 'Missing';
+      }
+      if (el) {
+        el.setAttribute('aria-invalid', done ? 'false' : 'true');
+      }
+    });
+    var progress = Math.round((complete / requiredMap.length) * 100);
+    var progressEl = document.getElementById('courseBuilderProgress');
+    if (progressEl) {
+      progressEl.style.width = progress + '%';
+      progressEl.parentNode.setAttribute('aria-valuenow', progress);
+    }
+  }
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(collectDraft()));
+      if (statusEl) {
+        statusEl.textContent = 'Draft saved in this browser at ' + new Date().toLocaleTimeString();
+      }
+    } catch (e) {}
+    updateChecklist();
+  }
+
+  function restoreDraftIfWanted() {
+    var raw = null;
+    try { raw = localStorage.getItem(storageKey); } catch (e) {}
+    if (!raw) {
+      updateChecklist();
+      return;
+    }
+    var data = null;
+    try { data = JSON.parse(raw); } catch (e) {}
+    if (!data || !data.savedAt) {
+      updateChecklist();
+      return;
+    }
+
+    var restore = courseId === 'new'
+      ? confirm('A local autosaved course draft was found. Restore it?')
+      : false;
+
+    if (restore) {
+      Object.keys(data).forEach(function (selector) {
+        if (selector === 'savedAt') return;
+        setFieldValue(selector, data[selector]);
+      });
+      if (statusEl) statusEl.textContent = 'Restored local draft from ' + new Date(data.savedAt).toLocaleString();
+    }
+    updateChecklist();
+  }
+
+  form.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);
+  form.addEventListener('submit', function () {
+    try { localStorage.removeItem(storageKey); } catch (e) {}
+  });
+
+  setTimeout(restoreDraftIfWanted, 700);
+  setInterval(saveDraft, 30000);
+})();
 </script>

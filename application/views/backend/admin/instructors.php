@@ -12,6 +12,33 @@
 
 <div class="row">
   <div class="col-lg-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap">
+          <div>
+            <h4 class="mb-1 header-title">Tutor table workflow controls</h4>
+            <p class="text-muted mb-0">Phase 7 readiness for saved filters, bulk assignment, reviewer queues, and async tutor exports.</p>
+          </div>
+          <span class="badge badge-warning-lighten mt-2 mt-md-0">Phase 7</span>
+        </div>
+        <div class="table-workflow-toolbar mt-3">
+          <div>
+            <strong class="d-block">Operational views</strong>
+            <span class="text-muted">Recommended views: pending profile, low score, inactive tutor, finance-linked, complaint-linked.</span>
+          </div>
+          <div class="btn-group mt-2 mt-md-0" role="group" aria-label="Tutor table workflow actions">
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled>Save view</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled>Assign reviewer</button>
+            <button type="button" class="btn btn-outline-primary btn-sm" disabled>Async export</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-lg-12">
       <div class="card">
         <div class="card-body" data-collapsed="0">
           <h4 class="mb-3 header-title"><?php echo get_phrase('instructor'); ?></h4>

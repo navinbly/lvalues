@@ -34,6 +34,15 @@ class Home extends CI_Controller
             $this->user_model->session_destroy();
         }
 
+        if ($this->session->userdata('user_login')) {
+            $tutor_login_block_message = $this->user_model->pending_tutor_login_block_message((int)$this->session->userdata('user_id'));
+            if ($tutor_login_block_message !== '') {
+                $this->user_model->session_destroy();
+                $this->session->set_flashdata('error_message', $tutor_login_block_message);
+                redirect(site_url('login'), 'refresh');
+            }
+        }
+
         ini_set('memory_limit', '1024M');
     }
 
@@ -57,7 +66,153 @@ class Home extends CI_Controller
             redirect(site_url('user/dashboard'), 'refresh');
         }
 
-        redirect(site_url('home/my_courses'), 'refresh');
+        redirect(site_url('home/student_dashboard'), 'refresh');
+    }
+
+    public function student_dashboard()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+
+        $user_id = (int)$this->session->userdata('user_id');
+        $this->load->model('Tutor_batch_model', 'tutor_batch_model');
+
+        $page_data['student_360'] = $this->tutor_batch_model->get_student_360_foundation($user_id);
+        $page_data['course_dashboard'] = $this->crud_model->get_student_course_dashboard($user_id);
+        $page_data['student_command_center'] = $this->_get_student_command_center($user_id, $page_data['student_360'], $page_data['course_dashboard']);
+        $page_data['page_name'] = 'student_dashboard';
+        $page_data['page_title'] = site_phrase('student_dashboard');
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
+    private function _get_student_command_center($user_id, $student_360 = [], $course_dashboard = [])
+    {
+        $user_id = (int)$user_id;
+        $summary = isset($student_360['summary']) && is_array($student_360['summary']) ? $student_360['summary'] : [];
+        $continue_courses = isset($course_dashboard['continue_courses']) && is_array($course_dashboard['continue_courses']) ? $course_dashboard['continue_courses'] : [];
+        $today_class_count = (int)($student_360['today_class_count'] ?? 0);
+        $pending_work_count = (int)($student_360['pending_work_count'] ?? 0);
+        $active_batch_count = (int)($student_360['active_batch_count'] ?? 0);
+        $active_course_count = (int)($course_dashboard['enrolled_course_count'] ?? 0);
+        $average_course_progress = (float)($course_dashboard['average_course_progress'] ?? 0);
+        $overall_progress = max($average_course_progress, (float)($summary['overall_percent'] ?? 0));
+
+        $practice_attempts = 0;
+        $avg_practice_score = 0;
+        if ($this->db->table_exists('content_exam_attempts')) {
+            $row = $this->db->select('COUNT(*) AS attempts, ROUND(AVG(percentage), 2) AS avg_score', false)
+                ->where('user_id', $user_id)
+                ->where('submitted_at IS NOT NULL', null, false)
+                ->get('content_exam_attempts')
+                ->row_array();
+            $practice_attempts = (int)($row['attempts'] ?? 0);
+            $avg_practice_score = (float)($row['avg_score'] ?? 0);
+        }
+
+        $pending_tutor_requests = 0;
+        if ($this->db->table_exists('tutor_requests')) {
+            $pending_tutor_requests = (int)$this->db
+                ->where('student_user_id', $user_id)
+                ->where_in('status', ['pending', 'shortlisted'])
+                ->count_all_results('tutor_requests');
+        }
+
+        $unread_notifications = (int)($student_360['unread_notifications'] ?? 0);
+        $first_course = !empty($continue_courses) ? ($continue_courses[0]['course'] ?? []) : [];
+        $continue_url = !empty($first_course)
+            ? site_url('home/lesson/' . slugify($first_course['title'] ?? 'course') . '/' . (int)($first_course['id'] ?? 0))
+            : site_url('home/my_courses');
+
+        $actions = [
+            [
+                'title' => 'Continue learning',
+                'text' => 'Resume your latest course or open enrolled courses.',
+                'url' => $continue_url,
+                'icon' => 'fa-solid fa-play',
+                'value' => $active_course_count,
+                'label' => 'courses',
+                'primary' => true,
+            ],
+            [
+                'title' => 'Today\'s classes',
+                'text' => 'Join live sessions and review your batch schedule.',
+                'url' => site_url('student_batch/my_batches'),
+                'icon' => 'fa-regular fa-calendar-check',
+                'value' => $today_class_count,
+                'label' => 'today',
+                'primary' => false,
+            ],
+            [
+                'title' => 'Assignments & tests',
+                'text' => 'Clear pending batch work before the due date.',
+                'url' => site_url('student_batch/my_batches'),
+                'icon' => 'fa-regular fa-clipboard',
+                'value' => $pending_work_count,
+                'label' => 'pending',
+                'primary' => false,
+            ],
+            [
+                'title' => 'Mock tests',
+                'text' => 'Review scores and keep practicing from your test dashboard.',
+                'url' => site_url('home/my_practice_tests'),
+                'icon' => 'fa-solid fa-file-circle-check',
+                'value' => $practice_attempts,
+                'label' => 'attempts',
+                'primary' => false,
+            ],
+            [
+                'title' => 'Find tutor help',
+                'text' => 'Request support from verified tutors by subject and class.',
+                'url' => site_url('home/search?search_for=tutor'),
+                'icon' => 'fa-solid fa-chalkboard-user',
+                'value' => $pending_tutor_requests,
+                'label' => 'requests',
+                'primary' => false,
+            ],
+            [
+                'title' => 'Progress report',
+                'text' => 'Track attendance, test score, assignments, and certificates.',
+                'url' => site_url('student_batch/export_progress_pdf'),
+                'icon' => 'fa-solid fa-chart-line',
+                'value' => round($overall_progress),
+                'label' => '%',
+                'primary' => false,
+            ],
+        ];
+
+        $attention = [];
+        if ($today_class_count > 0) {
+            $attention[] = ['label' => 'Class scheduled today', 'value' => $today_class_count, 'url' => site_url('student_batch/my_batches'), 'tone' => 'success'];
+        }
+        if ($pending_work_count > 0) {
+            $attention[] = ['label' => 'Pending assignments or tests', 'value' => $pending_work_count, 'url' => site_url('student_batch/my_batches'), 'tone' => 'warning'];
+        }
+        if ($active_course_count === 0 && $active_batch_count === 0) {
+            $attention[] = ['label' => 'Start a course or join a batch', 'value' => 'New', 'url' => site_url('home/courses'), 'tone' => 'primary'];
+        }
+        if ($practice_attempts === 0) {
+            $attention[] = ['label' => 'Take your first mock test', 'value' => 'Practice', 'url' => site_url('mock-tests'), 'tone' => 'info'];
+        }
+        if ($unread_notifications > 0) {
+            $attention[] = ['label' => 'Unread notifications', 'value' => $unread_notifications, 'url' => site_url('notifications'), 'tone' => 'danger'];
+        }
+
+        return [
+            'metrics' => [
+                'active_courses' => $active_course_count,
+                'active_batches' => $active_batch_count,
+                'today_classes' => $today_class_count,
+                'pending_work' => $pending_work_count,
+                'practice_attempts' => $practice_attempts,
+                'average_practice_score' => $avg_practice_score,
+                'overall_progress' => round($overall_progress),
+                'pending_tutor_requests' => $pending_tutor_requests,
+                'unread_notifications' => $unread_notifications,
+            ],
+            'actions' => $actions,
+            'attention' => $attention,
+        ];
     }
 
     function test()
@@ -101,7 +256,7 @@ class Home extends CI_Controller
 		// Latest published content pages for the "Latest blogs" section on homepage.
 		// Kept lightweight (single query + small limit).
 		if ((int)get_frontend_settings('blog_visibility_on_the_home_page') === 1) {
-			$this->load->model('content_docs_model');
+			$this->load->model('Content_docs_model', 'content_docs_model');
 			$page_data['latest_docs'] = $this->content_docs_model->get_latest_published_pages(3);
 		}
 
@@ -113,9 +268,22 @@ class Home extends CI_Controller
 		$this->load->model('Tutor_session_model', 'tutor_session_model');
 		$page_data['upcoming_tutor_sessions'] = $this->tutor_session_model->get_upcoming_published(10);
 
+		// Featured public mock tests for the homepage.
+		// This reuses the existing Admin Exam/Mock Test module and shows only published public exams.
+		if ($this->db->table_exists('content_exams')) {
+			$this->load->model('Exam_model', 'exam_model');
+			$page_data['latest_public_exams'] = $this->exam_model->get_featured_public_exams(6);
+		} else {
+			$page_data['latest_public_exams'] = [];
+		}
 
 		$this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
 	}
+
+    public function tutors()
+    {
+        redirect(site_url('home/search?search_for=tutor'), 'location', 302);
+    }
 
 
     //send gift
@@ -340,6 +508,21 @@ class Home extends CI_Controller
 
         $page_data['page_name'] = "my_courses";
         $page_data['page_title'] = site_phrase("my_courses");
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
+    public function my_practice_tests()
+    {
+        if ($this->session->userdata('user_login') != true) {
+            redirect(site_url('home'), 'refresh');
+        }
+
+        $this->load->model('Exam_model', 'exam_model');
+        $user_id = (int)$this->session->userdata('user_id');
+        $page_data['page_name'] = 'my_practice_tests';
+        $page_data['page_title'] = 'Mock Tests & Progress';
+        $page_data['attempts'] = $this->exam_model->get_student_attempts($user_id);
+        $page_data['analytics'] = $this->exam_model->get_student_exam_analytics($user_id);
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
     }
 
@@ -1152,8 +1335,8 @@ class Home extends CI_Controller
         $search_for = 'course';
     }
 
-    if (!empty($incoming_query)) {
-        $search_string = $incoming_query;
+    if (!empty($incoming_query) || $search_for === 'tutor') {
+        $search_string = !empty($incoming_query) ? $incoming_query : '';
 
         // check double quote and script text in the search string
         if (preg_match('/"/', $search_string) >= 1 && strpos(strtolower($search_string), "script") !== false) {

@@ -12,6 +12,13 @@
         </a>
 
         <ul class="list-unstyled topbar-right-menu float-right mb-0">
+            <?php if ($this->session->userdata('admin_login')) : ?>
+                <li class="notification-list">
+                    <button type="button" class="nav-link admin-theme-toggle" data-admin-theme-toggle aria-label="Toggle admin theme" aria-pressed="false" title="Switch to dark mode">
+                        <i class="mdi mdi-moon-waning-crescent"></i>
+                    </button>
+                </li>
+            <?php endif; ?>
 
             <li class="dropdown notification-list topbar-dropdown">
                 <a class="nav-link dropdown-toggle arrow-none" data-toggle="dropdown" href="#" role="button" aria-haspopup="false" aria-expanded="false">
@@ -222,6 +229,11 @@
                     <!-- Account -->
                     <?php if ($this->session->userdata('admin_login') == 1) : ?>
                         <a href="<?php echo site_url(strtolower($this->session->userdata('role')) . '/manage_profile'); ?>" class="dropdown-item notify-item">
+                            <i class="mdi mdi-account-circle mr-1"></i>
+                            <span><?php echo get_phrase('my_account'); ?></span>
+                        </a>
+                    <?php elseif ($this->session->userdata('is_instructor')) : ?>
+                        <a href="<?php echo site_url('user/manage_profile'); ?>" class="dropdown-item notify-item">
                             <i class="mdi mdi-account-circle mr-1"></i>
                             <span><?php echo get_phrase('my_account'); ?></span>
                         </a>

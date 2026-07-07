@@ -527,7 +527,7 @@ function render_tree($parent_id, $children)
 </script>
 
 <!-- CKEditor (Full build includes image2 for resizing) -->
-<script src="https://cdn.ckeditor.com/4.21.0/full-all/ckeditor.js"></script>
+<script src="https://cdn.ckeditor.com/4.25.1-lts/full-all/ckeditor.js"></script>
 
 <script>
 (function () {
@@ -562,8 +562,9 @@ function render_tree($parent_id, $children)
     // ✅ Only images: use your working endpoint
     filebrowserImageUploadUrl: "<?php echo site_url('admin/content_page_upload'); ?>",
 
-    // (Optional) makes pasted content cleaner
-    allowedContent: true
+    // Keep Advanced Content Filter enabled; allow only the extra responsive image attributes/classes we need
+    allowedContent: false,
+    extraAllowedContent: 'img[!src,alt,width,height]{width,height}(img-fluid,image-align-left,image-align-center,image-align-right); figure(!image); figcaption; p h1 h2 h3 h4 h5 h6 strong em u s ul ol li blockquote a[!href,target,rel]; table thead tbody tr th td; span{color,background-color}; br'
   });
 
   CKEDITOR.on('instanceReady', function (evt) {

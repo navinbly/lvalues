@@ -77,7 +77,28 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 				<li class="side-nav-item">
 					<a href="<?php echo site_url('user/courses'); ?>" class="side-nav-link <?php if ($page_name == 'courses' || $page_name == 'course_add' || $page_name == 'course_edit') echo 'active'; ?>">
 						<i class="dripicons-archive"></i>
-						<span><?php echo get_phrase('course_manager'); ?></span>
+						<span>Video Course Manager</span>
+					</a>
+				</li>
+
+				<li class="side-nav-item">
+					<a href="<?php echo site_url('user/student-communication'); ?>" class="side-nav-link <?php if ($page_name == 'communication_center') echo 'active'; ?>">
+						<i class="dripicons-mail"></i>
+						<span>Student Communication</span>
+					</a>
+				</li>
+
+				<li class="side-nav-item">
+					<a href="<?php echo site_url('assessment-center'); ?>" class="side-nav-link <?php if ($page_name == 'assessment_workflow') echo 'active'; ?>">
+						<i class="dripicons-checklist"></i>
+						<span>Assessment Center</span>
+					</a>
+				</li>
+
+				<li class="side-nav-item">
+					<a href="<?php echo site_url('teacher-analytics'); ?>" class="side-nav-link <?php if ($page_name == 'teacher_analytics') echo 'active'; ?>">
+						<i class="dripicons-graph-line"></i>
+						<span>Analytics & Quality</span>
 					</a>
 				</li>
 
@@ -174,14 +195,14 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 				<?php endif; ?>
 
 				<li class="side-nav-item">
-					<a href="<?php echo site_url('user/sales_report'); ?>" class="side-nav-link <?php if ($page_name == 'report' || $page_name == 'invoice') echo 'active'; ?>">
+					<a href="<?php echo site_url('user/sales_report'); ?>" class="side-nav-link <?php if ($page_name == 'sales_report' || $page_name == 'invoice') echo 'active'; ?>">
 						<i class="dripicons-to-do"></i>
 						<span><?php echo get_phrase('sales_report'); ?></span>
 					</a>
 				</li>
 
 				<li class="side-nav-item">
-					<a href="<?php echo site_url('user/payout_report'); ?>" class="side-nav-link <?php if ($page_name == 'payout_report' || $page_name == 'invoice') echo 'active'; ?>">
+					<a href="<?php echo site_url('user/payout_report'); ?>" class="side-nav-link <?php if ($page_name == 'payout_report') echo 'active'; ?>">
 						<i class="dripicons-shopping-bag"></i>
 						<span><?php echo get_phrase('payout_report'); ?></span>
 					</a>
@@ -273,7 +294,7 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 				</li>
 
 				<li class="side-nav-item">
-					<a href="<?php echo site_url('addons/affiliate_course/affiliate_course_history '); ?>" class="side-nav-link <?php if ($page_name == 'become_an_affiliator')  ?>">
+					<a href="<?php echo site_url('addons/affiliate_course/affiliate_course_history'); ?>" class="side-nav-link <?php if ($page_name == 'affiliate_course_history') echo 'active'; ?>">
 						<i class="dripicons-archive"></i>
 						<span><?php echo get_phrase('Affiliation History'); ?></span>
 					</a>
@@ -289,31 +310,84 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 		<?php endif; ?>
 
 		<?php if ($this->session->userdata('is_instructor')) : ?>
-			<li class="side-nav-item <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
-				<a href="javascript: void(0);" class="side-nav-link <?php if ($page_name == 'content_nodes' || $page_name == 'content_pages' || $page_name == 'content_add_node' || $page_name == 'content_edit_node' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') : ?> active <?php endif; ?>">
-					<i class="mdi mdi-file-document-outline"></i>
-					<span><?php echo get_phrase('Content (Docs)'); ?></span>
+			<?php
+				$content_section = $this->input->get('section') ?: 'book';
+				$content_menu_active = ($page_name == 'content_nodes');
+			?>
+			<li class="side-nav-item <?php if ($content_menu_active) echo 'active'; ?>">
+				<a href="javascript: void(0);" class="side-nav-link <?php if ($content_menu_active) echo 'active'; ?>">
+					<i class="mdi mdi-book-open-page-variant"></i>
+					<span>Publish Books</span>
 					<span class="menu-arrow"></span>
 				</a>
-
-				<ul class="side-nav-second-level" aria-expanded="false">
-					<li class="<?php if ($page_name == 'content_nodes' || $page_name == 'content_add_node' || $page_name == 'content_edit_node') echo 'active'; ?>">
-						<a href="<?php echo site_url('user/content_nodes'); ?>">
-							<?php echo get_phrase('Nodes (Tree)'); ?>
+				<ul class="side-nav-second-level <?php if ($content_menu_active) echo 'in'; ?>" aria-expanded="<?php echo $content_menu_active ? 'true' : 'false'; ?>">
+					<li class="lv-tutor-course-content-nav <?php if ($content_menu_active) echo 'active lv-expanded'; ?>">
+						<a href="javascript:void(0);" class="lv-tutor-course-content-toggle">
+							Book Studio <span class="menu-arrow"></span>
 						</a>
-					</li>
-
-					<li class="<?php if ($page_name == 'content_pages' || $page_name == 'content_add_page' || $page_name == 'content_edit_page') echo 'active'; ?>">
-						<a href="<?php echo site_url('user/content_pages'); ?>">
-							<?php echo get_phrase('Pages'); ?>
-						</a>
+						<ul class="side-nav-third-level lv-tutor-course-content-children <?php if ($content_menu_active) echo 'in'; ?>" aria-expanded="<?php echo $content_menu_active ? 'true' : 'false'; ?>" style="display:<?php echo $content_menu_active ? 'block' : 'none'; ?>;">
+							<li class="<?php if ($content_menu_active && $content_section == 'book') echo 'active'; ?>">
+								<a href="<?php echo site_url('user/content_nodes?section=book'); ?>">
+									Create Book / Notes
+								</a>
+							</li>
+							<li class="<?php if ($content_menu_active && $this->input->get('action') == 'upload') echo 'active'; ?>">
+								<a href="<?php echo site_url('user/content_nodes?section=book&action=upload'); ?>">
+									Upload Book / Notes
+								</a>
+							</li>
+							<li class="<?php if ($content_menu_active && $content_section == 'article') echo 'active'; ?>">
+								<a href="<?php echo site_url('user/content_nodes?section=article'); ?>">
+									Create Blog / Article
+								</a>
+							</li>
+						</ul>
 					</li>
 				</ul>
+			</li>
+			<?php
+				$qb_tab = $this->input->get('qb_tab') ?: 'create_exam';
+				$question_bank_active = ($page_name == 'question_bank');
+				$exam_pattern_active = in_array($page_name, array('content_public_exams', 'exam_pattern_builder'), true);
+			?>
+			<li class="side-nav-item <?php if ($question_bank_active) echo 'active'; ?>">
+				<a href="javascript: void(0);" class="side-nav-link <?php if ($question_bank_active) echo 'active'; ?>">
+					<i class="mdi mdi-database-search"></i>
+					<span>Question Bank</span>
+					<span class="menu-arrow"></span>
+				</a>
+				<ul class="side-nav-second-level <?php if ($question_bank_active) echo 'in'; ?>" aria-expanded="<?php echo $question_bank_active ? 'true' : 'false'; ?>">
+					<li class="<?php if ($question_bank_active && $qb_tab == 'create_exam') echo 'active'; ?>">
+						<a href="<?php echo site_url('user/question_bank?qb_tab=create_exam'); ?>">Create Q Bank</a>
+					</li>
+					<li class="<?php if ($question_bank_active && $qb_tab == 'upload') echo 'active'; ?>">
+						<a href="<?php echo site_url('user/question_bank?qb_tab=upload'); ?>">Upload/Download Question</a>
+					</li>
+					<li class="<?php if ($question_bank_active && $qb_tab == 'search') echo 'active'; ?>">
+						<a href="<?php echo site_url('user/question_bank?qb_tab=search'); ?>">Search Question</a>
+					</li>
+				</ul>
+			</li>
+			<li class="side-nav-item <?php if ($exam_pattern_active) echo 'active'; ?>">
+				<a href="<?php echo site_url('user/content_public_exams'); ?>" class="side-nav-link <?php if ($exam_pattern_active) echo 'active'; ?>">
+					<i class="mdi mdi-clipboard-text-outline"></i>
+					<span>Exam Pattern Builder</span>
+				</a>
+			</li>
+		<?php endif; ?>
+
+
+		<?php if (!$this->session->userdata('is_instructor')) : ?>
+			<li class="side-nav-item <?php if ($page_name == 'my_practice_tests') echo 'active'; ?>">
+				<a href="<?php echo site_url('user/my_practice_tests'); ?>" class="side-nav-link <?php if ($page_name == 'my_practice_tests') echo 'active'; ?>">
+					<i class="mdi mdi-clipboard-check-outline"></i>
+					<span>My Practice Tests / Mock Tests</span>
+				</a>
 			</li>
 		<?php endif; ?>
 
 		<li class="side-nav-item">
-			<a href="<?php echo site_url('home/my_messages'); ?>" class="side-nav-link">
+			<a href="<?php echo site_url('user/message'); ?>" class="side-nav-link <?php if ($page_name == 'message') echo 'active'; ?>">
 				<i class="dripicons-mail"></i>
 				<span><?php echo get_phrase('message'); ?></span>
 				<?php
@@ -331,7 +405,7 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 		</li>
 
 		<li class="side-nav-item">
-			<a href="<?php echo site_url('home/profile/user_profile'); ?>" class="side-nav-link">
+			<a href="<?php echo site_url('user/manage_profile'); ?>" class="side-nav-link <?php if ($page_name == 'manage_profile') echo 'active'; ?>">
 				<i class="dripicons-user"></i>
 				<span><?php echo get_phrase('manage_profile'); ?></span>
 			</a>
@@ -339,3 +413,33 @@ if (!isset($CI->tutor_request_model) || !is_object($CI->tutor_request_model)) {
 
 	</ul>
 </div>
+
+<style>
+.lv-tutor-course-content-nav.lv-expanded > .lv-tutor-course-content-children{display:block!important;}
+.lv-tutor-course-content-toggle{cursor:pointer;}
+.lv-tutor-course-content-toggle .menu-arrow{float:right;margin-top:2px;}
+.lv-tutor-course-content-children{list-style:none;margin:0 0 8px 0;padding-left:0!important;}
+.lv-tutor-course-content-children > li > a{display:block;padding-left:96px!important;}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  document.querySelectorAll('.lv-tutor-course-content-toggle').forEach(function(toggle){
+    toggle.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      var li = toggle.closest('.lv-tutor-course-content-nav');
+      if (!li) return;
+      var expanded = !li.classList.contains('lv-expanded');
+      li.classList.toggle('lv-expanded', expanded);
+      var child = li.querySelector('.lv-tutor-course-content-children');
+      if (child) {
+        child.style.display = expanded ? 'block' : 'none';
+        child.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      }
+    });
+  });
+  document.querySelectorAll('.lv-tutor-course-content-children a').forEach(function(link){
+    link.addEventListener('click', function(e){ e.stopPropagation(); });
+  });
+});
+</script>

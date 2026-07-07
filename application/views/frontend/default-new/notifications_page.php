@@ -1,4 +1,17 @@
-<section class="lvalues-notifications-page py-5">
+<?php
+$user_details = isset($user_details) && is_array($user_details)
+    ? $user_details
+    : $this->user_model->get_all_user($this->session->userdata('user_id'))->row_array();
+include 'breadcrumb.php';
+?>
+<section class="wish-list-body message pb-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-3 col-md-4">
+                <?php include 'profile_menus.php'; ?>
+            </div>
+            <div class="col-lg-9 col-md-8">
+<section class="lvalues-notifications-page py-4">
     <style>
         .lvalues-notifications-page{
             background:#f7f9ff;
@@ -160,20 +173,6 @@
                         <p>
                             <?php echo get_phrase('You do not have any notifications right now. When you receive batch invites, session updates, assignments, tests, approvals, or learning activity, they will appear here.'); ?>
                         </p>
-                        <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:20px;">
-
-							<!-- Back to Home -->
-							<a href="<?php echo site_url(); ?>" class="btn btn-primary" style="min-width:160px;">
-								Back to home
-							</a>
-
-							<!-- Back to Dashboard -->
-							<a href="<?php echo site_url('home/my_courses'); ?>" class="btn btn-outline-primary" style="min-width:160px;">
-								Back to Dashboard
-							</a>
-
-						</div>
-
                         <div class="lvalues-status-table">
                             <div class="lvalues-status-row">
                                 <strong><?php echo get_phrase('Batch invite'); ?></strong>
@@ -190,6 +189,10 @@
                         </div>
                     </div>
                 <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</section>
             </div>
         </div>
     </div>

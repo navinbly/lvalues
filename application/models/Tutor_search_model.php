@@ -51,6 +51,7 @@ class Tutor_search_model extends CI_Model
             'tp.lng',
             'tp.hourly_fee',
             'tp.profile_photo',
+            'tp.status AS tutor_profile_status',
             'IFNULL(tp.avg_rating, 0) AS avg_rating',
             'IFNULL(tp.rating_count, 0) AS rating_count',
             'u.first_name',

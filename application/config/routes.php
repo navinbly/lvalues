@@ -93,9 +93,24 @@ $route['blogs/(:any)'] = "blog/blogs/$1";
 //End blog
 
 // ===================== Content Exams (MCQ) =====================
+
+// Public content exams / mock tests
+$route['books'] = 'library/index';
+$route['books/state'] = 'library/state';
+$route['books/(:any)'] = 'library/book/$1';
+$route['mock-tests'] = 'exam/public_list';
+$route['mock-tests/(:any)'] = 'exam/detail/$1';
+// Backward-compatible old public exam URLs
+$route['public-exams'] = 'exam/public_list';
+$route['public-exams/(:any)'] = 'exam/detail/$1';
+$route['exam/start/(:any)'] = 'exam/start/$1';
+
 // Frontend exam flow (by content node id)
 $route['exam/(:num)']                  = 'exam/intro/$1';
 $route['exam/start/(:num)']            = 'exam/start/$1';
+$route['exam/attempt/(:num)/(:any)/q/(:num)'] = 'exam/question/$1/$3/$2';
+$route['exam/attempt/(:num)/(:any)/autosave'] = 'exam/autosave/$1/$2';
+$route['exam/result/(:num)/(:any)']    = 'exam/result/$1/$2';
 $route['exam/attempt/(:num)/q/(:num)'] = 'exam/question/$1/$2';
 $route['exam/result/(:num)']           = 'exam/result/$1';
 
@@ -127,7 +142,7 @@ $route['page/(:any)'] = "page/index/$1";
 //End Custom page
 
 //tutor booking ..... tutor_booking/tutors
-$route['tutors'] = "addons/tutor_booking/list_of_tuitions";
+$route['tutors'] = "home/tutors";
 $route['tutors/(:any)'] = "addons/tutor_booking/list_of_tuitions/$1";
 $route['tutor/filter'] = "addons/tutor_booking/list_of_tuitions_after_filter";
 $route['schedules_bookings/(:any)'] = "addons/tutor_booking/tutor_details/$1";
@@ -137,6 +152,7 @@ $route['my_bookings'] = "addons/tutor_booking/booked_schedules_student";
 $route['translate_uri_dashes'] = FALSE;
 
 // ----------------------------------------------------
+// ----------------------------------------------------
 // DOCX IMPORT (CKEditor) ROUTES
 // Added on: 2026-02-07
 // Purpose: CKEditor "Import DOCX" calls this endpoint and expects JSON
@@ -144,9 +160,19 @@ $route['translate_uri_dashes'] = FALSE;
 // ----------------------------------------------------
 $route['admin/doc-import/upload-docx'] = 'AdminDocImport/upload_docx';
 
+// ----------------------------------------------------
+// SECURITY ALERTS (Suspicious Login)
+// ----------------------------------------------------
+$route['security/confirm/yes/(:any)'] = 'Security_login/confirm_yes/$1';
+$route['security/confirm/no/(:any)']  = 'Security_login/confirm_no/$1';
+
 
 
 // Tutor signup hierarchy
+
+// External OAuth/OIDC login
+$route['login/oauth/(:any)'] = 'login/oauth/$1';
+$route['login/oauth-callback/(:any)'] = 'login/oauth_callback/$1';
 $route['sign_up'] = 'Sign_up/index';
 $route['sign_up/verification_code'] = 'Sign_up/verification_code';
 $route['tutor-api/registration-tree'] = 'Tutor_api/registration_tree';
@@ -156,6 +182,10 @@ $route['tutor-api/subjects-by-class'] = 'Tutor_api/subjects_by_class';
 
 $route['user/tutor_teaching_profile'] = 'User/tutor_teaching_profile';
 $route['user/update_tutor_teaching_profile'] = 'User/update_tutor_teaching_profile';
+$route['user/tutor_batches'] = 'tutor_batch/index';
+$route['user/payment_settings'] = 'User/payout_settings';
+$route['home/student_batches'] = 'student_batch/my_batches';
+$route['home/notifications'] = 'notifications/index';
 
 $route['student_batch/submit_assignment/(:num)'] = 'student_batch/submit_assignment/$1';
 
@@ -173,7 +203,58 @@ $route['tutor_batch/save_attendance/(:num)'] = 'tutor_batch/save_attendance/$1';
 
 $route['tutor_batch/update_session_links/(:num)'] = 'tutor_batch/update_session_links/$1';
 $route['student_batch/join_session/(:num)'] = 'student_batch/join_session/$1';
+$route['student_batch/request_enrollment/(:num)'] = 'student_batch/request_enrollment/$1';
 
 $route['notifications'] = 'notifications/index';
 $route['notifications/read/(:num)'] = 'notifications/read/$1';
 $route['notifications/mark_all_read'] = 'notifications/mark_all_read';
+
+// Communication automation and bulk messaging
+$route['admin/communication-center'] = 'communication/admin';
+$route['user/student-communication'] = 'communication/tutor';
+$route['communication/preview/(:any)'] = 'communication/preview/$1';
+$route['communication/send/(:any)'] = 'communication/send/$1';
+$route['communication/retry/(:num)'] = 'communication/retry/$1';
+$route['communication/preferences'] = 'communication/preferences';
+
+// Teacher workflow and provider-neutral live learning
+$route['teacher-workspace'] = 'teacher_workflow/workspace';
+$route['teacher-workflow/calendar'] = 'teacher_workflow/calendar';
+$route['teacher-workflow/complete/(:num)'] = 'teacher_workflow/complete_item/$1';
+$route['teacher-workflow/autosave'] = 'teacher_workflow/autosave';
+$route['teacher-workflow/versions'] = 'teacher_workflow/versions';
+$route['teacher-workflow/template/(:num)'] = 'teacher_workflow/create_template/$1';
+$route['teacher-workflow/use-template/(:num)'] = 'teacher_workflow/use_template/$1';
+$route['teacher-workflow/duplicate/(:num)'] = 'teacher_workflow/duplicate_batch/$1';
+$route['teacher-workflow/reschedule/(:num)'] = 'teacher_workflow/reschedule_session/$1';
+$route['teacher-workflow/enrollment/(:num)/(:any)'] = 'teacher_workflow/review_enrollment/$1/$2';
+$route['teacher-workflow/health/(:num)'] = 'teacher_workflow/refresh_health/$1';
+$route['live-learning/providers'] = 'live_learning/providers';
+$route['live-learning/connection-test'] = 'live_learning/connection_test';
+$route['live-learning/join/(:num)'] = 'live_learning/join/$1';
+$route['live-learning/consent/(:num)'] = 'live_learning/consent/$1';
+$route['live-learning/incident/(:num)'] = 'live_learning/incident/$1';
+$route['live-learning/playback/(:num)'] = 'live_learning/playback/$1';
+$route['live-learning/sync-attendance/(:num)'] = 'live_learning/sync_attendance/$1';
+$route['live-learning/analytics/(:num)'] = 'live_learning/analytics/$1';
+$route['course-workflow/snapshot/(:num)'] = 'course_workflow/snapshot/$1';
+$route['course-workflow/restore/(:num)'] = 'course_workflow/restore/$1';
+$route['course-workflow/duplicate/(:num)'] = 'course_workflow/duplicate/$1';
+$route['course-workflow/transition/(:num)/(:any)'] = 'course_workflow/transition/$1/$2';
+$route['course-workflow/schedule/(:num)'] = 'course_workflow/schedule/$1';
+$route['course-workflow/accessibility/(:num)'] = 'course_workflow/accessibility/$1';
+$route['course-workflow/library/save/(:num)'] = 'course_workflow/save_lesson/$1';
+$route['course-workflow/library/use/(:num)'] = 'course_workflow/use_lesson/$1';
+$route['assessment-center'] = 'assessment_workflow/index';
+$route['assessment-center/rubric'] = 'assessment_workflow/rubric';
+$route['assessment-center/feedback'] = 'assessment_workflow/feedback';
+$route['assessment-center/bulk-grade'] = 'assessment_workflow/bulk_grade';
+$route['assessment-center/plagiarism/(:num)'] = 'assessment_workflow/plagiarism/$1';
+$route['assessment-center/moderate-attempt/(:num)'] = 'assessment_workflow/moderate_attempt/$1';
+$route['assessment-center/rebuild-mastery'] = 'assessment_workflow/rebuild_mastery';
+$route['assessment-center/parent-summary/(:num)'] = 'assessment_workflow/parent_summary/$1';
+$route['teacher-analytics'] = 'analytics_quality/teacher';
+$route['teacher-analytics/intervention'] = 'analytics_quality/intervention';
+$route['teacher-analytics/intervention/(:num)/(:any)'] = 'analytics_quality/intervention_status/$1/$2';
+$route['teacher-analytics/progress/(:num)/(:num)'] = 'analytics_quality/progress_pdf/$1/$2';
+$route['teacher-analytics/parent/(:num)/(:num)'] = 'analytics_quality/parent_pdf/$1/$2';

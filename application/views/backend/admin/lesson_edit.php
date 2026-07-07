@@ -78,6 +78,19 @@ $sections = $this->crud_model->get_section('course', $param3)->result_array();
     </div>
 
     <div class="form-group">
+        <label>Alternative text</label>
+        <input type="text" name="alt_text" class="form-control" value="<?php echo html_escape($lesson_details['alt_text'] ?? ''); ?>">
+    </div>
+    <div class="form-group">
+        <label>Caption or transcript URL</label>
+        <input type="url" name="transcript_url" class="form-control" value="<?php echo html_escape($lesson_details['transcript_url'] ?? ''); ?>">
+    </div>
+    <div class="form-group">
+        <label>Keyboard access notes</label>
+        <textarea name="keyboard_notes" class="form-control" rows="2"><?php echo html_escape($lesson_details['keyboard_notes'] ?? ''); ?></textarea>
+    </div>
+
+    <div class="form-group">
         <label><?php echo get_phrase('do_you_want_to_keep_it_free_as_a_preview_lesson'); ?>?</label>
         <br>
         <input type="checkbox" name="free_lesson" id="free_lesson" value="1" <?php if($lesson_details['is_free'])echo 'checked'; ?>>

@@ -1,0 +1,11 @@
+<?php $preference=$communication_preference??array();?>
+<section class="container py-5"><div class="row justify-content-center"><div class="col-lg-8"><div class="card"><div class="card-body">
+<h3>Communication Preferences</h3><p class="text-muted">Choose how Lvalues may contact you. Essential transactional messages are separate from promotions.</p>
+<form method="post" action="<?php echo site_url('communication/preferences');?>">
+<div class="table-responsive"><table class="table"><thead><tr><th>Channel</th><th>Transactional</th><th>Promotional</th></tr></thead><tbody>
+<?php foreach(array('email'=>'Email','whatsapp'=>'WhatsApp','in_app'=>'In-app') as $key=>$label):?><tr><td><?php echo $label;?></td><td><input type="checkbox" name="<?php echo $key;?>_transactional" value="1" <?php echo !empty($preference[$key.'_transactional'])?'checked':'';?>></td><td><input type="checkbox" name="<?php echo $key;?>_promotional" value="1" <?php echo !empty($preference[$key.'_promotional'])?'checked':'';?>></td></tr><?php endforeach;?>
+</tbody></table></div>
+<div class="custom-control custom-checkbox mb-3"><input class="custom-control-input" type="checkbox" id="quietHours" name="quiet_hours_enabled" value="1" <?php echo !empty($preference['quiet_hours_enabled'])?'checked':'';?>><label class="custom-control-label" for="quietHours">Enable quiet hours</label></div>
+<div class="row"><div class="col-md-4 form-group"><label>Quiet start</label><input class="form-control" type="time" name="quiet_start" value="<?php echo html_escape(substr($preference['quiet_start']??'21:00',0,5));?>"></div><div class="col-md-4 form-group"><label>Quiet end</label><input class="form-control" type="time" name="quiet_end" value="<?php echo html_escape(substr($preference['quiet_end']??'07:00',0,5));?>"></div><div class="col-md-4 form-group"><label>Timezone</label><select class="form-control" name="timezone"><?php foreach(array('Asia/Kolkata','UTC','America/New_York','Europe/London','Asia/Dubai','Asia/Singapore') as $tz):?><option <?php echo ($preference['timezone']??'Asia/Kolkata')===$tz?'selected':'';?>><?php echo html_escape($tz);?></option><?php endforeach;?></select></div></div>
+<button class="btn btn-primary">Save Preferences</button>
+</form></div></div></div></div></section>

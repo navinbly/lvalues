@@ -93,40 +93,130 @@ class Email_model extends CI_Model
 	}*/
 
 	function signup_mail($new_user_id = ""){
-		//Editable
+		$new_user = $this->db->get_where('users', array('id' => (int)$new_user_id))->row_array();
+		if (empty($new_user) || empty($new_user['email'])) {
+			return false;
+		}
+
 		$type = 'signup';
-		//End editable
-
 		$notification = $this->db->where('type', $type)->get('notification_settings')->row_array();
-		foreach(json_decode($notification['user_types'], true) as $user_type){
-			
-			//Editable
-			if($user_type == 'admin'){
-				$new_user = $this->db->get_where('users', array('id' => $new_user_id))->row_array();
-				$to_user = $this->db->get_where('users', array('role_id' => 1))->row_array();
-				$replaces['user_name'] = $new_user['first_name'].' '.$new_user['last_name'];
-				$replaces['user_email'] = $new_user['email'];
-			}
-			if($user_type == 'user'){
-				$to_user = $this->db->get_where('users', array('id' => $new_user_id))->row_array();
-				$replaces['system_name'] = get_settings('system_name');
-			}
-			//End editable
-
-			$template_data['replaces'] = isset($replaces) ? $replaces:array();
-			$template_data['to_user'] = $to_user;
-			$template_data['notification'] = $notification;
-			$template_data['user_type'] = $user_type;
-			$subject = json_decode($notification['subject'], true)[$user_type];
-			$email_template = $this->load->view('email/common_template',  $template_data, TRUE);
-
-			if(json_decode($notification['system_notification'], true)[$user_type] == 1){
-				$this->notify($type, $to_user['id'], $subject, $email_template);
-			}
-			if(json_decode($notification['email_notification'], true)[$user_type] == 1){
-				$this->send_smtp_mail($email_template, $subject, $to_user['email']);
+		if (!empty($notification)) {
+			$admin_user = $this->db->get_where('users', array('role_id' => 1))->row_array();
+			if (!empty($admin_user)) {
+				$subject_json = json_decode($notification['subject'] ?? '', true);
+				$subject = is_array($subject_json) && !empty($subject_json['admin'])
+					? $subject_json['admin']
+					: 'New user registered on ' . get_settings('system_name');
+				$template_data = [
+					'replaces' => [
+						'user_name' => trim(($new_user['first_name'] ?? '') . ' ' . ($new_user['last_name'] ?? '')),
+						'user_email' => $new_user['email'],
+					],
+					'to_user' => $admin_user,
+					'notification' => $notification,
+					'user_type' => 'admin',
+				];
+				$email_template = $this->load->view('email/common_template', $template_data, true);
+				$this->notify($type, $admin_user['id'], $subject, $email_template);
 			}
 		}
+
+		return $this->send_welcome_email((int)$new_user_id);
+	}
+
+	public function send_welcome_email(int $user_id): bool
+	{
+		$user = $this->db->get_where('users', array('id' => $user_id))->row_array();
+		if (empty($user) || empty($user['email'])) {
+			return false;
+		}
+
+		$already_sent = $this->db->table_exists('email_delivery_logs')
+			&& (int)$this->db
+				->where('user_id', $user_id)
+				->where('email_type', 'welcome')
+				->where('status', 'success')
+				->count_all_results('email_delivery_logs') > 0;
+		if ($already_sent) {
+			$this->log_email_delivery($user_id, $user['email'], 'welcome', 'Welcome to Lvalues', 'skipped', 'Welcome email already sent.');
+			return true;
+		}
+
+		$is_tutor = ((int)($user['is_instructor'] ?? 0) === 1)
+			|| $this->db->get_where('applications', ['user_id' => $user_id], 1)->num_rows() > 0
+			|| $this->db->get_where('tutor_profiles', ['user_id' => $user_id], 1)->num_rows() > 0;
+
+		$subject = $is_tutor ? 'Welcome to Lvalues - Tutor registration received' : 'Welcome to Lvalues - Start your learning journey';
+		$html = $this->build_welcome_email_html($user, $is_tutor);
+		$sent = $this->send_smtp_mail($html, $subject, $user['email']);
+		$this->notify('welcome_email', $user_id, $subject, $html);
+		$this->log_email_delivery($user_id, $user['email'], 'welcome', $subject, $sent ? 'success' : 'failed', $sent ? '' : 'SMTP/mail send failed. Check application logs and SMTP configuration.');
+
+		return (bool)$sent;
+	}
+
+	private function build_welcome_email_html(array $user, bool $is_tutor): string
+	{
+		$name = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+		$name = $name !== '' ? $name : 'Learner';
+		$system_name = get_settings('system_name') ?: 'Lvalues';
+		$login_url = site_url('login');
+		$support_email = get_settings('system_email') ?: get_settings('smtp_from_email');
+		$support_email = $support_email ?: 'info@lvalues.com';
+
+		$items = $is_tutor ? [
+			'Your tutor registration was submitted successfully. Admin approval may be required before students can book you.',
+			'Log in and complete your tutor profile, headline, qualification, experience, bio, subjects, skills, location, teaching mode, and fees.',
+			'Student requests will appear in your tutor dashboard. Review each request and accept or reject it professionally.',
+			'After acceptance, students will see payment options. Payments are currently disabled until Lvalues enables verified marketplace payment processing.',
+			'Use batch/session tools to create classes, invite paid students, schedule sessions, mark attendance, and track progress.',
+			'Future payouts will be released through admin after payment confirmation, commission calculation, and payout approval.',
+		] : [
+			'Your student registration was completed successfully.',
+			'Log in to complete your learning profile, class/level, subjects, address, and learning goals.',
+			'Search courses or tutors by subject, class, mode, location, fee, and rating.',
+			'Send tutor requests from tutor search/profile pages and track accepted or rejected requests in your dashboard.',
+			'After a tutor accepts, payment options will be shown. Payments are currently disabled until Lvalues enables verified marketplace payment processing.',
+			'After payment is enabled and confirmed, you can join assigned batches/sessions and later submit feedback for completed sessions.',
+		];
+
+		$list = '';
+		foreach ($items as $item) {
+			$list .= '<li style="margin-bottom:10px;">' . html_escape($item) . '</li>';
+		}
+
+		return '<div style="font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;padding:28px;">'
+			. '<div style="max-width:720px;margin:0 auto;background:#ffffff;border:1px solid #e6eaf2;border-radius:10px;overflow:hidden;">'
+			. '<div style="background:#2754c5;color:#ffffff;padding:20px 26px;">'
+			. '<h1 style="font-size:22px;margin:0;">Welcome to ' . html_escape($system_name) . '</h1>'
+			. '</div>'
+			. '<div style="padding:26px;color:#202938;line-height:1.65;">'
+			. '<p>Hello <strong>' . html_escape($name) . '</strong>,</p>'
+			. '<p>Thank you for joining Lvalues. Your registration is successful, and the next steps are listed below.</p>'
+			. '<ul style="padding-left:20px;margin:18px 0;">' . $list . '</ul>'
+			. '<p><a href="' . html_escape($login_url) . '" style="background:#2754c5;color:#ffffff;text-decoration:none;padding:12px 18px;border-radius:6px;display:inline-block;">Log in to Lvalues</a></p>'
+			. '<p style="margin-top:24px;">Need help? Contact us at <a href="mailto:' . html_escape($support_email) . '">' . html_escape($support_email) . '</a>.</p>'
+			. '<p style="font-size:13px;color:#6b7280;margin-top:24px;">This is an automated welcome email from Lvalues.</p>'
+			. '</div></div></div>';
+	}
+
+	private function log_email_delivery(int $user_id, string $email, string $type, string $subject, string $status, string $error = ''): void
+	{
+		if (!$this->db->table_exists('email_delivery_logs')) {
+			log_message($status === 'failed' ? 'error' : 'info', 'Email log [' . $type . '] ' . $status . ' for ' . $email . ($error ? ': ' . $error : ''));
+			return;
+		}
+
+		$this->db->insert('email_delivery_logs', [
+			'user_id' => $user_id > 0 ? $user_id : null,
+			'email' => $email,
+			'email_type' => $type,
+			'subject' => $subject,
+			'status' => $status,
+			'provider' => get_settings('protocol') ?: 'mail',
+			'error_message' => $error,
+			'created_at' => date('Y-m-d H:i:s'),
+		]);
 	}
 
 
@@ -478,6 +568,65 @@ class Email_model extends CI_Model
 		$email_template = $this->load->view('email/static_common_template', $email_data, TRUE);
 		$this->send_smtp_mail($email_template, $email_data['subject'], $student_details['email']);
 		return true;
+	}
+
+	/**
+	 * send_suspicious_login_alert
+	 * ----------------------------
+	 * Sends a Gmail-style security alert email to the user when a suspicious
+	 * (new/unrecognised) device login is detected.
+	 *
+	 * @param  array  $user        Row from `users` table (first_name, last_name, email…)
+	 * @param  array  $login_info  Keys: browser_name, browser_ver, os_name, device_type,
+	 *                             ip_address, city, state, country, login_time
+	 * @param  string $yes_url     "Yes, this was me" confirmation URL (contains secure token)
+	 * @param  string $no_url      "No, secure my account" URL (contains secure token)
+	 * @return bool   true if email sent successfully, false otherwise
+	 */
+	public function send_suspicious_login_alert(array $user, array $login_info, string $yes_url, string $no_url): bool
+	{
+		try {
+			if (empty($user['email'])) {
+				return false;
+			}
+
+			$name        = trim(($user['first_name'] ?? '') . ' ' . ($user['last_name'] ?? ''));
+			$name        = $name !== '' ? $name : 'User';
+			$system_name = get_settings('system_name') ?: 'Lvalues';
+			$support_email = get_settings('system_email') ?: get_settings('smtp_from_email') ?: 'support@lvalues.com';
+
+			// Build location string
+			$location_parts = array_filter([
+				$login_info['city']    ?? null,
+				$login_info['state']   ?? null,
+				$login_info['country'] ?? null,
+			]);
+			$location = count($location_parts) > 0 ? implode(', ', $location_parts) : 'Unknown location';
+
+			$device_label = trim(($login_info['browser_name'] ?? 'Unknown') . ' ' . ($login_info['browser_ver'] ?? ''))
+				. ' on ' . ($login_info['os_name'] ?? 'Unknown OS')
+				. ' (' . ucfirst($login_info['device_type'] ?? 'unknown') . ')';
+
+			$subject = 'Security Alert: New Login to Your ' . $system_name . ' Account';
+
+			$html = $this->load->view('email/suspicious_login_alert', [
+				'user'         => $user,
+				'name'         => $name,
+				'system_name'  => $system_name,
+				'support_email'=> $support_email,
+				'login_info'   => $login_info,
+				'location'     => $location,
+				'device_label' => $device_label,
+				'yes_url'      => $yes_url,
+				'no_url'       => $no_url,
+				'subject'      => $subject,
+			], true);
+
+			return (bool)$this->send_smtp_mail($html, $subject, $user['email']);
+		} catch (Exception $e) {
+			log_message('error', 'Email_model::send_suspicious_login_alert failed: ' . $e->getMessage());
+			return false;
+		}
 	}
 
 	function new_device_login_alert($user_id = "")

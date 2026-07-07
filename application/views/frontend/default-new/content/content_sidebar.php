@@ -137,25 +137,6 @@ function render_tree_node($node, $children, $base_route, $active_full_path, $ope
 }
 ?>
 
-<!-- Root list -->
-<div class="root-menu" id="rootMenu">
-  <?php if (empty($root_meta)): ?>
-    <div class="text-muted small px-2 py-2">No root topics found.</div>
-  <?php else: ?>
-    <ul class="list-group root-menu-list">
-      <?php foreach ($root_meta as $i => $rm): ?>
-        <li class="list-group-item root-menu-item">
-          <button type="button"
-                  class="root-btn <?= $i === 0 ? 'active' : '' ?>"
-                  data-root-id="<?= (int)$rm['id'] ?>">
-            <?= h($rm['title']) ?>
-          </button>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php endif; ?>
-</div>
-
 <ul class="list-group course-tree" id="courseTree">
 <?php if (empty($roots)): ?>
   <li class="list-group-item">
@@ -209,36 +190,28 @@ function render_tree_node($node, $children, $base_route, $active_full_path, $ope
 </ul>
 
 <style>
-/* Root menu */
-.root-menu { padding: 6px 10px 10px 10px; }
-.root-menu-list { border-radius: 12px; overflow: hidden; }
-.root-menu-item { padding: 0; border: 0; border-bottom: 1px solid #f1f1f1; }
-.root-menu-item:last-child { border-bottom: 0; }
-.root-btn{
-  width: 100%;
-  text-align: left;
-  border: 1px solid rgba(148,163,184,.45);
-  border-left: 0; border-right: 0; border-top: 0;
-  background:#fff;
-  padding: 12px 12px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  border-radius: 0;
-}
-.root-btn.active{ background:#eaf2ff; color:#0d6efd; }
-.root-btn:focus{ outline: none; box-shadow: 0 0 0 3px rgba(13,110,253,.12); }
-
 /* Tree */
 #courseTree.course-tree{
   font-size: 14px;
   line-height: 1.35;
   margin-top: 6px;
+  border-radius: 12px;
+  overflow: hidden;
 }
 #courseTree.course-tree .list-group-item{
   border: 0;
-  padding: 10px 10px;
-  background: transparent;
+  border-bottom: 1px solid rgba(148,163,184,.28);
+  padding: 12px 10px;
+  background: #fff;
+}
+#courseTree.course-tree > .root-item:last-child{
+  border-bottom: 0;
+}
+#courseTree.course-tree > .root-item{
+  padding-left: 16px;
+}
+#courseTree.course-tree > .root-item > .node-link{
+  font-weight: 600;
 }
 
 #courseTree .nested{
@@ -297,16 +270,12 @@ function render_tree_node($node, $children, $base_route, $active_full_path, $ope
 }
 
 @media (max-width: 576px){
-  .root-btn{ padding: 12px 10px; }
   #courseTree.course-tree .list-group-item{ padding: 10px 6px; }
 }
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-  const rootsMeta = <?php echo json_encode($root_meta); ?>;
-  const rootItems = Array.from(document.querySelectorAll('#courseTree .root-item'));
-  const rootMenu = document.getElementById('rootMenu');
   const treeEl = document.getElementById('courseTree');
 
   function getDirectNestedUl(li){
@@ -321,54 +290,6 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!el) return;
     el.textContent = open ? '-' : '+';
     el.setAttribute('aria-expanded', open ? 'true' : 'false');
-  }
-
-  function collapseAllUnder(li){
-    if (!li) return;
-    const uls = li.querySelectorAll('ul.nested');
-    uls.forEach(ul => ul.style.display = 'none');
-    const toggles = li.querySelectorAll('.toggle:not(.spacer)');
-    toggles.forEach(t => setToggle(t, false));
-  }
-
-  function openFirstLevel(li){
-    // Used only when there is NO active node inside the root
-    const nested = getDirectNestedUl(li);
-    const toggle = li.querySelector('.toggle:not(.spacer)');
-    if (nested) nested.style.display = 'block';
-    if (toggle && nested) setToggle(toggle, true);
-  }
-
-  function showOnlyRoot(rootId){
-    rootItems.forEach(li => {
-      li.style.display = (Number(li.dataset.rootId) === Number(rootId)) ? '' : 'none';
-    });
-
-    // active button
-    const btns = rootMenu ? rootMenu.querySelectorAll('.root-btn') : [];
-    btns.forEach(b => b.classList.toggle('active', Number(b.dataset.rootId) === Number(rootId)));
-
-    // IMPORTANT FIX:
-    // If this root already contains an active leaf (server-side expanded path),
-    // DO NOT collapse anything. Otherwise, collapse and open first level.
-    const li = document.querySelector('#courseTree .root-item[data-root-id="' + rootId + '"]');
-    if (!li) return;
-
-    const hasActiveInside = !!li.querySelector('a.active-node');
-    if (!hasActiveInside) {
-      collapseAllUnder(li);
-      openFirstLevel(li);
-    }
-    localStorage.setItem('selectedRootId', String(rootId));
-  }
-
-  // Root menu click
-  if (rootMenu) {
-    rootMenu.addEventListener('click', function(e){
-      const btn = e.target.closest('.root-btn');
-      if (!btn) return;
-      showOnlyRoot(btn.dataset.rootId);
-    });
   }
 
   // Toggle expand/collapse (event delegation)
@@ -388,28 +309,5 @@ document.addEventListener('DOMContentLoaded', function () {
       setToggle(t, !open);
     });
   }
-
-  // Initial root selection:
-  // Prefer root that contains the active node (so leaf click stays focused).
-  let rootToShow = null;
-
-  // Find which root contains active node
-  const activeLink = document.querySelector('#courseTree a.active-node');
-  if (activeLink) {
-    const rootLi = activeLink.closest('.root-item');
-    if (rootLi) rootToShow = rootLi.dataset.rootId;
-  }
-
-  // Fallbacks
-  if (!rootToShow) {
-    const saved = localStorage.getItem('selectedRootId');
-    if (saved && rootsMeta.find(r => String(r.id) === String(saved))) {
-      rootToShow = saved;
-    } else if (rootsMeta.length > 0) {
-      rootToShow = rootsMeta[0].id;
-    }
-  }
-
-  if (rootToShow) showOnlyRoot(rootToShow);
 });
 </script>

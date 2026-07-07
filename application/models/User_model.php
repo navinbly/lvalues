@@ -21,6 +21,14 @@ private function upsert_tutor_profile_from_post($user_id)
         if (!in_array($fee_type, ['per_hour', 'per_subject'], true)) {
             $fee_type = 'per_hour';
         }
+        $fee_currency = strtoupper(trim((string)$this->input->post('fee_currency')));
+        if (!in_array($fee_currency, ['INR', 'USD', 'GBP', 'AED', 'CAD', 'AUD'], true)) {
+            $fee_currency = 'INR';
+        }
+        if (!$this->db->field_exists('fee_currency', 'tutor_profiles')) {
+            $after_fee_type = $this->db->field_exists('fee_type', 'tutor_profiles') ? " AFTER `fee_type`" : "";
+            $this->db->query("ALTER TABLE `tutor_profiles` ADD COLUMN `fee_currency` VARCHAR(10) NULL" . $after_fee_type);
+        }
 
         $subject_fees = [];
         $fee_names = $this->input->post('subject_fee_name');
@@ -31,15 +39,21 @@ private function upsert_tutor_profile_from_post($user_id)
                 $name = html_escape(trim((string)($fee_names[$i] ?? '')));
                 $amount = trim((string)($fee_amounts[$i] ?? ''));
                 if ($name !== '' && $amount !== '' && is_numeric($amount) && (float)$amount >= 0) {
-                    $subject_fees[] = ['subject_name' => $name, 'fee' => (float)$amount];
+                    $subject_fees[] = ['subject_name' => $name, 'fee' => (float)$amount, 'currency' => $fee_currency];
                 }
             }
+        }
+
+        $tutor_bio = trim((string)$this->input->post('tutor_bio'));
+        $current_role = trim((string)$this->input->post('tutor_current_role'));
+        if ($current_role !== '') {
+            $tutor_bio = 'Current role: ' . $current_role . "\n\n" . $tutor_bio;
         }
 
         $profile = [
             'user_id'          => (int)$user_id,
             'headline'         => html_escape((string)$this->input->post('tutor_headline')),
-            'bio'              => $this->input->post('tutor_bio'),
+            'bio'              => $tutor_bio,
             'qualification'    => html_escape((string)$this->input->post('tutor_qualification')),
             'experience_years' => is_numeric($this->input->post('tutor_experience_years')) ? (int)$this->input->post('tutor_experience_years') : null,
             'teaching_mode'    => in_array($this->input->post('tutor_teaching_mode'), ['online','offline','both'], true) ? $this->input->post('tutor_teaching_mode') : 'both',
@@ -56,8 +70,14 @@ private function upsert_tutor_profile_from_post($user_id)
         if ($this->db->field_exists('fee_type', 'tutor_profiles')) {
             $profile['fee_type'] = $fee_type;
         }
+        if ($this->db->field_exists('fee_currency', 'tutor_profiles')) {
+            $profile['fee_currency'] = $fee_currency;
+        }
         if ($this->db->field_exists('subject_fees_json', 'tutor_profiles')) {
             $profile['subject_fees_json'] = !empty($subject_fees) ? json_encode($subject_fees) : null;
+        }
+        if ($this->db->field_exists('current_role', 'tutor_profiles')) {
+            $profile['current_role'] = html_escape($current_role);
         }
 
         foreach ($profile as $k => $v) {
@@ -313,9 +333,38 @@ private function upsert_tutor_profile_from_post($user_id)
     }
     public function delete_user($user_id = "")
     {
-        $this->db->where('id', $user_id);
-        $this->db->delete('users');
-        $this->session->set_flashdata('flash_message', get_phrase('user_deleted_successfully'));
+        $user_id = (int)$user_id;
+        $user = $this->db->get_where('users', array('id' => $user_id), 1)->row_array();
+        if (!$user) {
+            $this->session->set_flashdata('error_message', get_phrase('user_not_found'));
+            return;
+        }
+
+        $this->db->trans_start();
+        if ($this->db->table_exists('user_auth_identities')) {
+            $this->db->where('user_id', $user_id)->delete('user_auth_identities');
+            $this->db->where('email', strtolower(trim((string)$user['email'])))->delete('user_auth_identities');
+        }
+        if ($this->db->table_exists('applications')) {
+            $this->db->where('user_id', $user_id)->delete('applications');
+        }
+        $this->db->where('id', $user_id)->delete('users');
+        $this->db->trans_complete();
+
+        $ok = $this->db->trans_status();
+        $this->session->set_flashdata($ok ? 'flash_message' : 'error_message', $ok ? get_phrase('user_deleted_successfully') : 'User deletion failed.');
+    }
+
+    public function password_matches($plain_password, $stored_password)
+    {
+        $stored_password = (string)$stored_password;
+        if ($stored_password === '') {
+            return false;
+        }
+        if (preg_match('/^[a-f0-9]{40}$/i', $stored_password)) {
+            return hash_equals(strtolower($stored_password), sha1((string)$plain_password));
+        }
+        return password_verify((string)$plain_password, $stored_password);
     }
 
     public function unlock_screen_by_password($password = "")
@@ -326,8 +375,19 @@ private function upsert_tutor_profile_from_post($user_id)
 
     public function register_user($data)
     {
-        $this->db->insert('users', $data);
-        $user_id = $this->db->insert_id();
+        $inserted = $this->db->insert('users', $data);
+        if (!$inserted) {
+            $error = $this->db->error();
+            log_message('error', 'User registration insert failed: ' . json_encode($error) . ' | email=' . ($data['email'] ?? ''));
+            return 0;
+        }
+
+        $user_id = (int)$this->db->insert_id();
+        if ($user_id <= 0) {
+            log_message('error', 'User registration insert returned empty insert_id | email=' . ($data['email'] ?? ''));
+            return 0;
+        }
+
        // $this->user_model->update_unique_identifier($user_id);
         return $user_id;
     }
@@ -624,60 +684,142 @@ private function upsert_tutor_profile_from_post($user_id)
         }
     }*/
 	
-	function instructor_application(){
-    $user = $this->db->get_where('users', ['email' => $this->input->post('email')]);
-    if($user->num_rows() > 0){
+	function instructor_application($user_id = 0, $set_flash = true){
+        $user_id = (int)$user_id;
+        if ($user_id > 0) {
+            $user = $this->db->get_where('users', ['id' => $user_id], 1);
+        } else {
+            $user = $this->db->get_where('users', ['email' => $this->input->post('email')], 1);
+        }
+
+        if ($user->num_rows() <= 0) {
+            return ['success' => false, 'message' => get_phrase('user_not_found')];
+        }
+
         $user_details = $user->row_array();
         $previous_data = $this->get_applications($user_details['id'], 'user')->num_rows();
-        if ($previous_data == 0) {
-            if (!file_exists('uploads/document')) {
-                mkdir('uploads/document', 0777, true);
-            }
-            $address_parts = array_filter([
-                trim((string)$this->input->post('tutor_address_line1')),
-                trim((string)$this->input->post('tutor_city')),
-                trim((string)$this->input->post('tutor_state')),
-                trim((string)$this->input->post('tutor_country')),
-                trim((string)$this->input->post('tutor_pincode')),
-            ]);
-
-            $data['user_id'] = $user_details['id'];
-            $data['address'] = html_escape(!empty($address_parts) ? implode(', ', $address_parts) : (string)$this->input->post('tutor_location'));
-            $data['phone'] = $this->input->post('phone');
-            $data['message'] = $this->input->post('message');
-
-            $document_custom_name = random(15).'.'.pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION);
-            $data['document'] = $document_custom_name;
-            move_uploaded_file($_FILES['document']['tmp_name'], 'uploads/document/' . $document_custom_name);
-
-            $this->db->insert('applications', $data);
-
-            // Create admin notification for tutor approval request
-            $this->load->model('email_model');
-
-            $admin = $this->db->get_where('users', ['role_id' => 1])->row_array();
-            if (!empty($admin)) {
-                $full_name = trim(($user_details['first_name'] ?? '') . ' ' . ($user_details['last_name'] ?? ''));
-                $full_name = $full_name !== '' ? $full_name : ($user_details['email'] ?? 'New user');
-
-                $subject = 'Tutor approval request';
-                $description = 'New tutor registration submitted by ' . $full_name .
-                               '<br>User email: ' . html_escape($user_details['email']) .
-                               '<br>Please review and approve/reject the application.';
-
-                $this->email_model->notify(
-                    'tutor_approval_request',
-                    (int)$admin['id'],
-                    $subject,
-                    $description,
-                    (int)$user_details['id']
-                );
-            }
-
-            $this->upsert_tutor_profile_from_post($user_details['id']);
+        if ($previous_data > 0) {
+            return ['success' => false, 'message' => get_phrase('already_submitted')];
         }
+
+        $address_parts = array_filter([
+            trim((string)$this->input->post('tutor_address_line1')),
+            trim((string)$this->input->post('tutor_city')),
+            trim((string)$this->input->post('tutor_state')),
+            trim((string)$this->input->post('tutor_country')),
+            trim((string)$this->input->post('tutor_pincode')),
+        ]);
+
+        $document_custom_name = '';
+        $target_path = '';
+        if (isset($_FILES['document']) && !empty($_FILES['document']['name'])) {
+            if (!file_exists('uploads/document') && !mkdir('uploads/document', 0777, true)) {
+                return ['success' => false, 'message' => 'Could not create uploads/document directory.'];
+            }
+
+            $accepted_ext = array('doc', 'docx', 'docs', 'pdf', 'txt', 'png', 'jpg', 'jpeg');
+            $ext = strtolower(pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION));
+            if (!in_array($ext, $accepted_ext, true)) {
+                return ['success' => false, 'message' => get_phrase('invalide_file')];
+            }
+
+            $document_custom_name = random(15) . '.' . $ext;
+            $target_path = 'uploads/document/' . $document_custom_name;
+            if (!move_uploaded_file($_FILES['document']['tmp_name'], $target_path)) {
+                return ['success' => false, 'message' => 'Document upload failed.'];
+            }
+        }
+
+        $submitted_headline = trim((string)$this->input->post('tutor_headline'));
+        $submitted_current_role = trim((string)$this->input->post('tutor_current_role'));
+        $submitted_bio = trim((string)$this->input->post('tutor_bio'));
+        $submitted_message = trim((string)$this->input->post('message'));
+        $submitted_fee_currency = strtoupper(trim((string)$this->input->post('fee_currency')));
+        if (!in_array($submitted_fee_currency, ['INR', 'USD', 'GBP', 'AED', 'CAD', 'AUD'], true)) {
+            $submitted_fee_currency = 'INR';
+        }
+        $submitted_fee_type = $this->input->post('fee_type') === 'per_subject' ? 'per_subject' : 'per_hour';
+        $fee_summary = '';
+        if ($submitted_fee_type === 'per_hour' && trim((string)$this->input->post('tutor_hourly_fee')) !== '') {
+            $fee_summary = trim((string)$this->input->post('tutor_hourly_fee')) . ' ' . $submitted_fee_currency . ' per hour';
+        } elseif ($submitted_fee_type === 'per_subject') {
+            $fee_rows = [];
+            $fee_names = $this->input->post('subject_fee_name');
+            $fee_amounts = $this->input->post('subject_fee_amount');
+            if (is_array($fee_names) && is_array($fee_amounts)) {
+                $count = max(count($fee_names), count($fee_amounts));
+                for ($i = 0; $i < $count; $i++) {
+                    $name = trim((string)($fee_names[$i] ?? ''));
+                    $amount = trim((string)($fee_amounts[$i] ?? ''));
+                    if ($name !== '' && $amount !== '') {
+                        $fee_rows[] = $name . ': ' . $amount . ' ' . $submitted_fee_currency . ' per subject';
+                    }
+                }
+            }
+            $fee_summary = implode(', ', $fee_rows);
+        }
+        $profile_summary = trim(implode("\n", array_filter([
+            $submitted_headline !== '' ? 'Headline: ' . $submitted_headline : '',
+            'Education / Qualification: ' . trim((string)$this->input->post('tutor_qualification')),
+            'Teaching Experience: ' . trim((string)$this->input->post('tutor_experience_years')) . ' year(s)',
+            $submitted_current_role !== '' ? 'Current Role: ' . $submitted_current_role : '',
+            $submitted_bio !== '' ? 'Teaching Bio: ' . $submitted_bio : '',
+            $fee_summary !== '' ? 'Fees: ' . $fee_summary : '',
+            $submitted_message !== '' ? 'Additional Message: ' . $submitted_message : '',
+        ])));
+
+        $data = [
+            'user_id' => (int)$user_details['id'],
+            'address' => html_escape(!empty($address_parts) ? implode(', ', $address_parts) : (string)$this->input->post('tutor_location')),
+            'phone' => $this->input->post('phone'),
+            'message' => $profile_summary,
+            'document' => $document_custom_name,
+        ];
+        if ($this->db->field_exists('status', 'applications')) {
+            $data['status'] = 0;
+        }
+
+        if (!$this->db->insert('applications', $data)) {
+            $error = $this->db->error();
+            if (file_exists($target_path)) {
+                @unlink($target_path);
+            }
+            return [
+                'success' => false,
+                'message' => !empty($error['message']) ? $error['message'] : 'Application insert failed.'
+            ];
+        }
+
+        // Create admin notification for tutor approval request
+        $this->load->model('email_model');
+
+        $admin = $this->db->get_where('users', ['role_id' => 1])->row_array();
+        if (!empty($admin)) {
+            $full_name = trim(($user_details['first_name'] ?? '') . ' ' . ($user_details['last_name'] ?? ''));
+            $full_name = $full_name !== '' ? $full_name : ($user_details['email'] ?? 'New user');
+
+            $subject = 'Tutor approval request';
+            $description = 'New tutor registration submitted by ' . $full_name .
+                           '<br>User email: ' . html_escape($user_details['email']) .
+                           '<br>Please review and approve/reject the application.';
+
+            $this->email_model->notify(
+                'tutor_approval_request',
+                (int)$admin['id'],
+                $subject,
+                $description,
+                (int)$user_details['id']
+            );
+        }
+
+        $this->upsert_tutor_profile_from_post($user_details['id']);
+
+        if ($set_flash) {
+            $this->session->set_flashdata('flash_message', site_phrase('You have successfully submitted your application.').' '.get_phrase('We will review it and notify you via email notification'));
+        }
+
+        return ['success' => true, 'message' => 'Tutor application submitted successfully.'];
     }
-}
 
 
     // GET INSTRUCTOR APPLICATIONS
@@ -698,6 +840,80 @@ private function upsert_tutor_profile_from_post($user_id)
         }
     }
 
+    public function pending_tutor_login_block_message($user_id)
+    {
+        $user_id = (int)$user_id;
+        if ($user_id <= 0) {
+            return '';
+        }
+
+        $user = $this->db->get_where('users', ['id' => $user_id], 1)->row_array();
+        if (empty($user)) {
+            return '';
+        }
+
+        $this->ensure_application_review_columns();
+
+        $application = $this->db
+            ->order_by('id', 'DESC')
+            ->get_where('applications', ['user_id' => $user_id], 1)
+            ->row_array();
+        if (empty($application)) {
+            if ($this->db->table_exists('tutor_profiles')) {
+                $profile = $this->db->get_where('tutor_profiles', ['user_id' => $user_id], 1)->row_array();
+                $profile_status = strtolower((string)($profile['status'] ?? ''));
+                if ($profile_status === 'pending') {
+                    return 'Your tutor registration is pending admin approval. Please log in after approval.';
+                }
+                if ($profile_status === 'rejected') {
+                    return 'Your tutor application was rejected by admin. Please contact support or submit a new tutor application with updated details.';
+                }
+                if ($profile_status === 'inactive') {
+                    return 'Your tutor application is not approved. Please contact support for the admin decision before logging in as a tutor.';
+                }
+            }
+
+            return '';
+        }
+
+        $application_status = (string)($application['status'] ?? '0');
+        if ((int)($user['is_instructor'] ?? 0) === 1 && (int)$application_status === 1) {
+            return '';
+        }
+
+        if ((int)$application_status === 2) {
+            $admin_response = trim((string)($application['admin_response'] ?? ''));
+            $message = 'Your tutor application was rejected by admin.';
+            if ($admin_response !== '') {
+                $message .= ' Admin response: ' . $admin_response;
+            } else {
+                $message .= ' Please contact support or submit a new tutor application with updated details.';
+            }
+            return $message;
+        }
+
+        return 'Your tutor registration is pending admin approval. Please log in after approval.';
+    }
+
+    private function ensure_application_review_columns()
+    {
+        if (!$this->db->table_exists('applications')) {
+            return;
+        }
+
+        if (!$this->db->field_exists('admin_response', 'applications')) {
+            $this->db->query("ALTER TABLE `applications` ADD COLUMN `admin_response` TEXT NULL");
+        }
+
+        if (!$this->db->field_exists('reviewed_by', 'applications')) {
+            $this->db->query("ALTER TABLE `applications` ADD COLUMN `reviewed_by` INT NULL");
+        }
+
+        if (!$this->db->field_exists('reviewed_at', 'applications')) {
+            $this->db->query("ALTER TABLE `applications` ADD COLUMN `reviewed_at` DATETIME NULL");
+        }
+    }
+
     // GET APPROVED APPLICATIONS
     public function get_approved_applications()
     {
@@ -709,6 +925,14 @@ private function upsert_tutor_profile_from_post($user_id)
     public function get_pending_applications()
     {
         $applications = $this->db->get_where('applications', array('status' => 0));
+        return $applications;
+    }
+
+    // GET REJECTED APPLICATIONS
+    public function get_rejected_applications()
+    {
+        $this->ensure_application_review_columns();
+        $applications = $this->db->get_where('applications', array('status' => 2));
         return $applications;
     }
 
@@ -759,6 +983,7 @@ private function upsert_tutor_profile_from_post($user_id)
 	//UPDATE STATUS OF INSTRUCTOR APPLICATION
 	public function update_status_of_application($status, $application_id)
 	{
+		$this->ensure_application_review_columns();
 		$application_details = $this->get_applications($application_id, 'application');
 
 		if ($application_details->num_rows() <= 0) {
@@ -788,8 +1013,19 @@ private function upsert_tutor_profile_from_post($user_id)
 		$this->load->model('email_model');
 
 		if ($status == 'approve') {
+			$has_required_document = !empty($application_details['document']);
+			$profile_status = $has_required_document ? 'active' : 'documents_pending';
+			$approval_response = $has_required_document
+				? 'Approved by admin.'
+				: 'Approved by admin. Document verification is still pending. Please upload Government ID proof, qualification certificate, marksheet, professional certification, teaching experience proof, or another supporting document from your tutor dashboard before your profile can be verified and publicly listed.';
+
 			// 1. Approve application
-			$application_data['status'] = 1;
+			$application_data = array(
+				'status' => 1,
+				'admin_response' => $approval_response,
+				'reviewed_by' => $admin_user_id,
+				'reviewed_at' => date('Y-m-d H:i:s')
+			);
 			$this->db->where('id', $application_id);
 			$this->db->update('applications', $application_data);
 
@@ -802,11 +1038,11 @@ private function upsert_tutor_profile_from_post($user_id)
 			if ($this->db->table_exists('tutor_profiles')) {
 				$exists = $this->db->get_where('tutor_profiles', ['user_id' => $user_id], 1);
 				if ($exists->num_rows() > 0) {
-					$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => 'active']);
+					$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => $profile_status]);
 				} else {
 					$this->db->insert('tutor_profiles', [
 						'user_id'       => $user_id,
-						'status'        => 'active',
+						'status'        => $profile_status,
 						'teaching_mode' => 'both'
 					]);
 				}
@@ -818,36 +1054,57 @@ private function upsert_tutor_profile_from_post($user_id)
 					'tutor_application_approved',
 					$user_id,
 					'Tutor application approved',
-					'Your tutor application has been approved by admin. You can now log in and continue.',
+					$has_required_document
+						? 'Your tutor application has been approved by admin. You can now log in and continue.'
+						: 'Your tutor application has been approved by admin. You can now log in, but please upload your verification document from the tutor dashboard before your profile can be verified and publicly listed.',
 					$admin_user_id
 				);
 			}
 
-			$this->session->set_flashdata('flash_message', get_phrase('application_approved_successfully'));
+			$this->session->set_flashdata('flash_message', $has_required_document ? get_phrase('application_approved_successfully') : 'Application approved. Tutor can log in, but document upload is still required for verified badge and public listing.');
 			redirect(site_url('admin/instructor_application'), 'refresh');
 		}
 
-		// Reject / delete application
+		// Reject application without deleting tutor intent. Login must keep showing the admin decision.
+		$admin_response = trim(strip_tags((string)$this->input->post('admin_response', true)));
+		if ($admin_response === '') {
+			$admin_response = trim(strip_tags((string)$this->input->post('reject_reason', true)));
+		}
+		if ($admin_response === '') {
+			$this->session->set_flashdata('error_message', 'Please enter a rejection response for the tutor.');
+			redirect(site_url('admin/instructor_application'), 'refresh');
+		}
+
+		$this->db->where('id', $application_id);
+		$this->db->update('applications', array(
+			'status' => 2,
+			'admin_response' => $admin_response,
+			'reviewed_by' => $admin_user_id,
+			'reviewed_at' => date('Y-m-d H:i:s')
+		));
+
+		$this->db->where('id', $user_id);
+		$this->db->update('users', array(
+			'role_id' => 2,
+			'status' => 1,
+			'is_instructor' => 0
+		));
+
+		if ($this->db->table_exists('tutor_profiles')) {
+			$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => 'rejected']);
+		}
+
 		if (!empty($user_details)) {
 			$this->email_model->notify(
 				'tutor_application_rejected',
 				$user_id,
 				'Tutor application rejected',
-				'Your tutor application has been rejected by admin. Please contact support or apply again with the required details.',
+				'Your tutor application has been rejected by admin. Response: ' . $admin_response,
 				$admin_user_id
 			);
 		}
 
-		// Keep record deleted as per your current app logic
-		$this->db->where('id', $application_id);
-		$this->db->delete('applications');
-
-		// Also deactivate tutor profile if exists
-		if ($this->db->table_exists('tutor_profiles')) {
-			$this->db->where('user_id', $user_id)->update('tutor_profiles', ['status' => 'inactive']);
-		}
-
-		$this->session->set_flashdata('flash_message', get_phrase('application_deleted_successfully'));
+		$this->session->set_flashdata('flash_message', 'Tutor application rejected and response sent to the applicant.');
 		redirect(site_url('admin/instructor_application'), 'refresh');
 	}
 
@@ -930,6 +1187,12 @@ private function upsert_tutor_profile_from_post($user_id)
 
 
 /*START LOGIN LOGOUT AND DEVICE ALLOW SECTION*/
+    private function testing_verification_disabled(): bool
+    {
+        // Temporary testing switch: set to false after registration/login testing is complete.
+        return true;
+    }
+
     // For device login tracker
     public function new_device_login_tracker($user_id = "", $is_verified = '')
     {
@@ -944,6 +1207,19 @@ private function upsert_tutor_profile_from_post($user_id)
         }
 
         $pre_sessions = json_decode($sessions->row('sessions'), true);
+
+        if ($this->testing_verification_disabled()) {
+            $updated_session_arr = is_array($pre_sessions) ? $pre_sessions : array();
+            if (!in_array($current_session_id, $updated_session_arr)) {
+                array_push($updated_session_arr, $current_session_id);
+            }
+            $this->db->where('id', $user_id);
+            $this->db->update('users', array('sessions' => json_encode($updated_session_arr)));
+
+            // ── NEW: run suspicious-login pipeline even when OTP flow is disabled ──
+            $this->_run_suspicious_login_pipeline((int)$user_id);
+            return;
+        }
 
         if(is_array($pre_sessions) && count($pre_sessions) > 0){
             if($is_verified == true && !in_array($current_session_id, $pre_sessions)){
@@ -985,6 +1261,136 @@ private function upsert_tutor_profile_from_post($user_id)
             $this->db->where('id', $user_id);
             $this->db->update('users', $data);
         }
+
+        // ── NEW: run suspicious-login pipeline ──
+        $this->_run_suspicious_login_pipeline((int)$user_id);
+    }
+
+    /**
+     * Suspicious Login Detection Pipeline
+     * ------------------------------------
+     * Called on every successful login (including when OTP bypass is active).
+     * Captures device context, records history, checks trusted devices,
+     * and triggers a security alert email if the login looks suspicious.
+     *
+     * Wrapped in try/catch: ANY failure here is logged but NEVER breaks login.
+     *
+     * @param int $user_id
+     */
+    private function _run_suspicious_login_pipeline(int $user_id)
+    {
+        try {
+            // ── Load dependencies ──
+            $this->load->helper('security_login');
+            $this->load->model('Security_login_model', 'security_login_model');
+            $this->load->library('user_agent');
+
+            // ── Gather user record ──
+            $user = $this->db->get_where('users', ['id' => $user_id], 1)->row_array();
+            if (empty($user)) {
+                return;
+            }
+
+            // ── Collect device & network context ──
+            $ip           = sl_get_client_ip();
+            $ua_string    = isset($_SERVER['HTTP_USER_AGENT']) ? $_SERVER['HTTP_USER_AGENT'] : '';
+            $browser_name = $this->agent->is_browser() ? $this->agent->browser() : (
+                            $this->agent->is_mobile()  ? $this->agent->mobile()  : 'Unknown');
+            $browser_ver  = $this->agent->is_browser() ? $this->agent->version() : '';
+            $os_name      = $this->agent->platform();
+            $device_type  = sl_get_device_type();
+            $fingerprint  = sl_get_device_fingerprint($browser_name, $browser_ver, $os_name, $device_type);
+            $role         = sl_get_role_label($user);
+
+            // ── Geolocation (silent fallback to nulls) ──
+            $geo = sl_get_ip_geolocation($ip);
+
+            // ── Determine if suspicious ──
+            $is_suspicious = (int)$this->security_login_model->is_suspicious_login($user_id, $fingerprint, [
+                'ip_address' => $ip,
+                'city'       => $geo['city'],
+                'country'    => $geo['country']
+            ]);
+
+            // ── Record login history ──
+            $history_id = $this->security_login_model->record_login([
+                'user_id'         => $user_id,
+                'role'            => $role,
+                'email'           => $user['email'] ?? '',
+                'ip_address'      => $ip,
+                'user_agent'      => $ua_string,
+                'browser_name'    => $browser_name,
+                'browser_version' => $browser_ver,
+                'os_name'         => $os_name,
+                'device_type'     => $device_type,
+                'city'            => $geo['city'],
+                'state'           => $geo['state'],
+                'country'         => $geo['country'],
+                'is_suspicious'   => $is_suspicious,
+                'alert_sent'      => 0,
+            ]);
+
+            // ── First login or trusted device: trust it and finish ──
+            if (!$is_suspicious) {
+                $this->security_login_model->trust_device($user_id, $role, $fingerprint, [
+                    'ip_address'   => $ip,
+                    'browser_name' => $browser_name,
+                    'os_name'      => $os_name,
+                    'city'         => $geo['city'],
+                    'country'      => $geo['country'],
+                ]);
+                return;
+            }
+
+            // ── Suspicious login ── check duplicate alert prevention ──
+            $dup = sl_duplicate_alert_exists($this->db, $user_id, $fingerprint, 30);
+            if ($dup) {
+                return; // Alert already sent recently, skip
+            }
+
+            // ── Create secure token ──
+            $token = $this->security_login_model->create_alert_token(
+                $user_id, $role, $user['email'], $history_id, 'new_device'
+            );
+
+            if ($token === '') {
+                return; // Token creation failed (tables missing?), skip silently
+            }
+
+            // ── Build confirmation URLs ──
+            $yes_url = site_url('security/confirm/yes/' . $token);
+            $no_url  = site_url('security/confirm/no/' . $token);
+
+            // ── Send alert email (login never fails if this fails) ──
+            $login_info = [
+                'browser_name' => $browser_name,
+                'browser_ver'  => $browser_ver,
+                'os_name'      => $os_name,
+                'device_type'  => $device_type,
+                'ip_address'   => $ip,
+                'city'         => $geo['city'],
+                'state'        => $geo['state'],
+                'country'      => $geo['country'],
+                'login_time'   => date('d M Y, h:i A'),
+            ];
+
+            $sent = $this->email_model->send_suspicious_login_alert($user, $login_info, $yes_url, $no_url);
+
+            // ── Update alert log with email status ──
+            $this->security_login_model->update_alert_email_status(
+                $token,
+                $sent ? 'sent' : 'failed',
+                $sent ? '' : 'SMTP send failed'
+            );
+
+            if ($sent) {
+                $this->security_login_model->mark_alert_sent($history_id);
+            }
+
+        } catch (Exception $e) {
+            log_message('error', 'User_model::_run_suspicious_login_pipeline failed for user ' . $user_id . ': ' . $e->getMessage());
+            // Never propagate – login must continue
+        }
     }
 
     function set_login_userdata($user_id = ""){
@@ -1009,7 +1415,10 @@ private function upsert_tutor_profile_from_post($user_id)
                 if($this->session->userdata('url_history')){
                     redirect($this->session->userdata('url_history'), 'refresh');
                 }
-                redirect(site_url('home'), 'refresh');
+                if ((int)$row->is_instructor === 1) {
+                    redirect(site_url('user/dashboard'), 'refresh');
+                }
+                redirect(site_url('home/student_dashboard'), 'refresh');
             }
         } else {
             $this->session->set_flashdata('error_message', get_phrase('invalid_login_credentials'));
@@ -1054,6 +1463,12 @@ private function upsert_tutor_profile_from_post($user_id)
                     $this->session_destroy();
                     redirect(site_url('login'), 'refresh');
                 }
+                $tutor_login_block_message = $this->pending_tutor_login_block_message((int)$this->session->userdata('user_id'));
+                if ($tutor_login_block_message !== '') {
+                    $this->session_destroy();
+                    $this->session->set_flashdata('error_message', $tutor_login_block_message);
+                    redirect(site_url('login'), 'refresh');
+                }
             }
         }elseif($user_type == 'login'){
             if ($this->session->userdata('admin_login')) {
@@ -1066,6 +1481,9 @@ private function upsert_tutor_profile_from_post($user_id)
 
     public function session_destroy()
     {
+        $cart_items = $this->session->userdata('cart_items');
+        $language = $this->session->userdata('language');
+
         $this->remove_garbage_collection();
 
         $logged_in_user_id = $this->session->userdata('user_id');
@@ -1112,7 +1530,25 @@ private function upsert_tutor_profile_from_post($user_id)
         $this->session->unset_userdata('new_device_user_id');
         $this->session->unset_userdata('new_device_verification_code');
 
-    }
+        $this->session->unset_userdata('oauth_provider');
+        $this->session->unset_userdata('oauth_state');
+        $this->session->unset_userdata('oauth_nonce');
+        $this->session->unset_userdata('oauth_code_verifier');
+        $this->session->unset_userdata('oauth_started_at');
+        $this->session->unset_userdata('oauth_registration_type');
+        $this->session->unset_userdata('oauth_flow');
+
+        if (method_exists($this->session, 'sess_regenerate')) {
+            $this->session->sess_regenerate(true);
+        }
+
+        if (!empty($cart_items)) {
+            $this->session->set_userdata('cart_items', $cart_items);
+        }
+        if (!empty($language)) {
+            $this->session->set_userdata('language', $language);
+        }
+}
 
     function remove_garbage_collection(){
         $this->db->where('timestamp <', time()-864000);

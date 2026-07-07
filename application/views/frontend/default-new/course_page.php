@@ -11,6 +11,10 @@ if ($number_of_ratings > 0) {
 } else {
     $average_ceil_rating = 0;
 }
+$course_outcomes = json_decode($course_details['outcomes'] ?? '[]', true);
+$course_outcomes = is_array($course_outcomes) ? array_values(array_filter($course_outcomes)) : [];
+$course_requirements = json_decode($course_details['requirements'] ?? '[]', true);
+$course_requirements = is_array($course_requirements) ? array_values(array_filter($course_requirements)) : [];
 ?>
 
 <!---------- Banner Start ---------->
@@ -22,6 +26,13 @@ if ($number_of_ratings > 0) {
                     <div class="courses-details-1st-text">
                         <h1><?php echo $course_details['title']; ?></h1>
                         <p class="mb-3"><?php echo $course_details['short_description']; ?></p>
+                        <div class="course-detail-trust-chips">
+                            <span><i class="fa-regular fa-list-alt"></i> <?php echo $lessons->num_rows(); ?> lessons</span>
+                            <?php if ($course_duration) : ?><span><i class="fa-regular fa-clock"></i> <?php echo $course_duration; ?></span><?php endif; ?>
+                            <span><i class="fa-solid fa-signal"></i> <?php echo get_phrase($course_details['level']); ?></span>
+                            <span><i class="fa-solid fa-certificate"></i> Certificate eligible</span>
+                            <span><i class="fa-solid fa-briefcase"></i> Career fit</span>
+                        </div>
                         <div class="review">
                             <div class="row ">
                                 <div class="col-12 course-heading-info mb-3">
@@ -183,12 +194,12 @@ if ($number_of_ratings > 0) {
                         </div>
                         <div class="ammount d-flex">
                             <?php if ($course_details['is_free_course']) : ?>
-                                <h1 class="fw-500"><?php echo get_phrase('Free'); ?></h1>
+                                <h2 class="fw-500"><?php echo get_phrase('Free'); ?></h2>
                             <?php elseif ($course_details['discount_flag']) : ?>
-                                <h1 class="fw-500"><?php echo currency($course_details['discounted_price']); ?></h1>
+                                <h2 class="fw-500"><?php echo currency($course_details['discounted_price']); ?></h2>
                                 <h3 class="fw-500"><del><?php echo currency($course_details['price']); ?></del></h3>
                             <?php else : ?>
-                                <h1 class="fw-500"><?php echo currency($course_details['price']); ?></h1>
+                                <h2 class="fw-500"><?php echo currency($course_details['price']); ?></h2>
                             <?php endif; ?>
 
                             <a href="<?php echo base_url('home/compare?course-1=' . slugify($course_details['title']) . '&course-id-1=' . $course_details['id']); ?>" title="<?php echo get_phrase('Compare this course') ?>" data-bs-toggle="tooltip" class="ms-auto py-2">
@@ -321,7 +332,7 @@ if ($number_of_ratings > 0) {
 <!-------- Related course section start ----->
 <section class="courses grid-view-body course-details-card">
     <div class="container">
-        <h1><?php echo get_phrase('Related Courses'); ?></h1>
+        <h2><?php echo get_phrase('Related Courses'); ?></h2>
         <div class="courses-card">
             <div class="row">
                 <?php $related_courses = $this->crud_model->get_related_courses($course_details['category_id'], $course_details['sub_category_id'], $course_details['id'], 12)->result_array(); ?>

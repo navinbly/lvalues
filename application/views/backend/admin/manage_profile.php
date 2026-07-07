@@ -104,11 +104,15 @@
 				</div>
 				<div class="form-group">
 					<label><?php echo get_phrase('new_password');?></label>
-					<input type="password" class="form-control" name="new_password" value="" required/>
+					<input type="password" class="form-control" name="new_password" value="" minlength="12" autocomplete="new-password" required/>
+					<small class="text-muted">Security policy: use at least 12 characters with uppercase, lowercase, number, and symbol. Avoid reused or breached passwords.</small>
 				</div>
 				<div class="form-group">
 					<label><?php echo get_phrase('confirm_new_password');?></label>
-					<input type="password" class="form-control" name="confirm_password" value="" required/>
+					<input type="password" class="form-control" name="confirm_password" value="" minlength="12" autocomplete="new-password" required/>
+				</div>
+				<div class="alert alert-info">
+					<strong>Phase 5 security reminder:</strong> admin password changes should be paired with MFA, active session review, device revoke, and suspicious login alerts.
 				</div>
 				<div class="row justify-content-center">
 					<button type="submit" class="btn btn-info"><?php echo get_phrase('update_password');?></button>

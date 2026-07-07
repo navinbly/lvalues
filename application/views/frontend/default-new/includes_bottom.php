@@ -17,6 +17,7 @@
 <script src="<?php echo base_url() . 'assets/global/toastr/toastr.min.js'; ?>"></script>
 <script src="<?php echo base_url() . 'assets/global/jquery-form/jquery.form.min.js'; ?>"></script>
 <script src="<?php echo base_url() . 'assets/global/tagify/jquery.tagify.js'; ?>"></script>
+<script src="<?php echo base_url() . 'assets/frontend/default-new/js/lvalues-chatbot.js'; ?>" defer></script>
 
 <!-- SHOW TOASTR NOTIFIVATION -->
 <?php if ($this->session->flashdata('flash_message') != "") : ?>

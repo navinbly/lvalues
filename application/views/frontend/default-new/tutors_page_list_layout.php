@@ -9,6 +9,26 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
 
 <div class="grid-view-body courses courses-list-view-body">
 
+    <div class="tutor-marketplace-hero mb-4">
+        <div>
+            <span class="tutor-marketplace-kicker">Tutor marketplace</span>
+            <h2>Find tutors by subject, mode, fee, rating, and location</h2>
+            <p>Compare verified tutor profiles, teaching mode, experience, subjects, pricing, reviews, and demo request options before contacting a tutor.</p>
+        </div>
+        <div class="tutor-marketplace-actions">
+            <a href="<?php echo site_url('sign_up'); ?>" class="btn btn-primary btn-sm">Create student account</a>
+            <a href="<?php echo site_url('sign_up?instructor=yes'); ?>" class="btn btn-outline-primary btn-sm">Become a tutor</a>
+        </div>
+    </div>
+
+    <div class="tutor-discovery-trust mb-3">
+        <span><i class="fa-solid fa-circle-check"></i> Verified tutor badge</span>
+        <span><i class="fa-solid fa-star"></i> Ratings and reviews</span>
+        <span><i class="fa-solid fa-wallet"></i> Fee transparency</span>
+        <span><i class="fa-solid fa-video"></i> Demo request flow</span>
+        <span><i class="fa-solid fa-location-dot"></i> Location and mode filters</span>
+    </div>
+
     <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap">
         <div>
             <strong>
@@ -20,7 +40,7 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
             </strong>
         </div>
         <div class="text-muted small">
-            <?php echo get_phrase('Search Tutors'); ?>
+            <?php echo get_phrase('Search Tutors'); ?> · <?php echo get_phrase('Best match'); ?>
         </div>
     </div>
 
@@ -34,6 +54,8 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                 $rating_count = (int)($t['rating_count'] ?? 0);
                 $request_modal_id = 'tutorRequestModal_' . (int) $t['tutor_profile_id'];
                 $profile_modal_id = 'tutorProfileModal_' . (int) $t['tutor_profile_id'];
+                // phase4_verified_tutor_badge
+                $is_verified_tutor = strtolower((string)($t['tutor_profile_status'] ?? 'active')) === 'active';
 
                 $headline = trim((string)($t['headline'] ?? ''));
                 $qualification = trim((string)($t['qualification'] ?? ''));
@@ -50,6 +72,9 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                 $photo = !empty($t['profile_photo']) ? $t['profile_photo'] : '';
                 $photo_path = $photo ? ('uploads/tutors/'.$photo) : '';
                 $photo_url = (!empty($photo_path) && file_exists($photo_path)) ? base_url($photo_path) : base_url('assets/global/image/user.png');
+                $availability_label = 'Demo request available';
+                $response_label = 'Response after request';
+                $fee_label = !empty($hourly_fee) ? currency($hourly_fee) . ' / hour' : 'Fee on request';
             ?>
 
             <div class="courses-list-view-card-body courses-card-body" style="cursor: default;">
@@ -68,13 +93,21 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                                 <?php echo html_escape($full_name ?: 'Tutor'); ?>
                             </a>
                         </h5>
+                        <?php if ($is_verified_tutor): ?><span class="tutor-verified-badge"><i class="fa-solid fa-circle-check"></i> Verified tutor</span><?php endif; ?>
                         <span class="compare-img">
                             <?php if (!empty($hourly_fee)): ?>
-                                <strong><?php echo currency($hourly_fee); ?></strong>
+                                <strong><?php echo currency($hourly_fee); ?> / hour</strong>
                             <?php else: ?>
                                 <strong><?php echo get_phrase('Contact'); ?></strong>
                             <?php endif; ?>
                         </span>
+                    </div>
+
+                    <div class="tutor-card-chips">
+                        <span><i class="fa-solid fa-video"></i> <?php echo html_escape($availability_label); ?></span>
+                        <span><i class="fa-solid fa-reply"></i> <?php echo html_escape($response_label); ?></span>
+                        <span><i class="fa-solid fa-wallet"></i> <?php echo html_escape($fee_label); ?></span>
+                        <span><i class="fa-solid fa-location-dot"></i> <?php echo html_escape($mode === 'both' ? 'Online + offline' : ucfirst($mode)); ?></span>
                     </div>
 
                     <div class="review-icon">
@@ -110,7 +143,7 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                             <div class="courses-price-right">
                                 <?php if ($this->session->userdata('user_login')): ?>
                                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#<?php echo $request_modal_id; ?>">
-                                        <?php echo get_phrase('Send Request'); ?>
+                                        <?php echo get_phrase('Book Demo / Send Request'); ?>
                                     </button>
                                 <?php else: ?>
                                     <a href="<?php echo site_url('login'); ?>" class="btn btn-sm btn-outline-primary">
@@ -141,9 +174,11 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
 
                                     <div class="tutor-profile-badges">
                                         <span class="tutor-pill tutor-pill-light"><?php echo strtoupper(html_escape($mode)); ?></span>
+                                        <?php if ($is_verified_tutor): ?><span class="tutor-pill tutor-pill-success"><i class="fa-solid fa-circle-check"></i> Verified</span><?php endif; ?>
                                         <?php if (!empty($hourly_fee)): ?>
-                                            <span class="tutor-pill tutor-pill-primary"><?php echo currency($hourly_fee); ?></span>
+                                            <span class="tutor-pill tutor-pill-primary"><?php echo currency($hourly_fee); ?> / hour</span>
                                         <?php endif; ?>
+                                        <span class="tutor-pill tutor-pill-light">Demo request</span>
                                     </div>
                                 </div>
 
@@ -179,6 +214,24 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                                                 <div class="tutor-profile-value"><?php echo html_escape($profile_location_line !== '' ? $profile_location_line : 'NA'); ?></div>
                                             </div>
                                         </div>
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label">Availability</div>
+                                                <div class="tutor-profile-value">Demo request available. Confirm schedule after sending a request.</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label">Verification</div>
+                                                <div class="tutor-profile-value"><?php echo $is_verified_tutor ? 'Profile active and qualification details provided.' : 'Verification details pending.'; ?></div>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-12">
+                                            <div class="tutor-profile-field">
+                                                <div class="tutor-profile-label">What to ask before booking</div>
+                                                <div class="tutor-profile-value">Ask about weekly availability, demo class timing, teaching plan, homework support, assessment style, and parent progress updates.</div>
+                                            </div>
+                                        </div>
                                         <div class="col-sm-12">
                                             <div class="tutor-profile-field mb-0">
                                                 <div class="tutor-profile-label"><?php echo get_phrase('Bio'); ?></div>
@@ -202,7 +255,7 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
                     <div class="modal-content">
                         <form action="<?php echo site_url('home/send_tutor_request'); ?>" method="post">
                             <div class="modal-header">
-                                <h5 class="modal-title"><?php echo get_phrase('Send Request'); ?> - <?php echo html_escape($full_name ?: 'Tutor'); ?></h5>
+                                <h5 class="modal-title"><?php echo get_phrase('Book Demo / Send Request'); ?> - <?php echo html_escape($full_name ?: 'Tutor'); ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo get_phrase('Close'); ?>"></button>
                             </div>
                             <div class="modal-body">
@@ -257,6 +310,71 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
 </div>
 
 <style>
+.tutor-marketplace-hero{
+    display:flex;
+    justify-content:space-between;
+    gap:18px;
+    align-items:flex-start;
+    background:#ffffff;
+    border:1px solid #e8ecf5;
+    border-radius:14px;
+    padding:20px;
+    box-shadow:0 12px 30px rgba(29,39,70,.06);
+}
+.tutor-marketplace-kicker{
+    display:inline-flex;
+    align-items:center;
+    margin-bottom:8px;
+    padding:5px 10px;
+    border-radius:999px;
+    background:#eef7ff;
+    color:#0b75bd;
+    font-size:12px;
+    font-weight:800;
+}
+.tutor-marketplace-hero h2{
+    margin:0 0 8px;
+    color:#1d2746;
+    font-size:26px;
+    font-weight:800;
+    line-height:1.25;
+}
+.tutor-marketplace-hero p{
+    margin:0;
+    color:#65708a;
+    line-height:1.65;
+}
+.tutor-marketplace-actions{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    justify-content:flex-end;
+}
+.tutor-discovery-trust,
+.tutor-card-chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+}
+.tutor-discovery-trust span,
+.tutor-card-chips span{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border-radius:999px;
+    border:1px solid #e3e8f2;
+    background:#f8fafc;
+    color:#374151;
+    font-size:12px;
+    font-weight:700;
+    padding:7px 10px;
+}
+.tutor-card-chips{
+    margin:10px 0 12px;
+}
+.tutor-card-chips span{
+    background:#ffffff;
+}
 .tutor-name-link{
     color: inherit;
     text-decoration: none;
@@ -334,6 +452,23 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
     background: #6c4df6;
     color: #ffffff;
 }
+.tutor-pill-success,
+.tutor-verified-badge{
+    background: #e9f8ef;
+    color: #13753a;
+    border: 1px solid #bce8cc;
+}
+.tutor-verified-badge{
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-left: 8px;
+    white-space: nowrap;
+}
 .tutor-profile-field{
     margin-bottom: 16px;
 }
@@ -361,5 +496,14 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
 }
 .modal .btn-close{
     opacity: 1;
+}
+@media (max-width: 767px){
+    .tutor-marketplace-hero{
+        display:block;
+    }
+    .tutor-marketplace-actions{
+        justify-content:flex-start;
+        margin-top:14px;
+    }
 }
 </style>

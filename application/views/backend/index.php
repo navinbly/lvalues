@@ -44,8 +44,20 @@
 					</div>
 				<?php endif; ?>
 
+				<?php if ($this->session->flashdata('warning_message')): ?>
+					<div class="alert alert-warning alert-dismissible fade show" role="alert">
+						<?php echo $this->session->flashdata('warning_message'); ?>
+						<button type="button" class="close" data-dismiss="alert" aria-label="Close">
+							<span aria-hidden="true">&times;</span>
+						</button>
+					</div>
+				<?php endif; ?>
+
 				<!-- BEGIN PlACE PAGE CONTENT HERE -->
-				<?php include $logged_in_user_role.'/'.$page_name.'.php';?>
+				<?php
+					$content_page_name = isset($view_name) ? basename((string)$view_name) : $page_name;
+					include $logged_in_user_role.'/'.$content_page_name.'.php';
+				?>
 				<!-- END PLACE PAGE CONTENT HERE -->
 			</div>
             </div>

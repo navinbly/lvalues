@@ -5,10 +5,10 @@
                 <div class="d-flex align-items-center justify-content-between flex-wrap mb-3">
                     <h4 class="page-title mb-0"><i class="mdi mdi-account-multiple-check title_icon"></i> <?php echo get_phrase('student_requests'); ?></h4>
                     <div>
-                        <a href="<?php echo site_url('user/student_requests/all'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'all' ? 'btn-primary' : 'btn-light'; ?>">All</a>
-                        <a href="<?php echo site_url('user/student_requests/pending'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'pending' ? 'btn-primary' : 'btn-light'; ?>">Pending</a>
-                        <a href="<?php echo site_url('user/student_requests/approved'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'approved' ? 'btn-primary' : 'btn-light'; ?>">Accepted</a>
-                        <a href="<?php echo site_url('user/student_requests/rejected'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'rejected' ? 'btn-primary' : 'btn-light'; ?>">Rejected</a>
+                        <a href="<?php echo site_url('user/student_requests/all'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'all' ? 'btn-primary' : 'btn-light'; ?>" aria-label="Show all student requests">All</a>
+                        <a href="<?php echo site_url('user/student_requests/pending'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'pending' ? 'btn-primary' : 'btn-light'; ?>" aria-label="Show pending student requests">Pending</a>
+                        <a href="<?php echo site_url('user/student_requests/approved'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'approved' ? 'btn-primary' : 'btn-light'; ?>" aria-label="Show accepted student requests">Accepted</a>
+                        <a href="<?php echo site_url('user/student_requests/rejected'); ?>" class="btn btn-sm <?php echo $request_status_filter === 'rejected' ? 'btn-primary' : 'btn-light'; ?>" aria-label="Show rejected student requests">Rejected</a>
                     </div>
                 </div>
 
@@ -22,6 +22,7 @@
                                     <th><?php echo get_phrase('preferred_mode'); ?></th>
                                     <th><?php echo get_phrase('location'); ?></th>
                                     <th><?php echo get_phrase('status'); ?></th>
+                                    <th><?php echo get_phrase('payment_access'); ?></th>
                                     <th><?php echo get_phrase('requested_on'); ?></th>
                                     <th><?php echo get_phrase('action'); ?></th>
                                 </tr>
@@ -46,11 +47,31 @@
                                     <td><?php echo ucfirst(html_escape($request['preferred_mode'])); ?></td>
                                     <td><?php echo html_escape($request['student_location_text']); ?></td>
                                     <td><span class="badge badge-<?php echo $status_class; ?>-lighten"><?php echo ucfirst($request['status']); ?></span></td>
+                                    <td>
+                                        <?php if ($request['status'] === 'approved'): ?>
+                                            <?php
+                                                $one_time_status = $request['one_time_payment_status'] ?: 'payment_disabled';
+                                                $monthly_status = $request['monthly_payment_status'] ?: 'payment_disabled';
+                                                $tutor_payable = (float)($request['one_time_tutor_payable_amount'] ?? 0);
+                                            ?>
+                                            <span class="badge badge-warning-lighten d-block mb-1">Payment disabled</span>
+                                            <small class="text-muted d-block">One-time: <?php echo html_escape(str_replace('_', ' ', $one_time_status)); ?></small>
+                                            <small class="text-muted d-block">Monthly: <?php echo html_escape(str_replace('_', ' ', $monthly_status)); ?></small>
+                                            <?php if ($tutor_payable > 0): ?>
+                                                <small class="text-muted d-block">Future payable: ₹<?php echo number_format($tutor_payable, 2); ?></small>
+                                            <?php endif; ?>
+                                            <small class="text-danger d-block mt-1">Do not grant paid batch/session access until admin confirms payment. Transactions are stopped now.</small>
+                                        <?php elseif ($request['status'] === 'pending'): ?>
+                                            <span class="text-muted small">No payment until accepted.</span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">No payment for rejected/cancelled request.</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><?php echo date('d M Y, h:i A', strtotime($request['created_at'])); ?></td>
                                     <td>
                                         <?php if ($request['status'] === 'pending'): ?>
-                                            <button class="btn btn-sm btn-success mb-1" data-toggle="modal" data-target="#acceptRequestModal_<?php echo (int)$request['id']; ?>">Accept</button>
-                                            <button class="btn btn-sm btn-danger mb-1" data-toggle="modal" data-target="#rejectRequestModal_<?php echo (int)$request['id']; ?>">Reject</button>
+                                            <button class="btn btn-sm btn-success mb-1" data-toggle="modal" data-target="#acceptRequestModal_<?php echo (int)$request['id']; ?>" aria-label="Accept request from <?php echo html_escape(trim(($request['student_first_name'] ?? '') . ' ' . ($request['student_last_name'] ?? '')) ?: $request['student_name_snapshot']); ?>">Accept</button>
+                                            <button class="btn btn-sm btn-danger mb-1" data-toggle="modal" data-target="#rejectRequestModal_<?php echo (int)$request['id']; ?>" aria-label="Reject request from <?php echo html_escape(trim(($request['student_first_name'] ?? '') . ' ' . ($request['student_last_name'] ?? '')) ?: $request['student_name_snapshot']); ?>">Reject</button>
                                         <?php else: ?>
                                             <span class="text-muted small">Updated <?php echo !empty($request['responded_at']) ? date('d M Y, h:i A', strtotime($request['responded_at'])) : '-'; ?></span>
                                             <?php if (!empty($request['tutor_response'])): ?>
@@ -67,7 +88,7 @@
                                                 <form action="<?php echo site_url('user/update_student_request/' . (int)$request['id'] . '/approved'); ?>" method="post">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Accept student request</h5>
-                                                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="form-group mb-0">
@@ -90,7 +111,7 @@
                                                 <form action="<?php echo site_url('user/update_student_request/' . (int)$request['id'] . '/rejected'); ?>" method="post">
                                                     <div class="modal-header">
                                                         <h5 class="modal-title">Reject student request</h5>
-                                                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+                                                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                                                     </div>
                                                     <div class="modal-body">
                                                         <div class="form-group mb-0">
@@ -112,7 +133,7 @@
                         </table>
                     </div>
                 <?php else: ?>
-                    <div class="alert alert-light border mb-0"><?php echo get_phrase('No student requests found for the selected filter.'); ?></div>
+                    <div class="text-center border rounded py-4"><h5 class="mb-1"><?php echo get_phrase('No student requests found for the selected filter.'); ?></h5><p class="text-muted mb-3">Keep your teaching profile complete so students can find and contact you.</p><a href="<?php echo site_url('user/tutor_teaching_profile'); ?>" class="btn btn-outline-primary btn-sm" aria-label="Improve teaching profile from empty student requests">Improve teaching profile</a></div>
                 <?php endif; ?>
             </div>
         </div>

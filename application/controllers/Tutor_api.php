@@ -6,6 +6,7 @@ class Tutor_api extends CI_Controller
     public function __construct()
     {
         parent::__construct();
+		$this->load->database();
         $this->load->model('Tutor_master_model', 'tutor_master_model');
         $this->output->set_content_type('application/json');
     }

@@ -97,6 +97,7 @@
                                 <option value="enable" <?php if(get_settings('student_email_verification') == "enable") echo 'selected'; ?>><?php echo get_phrase('enable'); ?></option>
                                 <option value="disable" <?php if(get_settings('student_email_verification') == "disable") echo 'selected'; ?>><?php echo get_phrase('disable'); ?></option>
                             </select>
+                            <small class="text-muted security-setting-note">Security guardrail: disabling student email verification should require confirmation, audit logging, and rollback notes.</small>
                         </div>
 
                         <div class="form-group">
@@ -105,12 +106,14 @@
                                 <option value="publicly" <?php if(get_settings('course_accessibility') == "publicly") echo 'selected'; ?>><?php echo get_phrase('publicly'); ?></option>
                                 <option value="only_logged_in_users" <?php if(get_settings('course_accessibility') == "only_logged_in_users") echo 'selected'; ?>><?php echo get_phrase('only_logged_in_users'); ?></option>
                             </select>
+                            <small class="text-muted security-setting-note">Security guardrail: public course accessibility changes need permission gating, dual approval, audit trail, and rollback value.</small>
                         </div>
 
                         <div class="form-group">
                             <label for="allowed_device_number_of_loging"><?php echo get_phrase('number_of_authorized_devices'); ?><span class="required">*</span></label>
                             <input type="number" name = "allowed_device_number_of_loging" id = "allowed_device_number_of_loging" class="form-control" value="<?php echo get_settings('allowed_device_number_of_loging');  ?>" min="1" required>
                             <small><?php echo get_phrase('how_many_devices_do_you_want_to_allow_for_logging_in_using_a_single_account'); ?>?</small>
+                            <small class="text-muted security-setting-note d-block">Session guardrail: pair this setting with active session list, revoke-device action, idle timeout, and suspicious login alerts.</small>
                         </div>
 
                         <div class="form-group toggleMinimumWatchField">
@@ -122,6 +125,7 @@
                                 </div>
                             </div>
                             <small><?php echo get_phrase('enter_0_if_you_want_to_disable_the_tax_option') ?></small>
+                            <small class="text-muted security-setting-note d-block">Finance guardrail: tax changes should require second approval and before/after audit logging.</small>
                         </div>
 
                         <div class="form-group">
@@ -172,6 +176,19 @@
         </div> <!-- end card -->
     </div><!-- end col-->
     <div class="col-xl-5">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="mb-3 header-title">Security review for settings</h4>
+                <div class="alert alert-warning">High-impact settings need confirmation, audit logging, rollback values, and dual approval before production enforcement.</div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0"><strong>Email verification:</strong> affects account trust and onboarding abuse.</li>
+                    <li class="list-group-item px-0"><strong>Course accessibility:</strong> affects public access and business risk.</li>
+                    <li class="list-group-item px-0"><strong>Authorized devices:</strong> affects session control and account sharing.</li>
+                    <li class="list-group-item px-0"><strong>Tax/gateway settings:</strong> affects finance compliance and payout correctness.</li>
+                </ul>
+                <a href="<?php echo site_url('admin/phase2_security'); ?>" class="btn btn-outline-primary btn-block mt-3">Open security review</a>
+            </div>
+        </div>
         <div class="card">
             <div class="card-body">
                 <div class="col-lg-12">

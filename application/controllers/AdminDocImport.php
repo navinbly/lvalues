@@ -37,23 +37,29 @@ class AdminDocImport extends CI_Controller
             }
 
             // ✅ Load PHPWord after buffering
-			$candidates = [
-				APPPATH . 'third_party/src/PhpWord/Autoloader.php',
-				APPPATH . 'third_party/phpword/src/PhpWord/Autoloader.php',
-				APPPATH . 'third_party/phpword/src/PhpOffice/PhpWord/Autoloader.php',
-				APPPATH . 'third_party/PHPWord/src/PhpOffice/PhpWord/Autoloader.php',
-			];
+            $candidates = [
+                APPPATH . 'libraries/phpword-master/vendor/autoload.php',
+                APPPATH . 'third_party/phpword/vendor/autoload.php',
+                APPPATH . 'vendor/autoload.php',
+                FCPATH . 'vendor/autoload.php',
+                APPPATH . 'third_party/src/PhpWord/Autoloader.php',
+                APPPATH . 'third_party/phpword/src/PhpWord/Autoloader.php',
+                APPPATH . 'third_party/phpword/src/PhpOffice/PhpWord/Autoloader.php',
+                APPPATH . 'third_party/PHPWord/src/PhpOffice/PhpWord/Autoloader.php',
+            ];
 
-			$autoloadPath = null;
-			foreach ($candidates as $p) {
-				if (file_exists($p)) { $autoloadPath = $p; break; }
-			}
-			if (!$autoloadPath) {
-				return $this->_json(false, null, 'PHPWord Autoloader not found. Checked: ' . implode(' | ', $candidates));
-			}
+            $autoloadPath = null;
+            foreach ($candidates as $candidatePath) {
+                if (file_exists($candidatePath)) { $autoloadPath = $candidatePath; break; }
+            }
+            if (!$autoloadPath) {
+                return $this->_json(false, null, 'PHPWord autoload file not found. Checked: ' . implode(' | ', $candidates));
+            }
 
-			require_once $autoloadPath;
-			\PhpOffice\PhpWord\Autoloader::register();
+            require_once $autoloadPath;
+            if (class_exists('PhpOffice\\PhpWord\\Autoloader')) {
+                \PhpOffice\PhpWord\Autoloader::register();
+            }
 
 
             // Ensure class exists
@@ -75,20 +81,18 @@ class AdminDocImport extends CI_Controller
                 return $this->_json(false, null, 'Cannot create uploads/doc_import (permission issue).');
             }
 
-            $config = [
-                'upload_path'   => $uploadDir,
-                'allowed_types' => 'docx',
-                'max_size'      => 10240, // 10MB
-                'encrypt_name'  => true,
-            ];
-            $this->upload->initialize($config);
-
-            if (!$this->upload->do_upload('docx_file')) {
-                return $this->_json(false, null, strip_tags($this->upload->display_errors()));
+            if (!is_uploaded_file($_FILES['docx_file']['tmp_name'])) {
+                return $this->_json(false, null, 'Invalid upload. Please choose the DOCX file again.');
+            }
+            if ((int)$_FILES['docx_file']['size'] > (10 * 1024 * 1024)) {
+                return $this->_json(false, null, 'DOCX file is too large. Maximum allowed size is 10 MB.');
             }
 
-            $up = $this->upload->data();
-            $docxPath = $up['full_path'];
+            $safeName = date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.docx';
+            $docxPath = $uploadDir . $safeName;
+            if (!@move_uploaded_file($_FILES['docx_file']['tmp_name'], $docxPath)) {
+                return $this->_json(false, null, 'Failed to save uploaded DOCX. Check uploads/doc_import folder permission.');
+            }
 
             $imgRelDir = 'uploads/ckeditor_images/docimport_' . date('Ymd_His') . '_' . substr(md5($docxPath), 0, 6) . '/';
             $imgAbsDir = FCPATH . $imgRelDir;
@@ -122,7 +126,7 @@ class AdminDocImport extends CI_Controller
         } catch (Throwable $e) {
             // Log the real exception server-side
             log_message('error', 'DOCX import exception: ' . $e->getMessage() . "\n" . $e->getTraceAsString());
-            return $this->_json(false, null, 'Server error during DOCX import. Check application/logs.');
+            return $this->_json(false, null, 'Server error during DOCX import: ' . $e->getMessage());
         } finally {
             restore_error_handler();
         }

@@ -237,12 +237,48 @@
             width:42px;height:42px;line-height:42px;text-align:center;border-radius:13px;
             background:#f4f1ff;color:#6c4df6;margin-bottom:12px;font-size:18px;
         }
+        .lvalues-section-heading{max-width:760px;margin:0 auto 30px;text-align:center;}
+        .lvalues-section-heading h2{margin:0;color:#17213a;font-size:34px;line-height:1.25;font-weight:800;}
+        .lvalues-section-heading p{margin:12px 0 0;color:#65708a;font-size:16px;line-height:1.7;}
+        .lvalues-audience-section,.lvalues-work-section{background:#ffffff;padding:58px 0;}
+        .lvalues-audience-card,.lvalues-work-card,.lvalues-outcome-card{
+            height:100%;
+            background:#ffffff;
+            border:1px solid #e9ecf5;
+            border-radius:18px;
+            padding:22px;
+            box-shadow:0 14px 34px rgba(34,41,87,.07);
+        }
+        .lvalues-audience-card h3,.lvalues-work-card h3,.lvalues-outcome-card h3{margin:0 0 10px;color:#17213a;font-size:19px;font-weight:800;}
+        .lvalues-audience-card p,.lvalues-work-card p,.lvalues-outcome-card p{margin:0 0 16px;color:#65708a;font-size:14px;line-height:1.65;}
+        .lvalues-audience-card a,.lvalues-work-card a{font-weight:800;color:#6c4df6;text-decoration:none;}
+        .lvalues-audience-card a:hover,.lvalues-work-card a:hover{text-decoration:underline;}
+        .lvalues-card-icon{
+            width:46px;height:46px;line-height:46px;text-align:center;border-radius:14px;
+            background:#edf8ff;color:#0b75bd;margin-bottom:15px;font-size:18px;
+        }
+        .lvalues-work-section{background:#f7f9ff;}
+        .lvalues-outcome-strip{padding:42px 0;background:#17213a;color:#ffffff;}
+        .lvalues-outcome-card{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);box-shadow:none;}
+        .lvalues-outcome-card h3,.lvalues-outcome-card p{color:#ffffff;}
+        .lvalues-outcome-card p{opacity:.82;}
+        .lvalues-corporate-band{padding:42px 0;background:#ffffff;}
+        .lvalues-corporate-panel{
+            background:#f7f9ff;
+            border:1px solid #e9ecf5;
+            border-radius:22px;
+            padding:28px;
+        }
+        .lvalues-corporate-panel h2{margin:0 0 10px;color:#17213a;font-size:30px;font-weight:800;}
+        .lvalues-corporate-panel p{margin:0;color:#65708a;line-height:1.7;}
+        .lvalues-corporate-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;align-items:center;}
         @media (max-width:991px){
             .lvalues-home-hero{padding:36px 0 32px;}
             .lvalues-hero-title{font-size:40px;letter-spacing:-.8px;}
             .lvalues-hero-subtitle{font-size:16px;}
             .lvalues-hero-image-card{margin-top:24px;margin-left:0;}
             .lvalues-floating-card{display:none;}
+            .lvalues-corporate-actions{justify-content:flex-start;margin-top:18px;}
         }
         @media (max-width:575px){
             .lvalues-home-hero{padding:28px 0;}
@@ -254,42 +290,48 @@
             .lvalues-mode-buttons{display:flex;width:100%;}
             .lvalues-mode-buttons button{min-width:0;flex:1 1 50%;padding:0 10px;font-size:14px;}
             .lvalues-search-submit{margin-top:10px;}
+            .lvalues-section-heading h2{font-size:26px;}
+            .lvalues-audience-section,.lvalues-work-section{padding:40px 0;}
         }
     </style>
 
     <div class="container">
         <div class="row align-items-start">
             <div class="col-lg-6 col-md-12">
-                <div class="lvalues-hero-kicker">Tutor-student learning platform</div>
-                <h1 class="lvalues-hero-title">
-                    Find the right <span>tutor</span>.<br>
-                    Learn online, offline, or both.
-                </h1>
-                <p class="lvalues-hero-subtitle">
-                    Lvalues helps students find trusted tutors by subject, class, skill and location. Tutors can find students, create batches, schedule live sessions, assign tests, and track progress from one platform.
-                </p>
+                <div class="lvalues-hero-kicker">School • IT & Professional Courses • Online & Offline Learning</div>
 
-                <div class="lvalues-confidence-box">
-                    <h6>Learn with confidence</h6>
-                    <p>Search tutors, join batches, attend sessions, complete assignments, and track learning progress.</p>
-                </div>
+					<h1 class="lvalues-hero-title">
+						Learn school subjects.<br>
+						Build <span>IT skills</span>.<br>
+						Find tutors or courses.
+					</h1>
 
-                <div class="lvalues-hero-actions">
-                    <a href="#lvaluesStartSearch" class="btn btn-primary btn-lg lvalues-btn-primary lvalues-open-search" data-mode="tutor">Find a Tutor</a>
-                    <a href="#lvaluesStartSearch" class="btn btn-outline-primary btn-lg lvalues-btn-outline lvalues-open-search" data-mode="course">Find a Course</a>
-                    <?php if($this->session->userdata('user_id')): ?>
-                        <a href="<?php echo site_url('user/become_an_instructor'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
-                    <?php else: ?>
-                        <a href="<?php echo site_url('sign_up?instructor=yes'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
-                    <?php endif; ?>
-                </div>
+					<p class="lvalues-hero-subtitle">
+						Lvalues helps students learn school subjects, IT and professional courses through online classes, offline tuition, or hybrid learning. Students can find tutors and courses, while tutors can create batches, schedule sessions, assign tests, and track progress.
+					</p>
 
-                <div class="lvalues-trust-row">
-                    <span class="lvalues-trust-pill">Online classes</span>
-                    <span class="lvalues-trust-pill">Offline tuition</span>
-                    <span class="lvalues-trust-pill">Hybrid learning</span>
-                    <span class="lvalues-trust-pill">Assignments & tests</span>
-                </div>
+					<div class="lvalues-confidence-box">
+						<h6>One platform for complete learning</h6>
+						<p>School courses, IT skills, professional training, tutors, batches, assignments, tests, and progress tracking — all in one place.</p>
+					</div>
+
+					<div class="lvalues-hero-actions">
+						<a href="#lvaluesStartSearch" class="btn btn-primary btn-lg lvalues-btn-primary lvalues-open-search" data-mode="course">Find a Course</a>
+						<a href="#lvaluesStartSearch" class="btn btn-outline-primary btn-lg lvalues-btn-outline lvalues-open-search" data-mode="tutor">Find a Tutor</a>
+						<?php if($this->session->userdata('user_id')): ?>
+							<a href="<?php echo site_url('user/become_an_instructor'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
+						<?php else: ?>
+							<a href="<?php echo site_url('sign_up?instructor=yes'); ?>" class="btn btn-outline-primary btn-lg lvalues-btn-outline">Become a Tutor</a>
+						<?php endif; ?>
+					</div>
+
+					<div class="lvalues-trust-row">
+						<span class="lvalues-trust-pill">School Courses</span>
+						<span class="lvalues-trust-pill">IT & Professional Courses</span>
+						<span class="lvalues-trust-pill">Online Classes</span>
+						<span class="lvalues-trust-pill">Offline Tuition</span>
+						<span class="lvalues-trust-pill">Hybrid Learning</span>
+					</div>
             </div>
 
             <div class="col-lg-6 col-md-12">
@@ -307,7 +349,7 @@
                     <div class="row align-items-center">
                         <div class="col-lg-4 col-md-12">
                             <h4 id="lvaluesSearchTitle">Start your search</h4>
-                            <p id="lvaluesSearchDescription">Find a tutor or course for school, college, IT, cloud, professional skills, and more.</p>
+                            <p id="lvaluesSearchDescription">Find school courses, IT and professional courses, online classes, offline tuition, hybrid batches, tutors, and skill-based training.</p>
                         </div>
                         <div class="col-lg-8 col-md-12">
                             <form action="<?php echo site_url('home/search'); ?>" method="get" id="lvaluesHeroSearchForm">
@@ -474,6 +516,300 @@
 </section>
 <!---------- Banner Section End ---------------->
 
+<?php if (!empty($latest_public_exams)): ?>
+<section class="lvalues-mocktest-section" id="lvaluesMockTests">
+    <style>
+        .lvalues-mocktest-section{background:#ffffff;padding:58px 0;border-bottom:1px solid #eef0f7;}
+        .lvalues-mocktest-wrap{background:linear-gradient(135deg,#f7f9ff 0%,#fff 52%,#f4f0ff 100%);border:1px solid #e9ecf5;border-radius:26px;padding:34px;box-shadow:0 20px 55px rgba(34,41,87,.08);}
+        .lvalues-mocktest-head{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:22px;}
+        .lvalues-mocktest-kicker{display:inline-block;background:#ecfdf5;color:#047857;border:1px solid #bbf7d0;border-radius:999px;padding:7px 12px;font-weight:800;font-size:13px;margin-bottom:10px;}
+        .lvalues-mocktest-head h2{margin:0;color:#17213a;font-size:32px;line-height:1.25;font-weight:900;letter-spacing:-.5px;}
+        .lvalues-mocktest-head p{margin:10px 0 0;color:#65708a;line-height:1.7;max-width:720px;}
+        .lvalues-mocktest-viewall{white-space:nowrap;border-radius:12px!important;font-weight:800;}
+        .lvalues-mock-card{height:100%;background:#fff;border:1px solid #e7eaf3;border-radius:20px;padding:20px;box-shadow:0 12px 30px rgba(34,41,87,.06);transition:transform .2s ease,box-shadow .2s ease;}
+        .lvalues-mock-card:hover{transform:translateY(-3px);box-shadow:0 18px 42px rgba(34,41,87,.12);}
+        .lvalues-mock-card h3{margin:10px 0 8px;color:#17213a;font-size:20px;font-weight:900;line-height:1.25;}
+        .lvalues-mock-card p{color:#65708a;font-size:14px;line-height:1.6;min-height:44px;margin-bottom:12px;}
+        .lvalues-mock-meta{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0 16px;}
+        .lvalues-mock-pill{display:inline-block;border:1px solid #e5e7eb;border-radius:999px;background:#f8fafc;color:#536078;padding:6px 9px;font-size:12px;font-weight:800;}
+        .lvalues-free-badge{display:inline-block;border-radius:999px;background:#10b981;color:#fff;padding:6px 10px;font-weight:900;font-size:12px;}
+        .lvalues-mock-start{display:block;text-align:center;border-radius:13px;background:#6c4df6;color:#fff!important;padding:12px 14px;font-weight:900;text-decoration:none;}
+        .lvalues-mock-start:hover{background:#5639de;text-decoration:none;}
+        @media(max-width:767px){.lvalues-mocktest-wrap{padding:22px}.lvalues-mocktest-head{display:block}.lvalues-mocktest-viewall{margin-top:14px}.lvalues-mocktest-head h2{font-size:26px}}
+    </style>
+    <div class="container">
+        <div class="lvalues-mocktest-wrap">
+            <div class="lvalues-mocktest-head">
+                <div>
+                    <span class="lvalues-mocktest-kicker">Free Mock Tests</span>
+                    <h2>Practice Mock Tests & Competitive Exams</h2>
+                    <p>Attempt public exams in a final-exam style experience with timer, instant result, feedback and weak area report.</p>
+                </div>
+                <a href="<?php echo site_url('mock-tests'); ?>" class="btn btn-outline-primary lvalues-btn-outline lvalues-mocktest-viewall">View All Mock Tests</a>
+            </div>
+            <div class="row g-3">
+                <?php foreach ($latest_public_exams as $exam): ?>
+                    <?php
+                        $exam_title = (string)($exam['title'] ?? 'Mock Test');
+                        $description = trim(strip_tags((string)($exam['description'] ?? '')));
+                        if (strlen($description) > 105) $description = substr($description, 0, 102) . '...';
+                        if ($description === '') $description = 'Practice this exam with timer, instant result and weak area analysis.';
+                        $question_count = (int)($exam['question_count'] ?: ($exam['question_limit'] ?? 0));
+                    ?>
+                    <div class="col-lg-4 col-md-6 mb-3">
+                        <article class="lvalues-mock-card">
+                            <span class="lvalues-free-badge">Free</span>
+                            <h3><?php echo html_escape($exam_title); ?></h3>
+                            <p><?php echo html_escape($description); ?></p>
+                            <div class="lvalues-mock-meta">
+                                <span class="lvalues-mock-pill"><?php echo (int)($exam['time_limit_minutes'] ?? 0); ?> min</span>
+                                <span class="lvalues-mock-pill"><?php echo $question_count; ?> questions</span>
+                                <span class="lvalues-mock-pill"><?php echo html_escape($exam['difficulty'] ?? 'Beginner'); ?></span>
+                                <span class="lvalues-mock-pill"><?php echo (int)($exam['attempt_count'] ?? 0); ?> attempts</span>
+                            </div>
+                            <a class="lvalues-mock-start" href="<?php echo site_url('mock-tests/' . ($exam['slug'] ?? '')); ?>">Start Test</a>
+                        </article>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<section class="lvalues-audience-section" id="lvaluesAudiencePaths">
+    <div class="container">
+        <div class="lvalues-section-heading">
+            <h2>Choose the right Lvalues path</h2>
+            <p>Clear journeys for school students, parents, tutors, working professionals, and companies looking for structured training.</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-lg col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-user-graduate"></i></div>
+                    <h3>Students</h3>
+                    <p>Find courses, tutors, live classes, assignments, tests, and progress support for school and skill learning.</p>
+                    <a href="<?php echo site_url('sign_up'); ?>">Start learning</a>
+                </div>
+            </div>
+            <div class="col-lg col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-people-roof"></i></div>
+                    <h3>Parents</h3>
+                    <p>Compare tutor fit, learning mode, class level, and progress signals before choosing support for your child.</p>
+                    <a href="<?php echo site_url('home/search?search_for=tutor'); ?>">Find trusted tutors</a>
+                </div>
+            </div>
+            <div class="col-lg col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <h3>Tutors</h3>
+                    <p>Create a tutor profile, manage batches, invite students, schedule sessions, and grow your teaching business.</p>
+                    <a href="<?php echo site_url('sign_up?instructor=yes'); ?>">Become a tutor</a>
+                </div>
+            </div>
+            <div class="col-lg col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-laptop-code"></i></div>
+                    <h3>Professionals</h3>
+                    <p>Build practical skills in IT, cloud, data, programming, and career-focused professional courses.</p>
+                    <a href="<?php echo site_url('home/courses?query=IT%20Training'); ?>">Explore IT training</a>
+                </div>
+            </div>
+            <div class="col-lg col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-building"></i></div>
+                    <h3>Corporate Training</h3>
+                    <p>Plan team learning for onboarding, upskilling, technology adoption, and role-based training programs.</p>
+                    <a href="<?php echo site_url('home/contact_us?type=corporate'); ?>">Request a proposal</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="lvalues-work-section" id="lvaluesHowItWorks">
+    <div class="container">
+        <div class="lvalues-section-heading">
+            <h2>How Lvalues Works</h2>
+            <p>From discovery to progress tracking, Lvalues brings course learning and tutor-led learning into one guided flow.</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-work-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                    <h3>Discover</h3>
+                    <p>Search courses or tutors by subject, skill, class level, mode, and learning goal.</p>
+                    <a href="#lvaluesStartSearch" class="lvalues-open-search" data-mode="course">Start search</a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-work-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-star"></i></div>
+                    <h3>Compare</h3>
+                    <p>Review ratings, outcomes, tutor profiles, course detail, pricing, and delivery mode.</p>
+                    <a href="<?php echo site_url('home/courses'); ?>">Browse catalog</a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-work-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-video"></i></div>
+                    <h3>Learn</h3>
+                    <p>Join online, offline, or hybrid sessions with assignments, tests, and course materials.</p>
+                    <a href="<?php echo site_url('sign_up'); ?>">Create account</a>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-work-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-chart-line"></i></div>
+                    <h3>Track outcomes</h3>
+                    <p>Use dashboards, batch status, invites, tests, and progress records to stay accountable.</p>
+                    <a href="<?php echo site_url('login'); ?>">Go to dashboard</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="lvalues-outcome-strip" id="lvaluesOutcomes">
+    <div class="container">
+        <div class="row g-3">
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-outcome-card">
+                    <h3>Verified tutor quality</h3>
+                    <p>Tutor applications support document review, teaching mode, categories, fees, and location context.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-outcome-card">
+                    <h3>Outcome-led learning</h3>
+                    <p>Courses and batches can communicate lessons, ratings, reviews, outcomes, and progress checkpoints.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="lvalues-outcome-card">
+                    <h3>Parent confidence</h3>
+                    <p>Families can see courses, tutors, learning modes, and student progress flows before committing.</p>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6" id="lvalues-ai-assistant">
+                <div class="lvalues-outcome-card">
+                    <h3>AI learning assistant</h3>
+                    <p>Use guided support for course discovery, tutor matching, study planning, and support questions.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="lvalues-corporate-band" id="lvaluesCorporateTraining">
+    <div class="container">
+        <div class="lvalues-corporate-panel">
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <h2>Corporate training and career programs</h2>
+                    <p>Build structured learning paths for teams, professionals, and career-focused learners across IT, cloud, programming, data, communication, and role-specific skills.</p>
+                </div>
+                <div class="col-lg-4">
+                    <div class="lvalues-corporate-actions">
+                        <a href="<?php echo site_url('home/contact_us?type=corporate'); ?>" class="btn btn-primary lvalues-btn-primary">Talk to Lvalues</a>
+                        <a href="<?php echo site_url('home/courses?query=career'); ?>" class="btn btn-outline-primary lvalues-btn-outline">View programs</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<?php
+$CI =& get_instance();
+if (!isset($CI->sponsored_course_model) || !is_object($CI->sponsored_course_model)) {
+    $CI->load->model('Sponsored_course_model', 'sponsored_course_model');
+}
+$sponsored_courses = $CI->sponsored_course_model->get_published(6);
+?>
+<?php if (!empty($sponsored_courses)): ?>
+<section class="lvalues-work-section" id="lvaluesSponsoredCourses">
+    <div class="container">
+        <div class="lvalues-section-heading">
+            <h2>Sponsored Courses</h2>
+            <p>Featured third-party learning programs curated for Lvalues learners.</p>
+        </div>
+        <div class="row g-3">
+            <?php foreach ($sponsored_courses as $sponsored): ?>
+                <?php
+                    $registration_link = trim((string)($sponsored['registration_link'] ?? ''));
+                    $safe_link = $registration_link !== '' ? $registration_link : site_url('home/contact_us');
+                    $banner = !empty($sponsored['banner_image']) ? base_url($sponsored['banner_image']) : base_url('uploads/system/home_1.png');
+                ?>
+                <div class="col-lg-4 col-md-6">
+                    <div class="lvalues-audience-card h-100">
+                        <div style="aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; margin-bottom: 14px; background: #eef2f7;">
+                            <img src="<?php echo html_escape($banner); ?>" alt="<?php echo html_escape($sponsored['course_title']); ?> sponsored course banner" style="width:100%;height:100%;object-fit:cover;">
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="badge bg-light text-dark"><?php echo ucfirst(html_escape($sponsored['mode'])); ?></span>
+                            <?php if ($sponsored['fees'] !== null && $sponsored['fees'] !== ''): ?>
+                                <strong>₹<?php echo number_format((float)$sponsored['fees'], 2); ?></strong>
+                            <?php endif; ?>
+                        </div>
+                        <h3><?php echo html_escape($sponsored['course_title']); ?></h3>
+                        <p class="mb-2"><strong><?php echo html_escape($sponsored['provider_name']); ?></strong></p>
+                        <?php if (!empty($sponsored['course_description'])): ?>
+                            <p><?php echo html_escape(ellipsis(strip_tags($sponsored['course_description']), 120)); ?></p>
+                        <?php endif; ?>
+                        <p class="text-muted small mb-2">
+                            <?php if (!empty($sponsored['class_timing'])): ?>
+                                <?php echo html_escape($sponsored['class_timing']); ?>
+                            <?php endif; ?>
+                            <?php if (!empty($sponsored['location'])): ?>
+                                <br><?php echo html_escape($sponsored['location']); ?>
+                            <?php endif; ?>
+                        </p>
+                        <a href="<?php echo html_escape($safe_link); ?>" target="_blank" rel="noopener noreferrer">Register Now</a>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<section class="lvalues-corporate-band" id="lvaluesPricing">
+    <div class="container">
+        <div class="lvalues-section-heading">
+            <h2>Transparent learning options</h2>
+            <p>Explore free and paid courses, tutor-led batches, per-hour tutor fees, and custom corporate training proposals before choosing a learning path.</p>
+        </div>
+        <div class="row g-3">
+            <div class="col-lg-4 col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-book-open"></i></div>
+                    <h3>Courses</h3>
+                    <p>Compare course ratings, lesson depth, pricing, outcomes, and instructor details from the catalog.</p>
+                    <a href="<?php echo site_url('home/courses'); ?>">Browse courses</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
+                    <h3>Tutor learning</h3>
+                    <p>Find tutors by subject, learning mode, location context, teaching category, and fee structure.</p>
+                    <a href="<?php echo site_url('home/search?search_for=tutor'); ?>">Find tutors</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-12">
+                <div class="lvalues-audience-card">
+                    <div class="lvalues-card-icon"><i class="fa-solid fa-building"></i></div>
+                    <h3>Team programs</h3>
+                    <p>Request custom pricing for onboarding, upskilling, role-based training, or corporate cohorts.</p>
+                    <a href="<?php echo site_url('home/contact_us?type=corporate'); ?>">Request pricing</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 
 <?php if(get_frontend_settings('upcoming_course_section') == 1): ?>
 <!-- Start Upcoming Courses -->
@@ -522,7 +858,7 @@
 <!---------- Top courses Section start --------------->
 <section class="courses grid-view-body py-5">
     <div class="container">
-        <h1 class="pt-0"><span><?php echo site_phrase('top_courses'); ?></span></h1>
+        <h2 class="pt-0"><span><?php echo site_phrase('top_courses'); ?></span></h2>
         <p><?php echo site_phrase('These_are_the_most_popular_courses_among_Listen_Courses_learners_worldwide')?></p>
         <div class="courses-card">
             <div class="course-group-slider">
@@ -543,7 +879,7 @@
                     <div class="single-popup-course">
                         <a href="<?php echo site_url('home/course/' . rawurlencode(slugify($top_course['title'])) . '/' . $top_course['id']); ?>" id="top_course_<?php echo $top_course['id']; ?>" class="checkPropagation courses-card-body">
                             <div class="courses-card-image">
-                                <img loading="lazy" src="<?php echo $this->crud_model->get_course_thumbnail_url($top_course['id']); ?>">
+                                <img loading="lazy" src="<?php echo $this->crud_model->get_course_thumbnail_url($top_course['id']); ?>" alt="<?php echo html_escape($top_course['title']); ?>">
                                 <div class="courses-icon <?php if(in_array($top_course['id'], $my_wishlist_items)) echo 'red-heart'; ?>" id="coursesWishlistIconTopCourse<?php echo $top_course['id']; ?>">
                                     <i class="fa-solid fa-heart checkPropagation" onclick="actionTo('<?php echo site_url('home/toggleWishlistItems/'.$top_course['id'].'/TopCourse'); ?>')"></i>
                                 </div>
@@ -561,7 +897,7 @@
                                     </div>
                                     <div class="review-btn d-flex align-items-center">
                                        <span class="compare-img checkPropagation" onclick="redirectTo('<?php echo base_url('home/compare?course-1='.slugify($top_course['title']).'&course-id-1='.$top_course['id']); ?>');">
-                                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/compare.png') ?>">
+                                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/compare.png') ?>" alt="<?php echo get_phrase('Compare course'); ?>">
                                             <?php echo get_phrase('Compare'); ?>
                                         </span>
                                     </div>
@@ -681,16 +1017,42 @@
         <div class="row">
             <div class="col-lg-3"></div>
             <div class="col-lg-6">
-                <h1 class="text-center"><?php echo site_phrase('top_categories'); ?></h1>
+                <h2 class="text-center"><?php echo site_phrase('top_categories'); ?></h2>
                 <p class="text-center mt-4"><?php echo site_phrase('These_are_the_most_popular_courses_among_Listen_Courses_learners_worldwide')?></p>
             </div>
             <div class="col-lg-3"></div>
         </div>
         <div class="category-product mt-5">
             <div class="row justify-content-center">
-                <?php $top_10_categories = $this->crud_model->get_top_categories(12, 'sub_category_id'); ?>
-                <?php foreach($top_10_categories as $top_10_category): ?>
-                <?php $category_details = $this->crud_model->get_category_details_by_id($top_10_category['sub_category_id'])->row_array(); ?>
+                <?php
+                    $top_10_categories = $this->crud_model->get_top_categories(12, 'sub_category_id');
+                    $sorted_top_categories = [];
+                    foreach ($top_10_categories as $top_10_category) {
+                        $category_details = $this->crud_model->get_category_details_by_id($top_10_category['sub_category_id'])->row_array();
+                        if (!empty($category_details)) {
+                            $top_10_category['category_details'] = $category_details;
+                            $sorted_top_categories[] = $top_10_category;
+                        }
+                    }
+                    usort($sorted_top_categories, function ($left, $right) {
+                        $left_name = trim((string)($left['category_details']['name'] ?? ''));
+                        $right_name = trim((string)($right['category_details']['name'] ?? ''));
+                        $left_is_class = preg_match('/^class\s*(\d+)$/i', $left_name, $left_match);
+                        $right_is_class = preg_match('/^class\s*(\d+)$/i', $right_name, $right_match);
+                        if ($left_is_class && $right_is_class) {
+                            return (int)$left_match[1] <=> (int)$right_match[1];
+                        }
+                        if ($left_is_class) {
+                            return -1;
+                        }
+                        if ($right_is_class) {
+                            return 1;
+                        }
+                        return strnatcasecmp($left_name, $right_name);
+                    });
+                ?>
+                <?php foreach($sorted_top_categories as $top_10_category): ?>
+                <?php $category_details = $top_10_category['category_details']; ?>
                     <div class="col-lg-3 col-md-4 col-sm-6 col-6">
                         <a href="<?php echo site_url('home/courses?category='.$category_details['slug']); ?>" class="category-product-body position-relative">
                            <div class="cate-icon"  style="color: #<?php echo rand(100000, 999999); ?>">
@@ -713,7 +1075,7 @@
 <!---------- Latest courses Section start --------------->
 <section class="courses grid-view-body py-5">
     <div class="container">
-        <h1 class="text-center pt-0"><span><?php echo site_phrase('top') . ' 10 ' . site_phrase('latest_courses'); ?></span></h1>
+        <h2 class="text-center pt-0"><span><?php echo site_phrase('top') . ' 10 ' . site_phrase('latest_courses'); ?></span></h2>
         <p class="text-center"><?php echo site_phrase('These_are_the_most_latest_courses_among_Listen_Courses_learners_worldwide')?></p>
         <div class="courses-card">
             <div class="course-group-slider ">
@@ -734,7 +1096,7 @@
                     <div class="single-popup-course">
                         <a href="<?php echo site_url('home/course/' . rawurlencode(slugify($latest_course['title'])) . '/' . $latest_course['id']); ?>" id="latest_course_<?php echo $latest_course['id']; ?>" class="checkPropagation courses-card-body">
                             <div class="courses-card-image">
-                                <img loading="lazy" src="<?php echo $this->crud_model->get_course_thumbnail_url($latest_course['id']); ?>">
+                                <img loading="lazy" src="<?php echo $this->crud_model->get_course_thumbnail_url($latest_course['id']); ?>" alt="<?php echo html_escape($latest_course['title']); ?>">
                                 <div class="courses-icon <?php if(in_array($latest_course['id'], $my_wishlist_items)) echo 'red-heart'; ?>" id="coursesWishlistIconLatestCourse<?php echo $latest_course['id']; ?>">
                                     <i class="fa-solid fa-heart checkPropagation" onclick="actionTo('<?php echo site_url('home/toggleWishlistItems/'.$latest_course['id'].'/LatestCourse'); ?>')"></i>
                                 </div>
@@ -752,7 +1114,7 @@
                                     </div>
                                     <div class="review-btn d-flex align-items-center">
                                        <span class="compare-img checkPropagation" onclick="redirectTo('<?php echo base_url('home/compare?course-1='.slugify($latest_course['title']).'&course-id-1='.$latest_course['id']); ?>');">
-                                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/compare.png') ?>">
+                                            <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/compare.png') ?>" alt="<?php echo get_phrase('Compare course'); ?>">
                                             <?php echo get_phrase('Compare'); ?>
                                         </span>
                                     </div>
@@ -875,7 +1237,7 @@
         <div class="row">
             <div class="col-lg-3"></div>
             <div class="col-lg-6">
-                <h1 class="text-center mt-0 pt-0"><?php echo get_phrase('Top Instructors') ?></h1>
+                <h2 class="text-center mt-0 pt-0"><?php echo get_phrase('Top Instructors') ?></h2>
                 <p class="text-center mt-4 mb-4"><?php echo get_phrase('They efficiently serve large number of students on our platform') ?></p>
             </div>
             <div class="col-lg-3 "></div>
@@ -888,7 +1250,7 @@
                     <div class="col-lg-3 col-md-4 col-sm-6 ">
                         <div class="instructor-card-body">
                             <div class="instructor-card-img">
-                                <img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($top_instructor['id']); ?>">
+                                <img loading="lazy" src="<?php echo $this->user_model->get_user_image_url($top_instructor['id']); ?>" alt="<?php echo html_escape(trim(($top_instructor['first_name'] ?? '') . ' ' . ($top_instructor['last_name'] ?? '')) ?: 'Lvalues instructor'); ?>">
                             </div>
                             <div class="instructor-card-text">
                                 <div class="icon">
@@ -934,7 +1296,7 @@
     <div class="row">
       <div class="col-lg-3"></div>
       <div class="col-lg-6">
-        <h1 class="text-center mt-0 pt-0"><?php echo get_phrase('Think more clearly'); ?></h1>
+        <h2 class="text-center mt-0 pt-0"><?php echo get_phrase('Think more clearly'); ?></h2>
         <p class="text-center mt-4 mb-4"><?php echo get_phrase('Gather your thoughts, and make your decisions clearly') ?></p>
       </div>
       <div class="col-lg-3"></div>
@@ -984,7 +1346,7 @@
         <div class="row">
             <div class="col-lg-2"></div>
             <div class="col-lg-8">
-                <h1 class="text-center mt-0 pt-0"><?php echo get_phrase('Frequently Asked Questions') ?></h1>
+                <h2 class="text-center mt-0 pt-0"><?php echo get_phrase('Frequently Asked Questions') ?></h2>
                 <p class="text-center mt-4 mb-5"><?php echo get_phrase('Have something to know?') ?> <?php echo get_phrase('Check here if you have any questions about us.') ?></p>
             </div>
             <div class="col-lg-2"></div>
@@ -1037,14 +1399,14 @@
                     <div class="row">
                         <div class="col-lg-8 col-md-8 col-sm-8 col-8">
                             <div class="student-body-text">
-                                <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/2.png')?>">
-                                <h1><?php echo site_phrase('join_now_to_start_learning'); ?></h1>
+                                <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/2.png')?>" alt="Student testimonial rating">
+                                <h2><?php echo site_phrase('join_now_to_start_learning'); ?></h2>
                                 <p><?php echo site_phrase('Learn from our quality instructors!')?> </p>
                                 <a href="<?php echo site_url('sign_up'); ?>"><?php echo site_phrase('get_started'); ?></a>
                             </div>
                         </div>
                         <div class="col-lg-4 col-md-4 col-sm-4 col-4">
-                            <img loading="lazy" class="man" src="<?php echo base_url('assets/frontend/default-new/image/student-1.png')?>">
+                            <img loading="lazy" class="man" src="<?php echo base_url('assets/frontend/default-new/image/student-1.png')?>" alt="Lvalues student testimonial">
                         </div>
                      </div>
                 </div>      
@@ -1055,8 +1417,8 @@
                     <div class="row">
                             <div class="col-lg-8 col-md-8 col-sm-8 col-8 ">
                                 <div class="student-body-text">
-                                  <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/2.png')?>">
-                                    <h1><?php echo site_phrase('become_a_new_instructor'); ?></h1>
+                                  <img loading="lazy" src="<?php echo base_url('assets/frontend/default-new/image/2.png')?>" alt="Student testimonial rating">
+                                    <h2><?php echo site_phrase('become_a_new_instructor'); ?></h2>
                                     <p><?php echo site_phrase('Teach_thousands_of_students_and_earn_money!')?> </p>
                                     <?php if($this->session->userdata('user_id')): ?>
                                        <a  href="<?php echo site_url('user/become_an_instructor'); ?>"><?php echo site_phrase('join_now'); ?></a>
@@ -1066,7 +1428,7 @@
                                 </div>
                             </div>
                             <div class="col-lg-4 col-md-4 col-sm-4 col-4">
-                            <img loading="lazy" class="man" src="<?php echo base_url('assets/frontend/default-new/image/student-2.png')?>">
+                            <img loading="lazy" class="man" src="<?php echo base_url('assets/frontend/default-new/image/student-2.png')?>" alt="Lvalues student testimonial">
                             </div>
                         </div>  
                     </div> 

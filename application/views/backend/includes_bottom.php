@@ -35,6 +35,7 @@
 <script src="<?php echo base_url('assets/global/jquery-form/jquery.form.min.js'); ?>"></script>
 
 <script src="<?php echo site_url('assets/backend/js/custom.js');?>"></script>
+<script src="<?php echo site_url('assets/backend/js/lvalues-admin-modern.js');?>"></script>
 
 <!-- Dashboard chart's data is coming from this file -->
 <?php include "$logged_in_user_role/dashboard-chart.php"; ?>
@@ -64,6 +65,36 @@ function error_notify(message) {
 function error_required_field() {
   $.NotificationApp.send("<?php echo get_phrase('oh_snap'); ?>!", "<?php echo get_phrase('please_fill_all_the_required_fields'); ?>" ,"top-right","rgba(0,0,0,0.2)","error");
 }
+</script>
+
+<script type="text/javascript">
+(function () {
+  function readableFromUrl(value) {
+    var text = String(value || '').split(/[?#]/)[0].split('/').filter(Boolean).pop() || '';
+    text = text.replace(/\.[a-z0-9]+$/i, '').replace(/[-_]+/g, ' ').trim();
+    return text || 'Lvalues interface item';
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('img:not([alt]), img[alt=""]').forEach(function (img) {
+      img.setAttribute('alt', readableFromUrl(img.getAttribute('src')));
+    });
+
+    document.querySelectorAll('button:not([aria-label])').forEach(function (button) {
+      if (button.textContent.trim() || button.getAttribute('title')) {
+        return;
+      }
+      button.setAttribute('aria-label', button.classList.contains('close') ? 'Close' : 'Action');
+    });
+
+    document.querySelectorAll('a:not([aria-label])').forEach(function (link) {
+      if (link.textContent.trim() || link.getAttribute('title')) {
+        return;
+      }
+      link.setAttribute('aria-label', readableFromUrl(link.getAttribute('href')));
+    });
+  });
+})();
 </script>
 
 <?php if ($this->session->flashdata('info_message') != ""):?>

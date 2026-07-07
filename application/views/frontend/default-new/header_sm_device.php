@@ -17,8 +17,8 @@
         <div class="offcanvas-header bg-light">
           <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
           <div class="offcanves-btn">
-            <a href="<?php echo site_url('sign_up'); ?>" class="signUp-btn"><?php echo get_phrase('Sign Up'); ?></a>
-            <a href="<?php echo site_url('login'); ?>" class="logIn-btn"><?php echo get_phrase('Login'); ?></a>
+            <a href="<?php echo site_url('sign_up'); ?>" class="signUp-btn" data-lvalues-auth="signup"><?php echo get_phrase('Sign Up'); ?></a>
+            <a href="<?php echo site_url('login'); ?>" class="logIn-btn" data-lvalues-auth="login"><?php echo get_phrase('Login'); ?></a>
           </div>
         </div>
       <?php endif; ?>
@@ -27,7 +27,8 @@
       <div class="flex-shrink-0 mt-3">
         <ul class="list-unstyled ps-0">
           <?php if($user_login): ?>
-            <li><a href="<?php echo site_url('dashboard'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-tachometer-alt me-2"></i><?php echo site_phrase('dashboard'); ?></a></li>
+            <?php $header_dashboard_url = ((int)($user_details['is_instructor'] ?? 0) === 1) ? site_url('user/dashboard') : site_url('home/student_dashboard'); ?>
+            <li><a href="<?php echo $header_dashboard_url; ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-tachometer-alt me-2"></i><?php echo site_phrase('dashboard'); ?></a></li>
             <?php if($user_details['is_instructor'] != 1): ?>
               <?php if (get_settings('allow_instructor') == 1) : ?>
                 <li><a href="<?php echo site_url('home/become_an_instructor'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"><i class="fas fa-columns me-2"></i><?php echo site_phrase('Become an instructor'); ?></a></li>
@@ -66,7 +67,7 @@
                 </li>
                 <?php endforeach; ?>
                 <li>
-                  <a href="" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-15px fw-400 py-2 w-100"> <i class="fas fa-list me-2"></i> <?php echo get_phrase('All Courses'); ?></a>
+                  <a href="<?php echo site_url('home/courses'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-15px fw-400 py-2 w-100"> <i class="fas fa-list me-2"></i> <?php echo get_phrase('All Courses'); ?></a>
                 </li>
               </ul>
             </div>
@@ -115,7 +116,17 @@
           <?php endif; ?>
 
           <?php if (addon_status('tutor_booking')) : ?>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('tutors'); ?>"><i class="fas fa-chalkboard-teacher me-2"></i><?php echo get_phrase('Find a Tutor'); ?></a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/search?search_for=tutor'); ?>"><i class="fas fa-chalkboard-teacher me-2"></i><?php echo get_phrase('Find a Tutor'); ?></a></li>
+          <?php endif; ?>
+
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/courses?query=school'); ?>"><i class="fas fa-school me-2"></i>School</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/courses?query=IT%20Training'); ?>"><i class="fas fa-laptop-code me-2"></i>IT Training</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesCorporateTraining'); ?>"><i class="fas fa-building me-2"></i>Corporate Training</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesAudiencePaths'); ?>"><i class="fas fa-people-roof me-2"></i>For Parents</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('blog'); ?>"><i class="fas fa-newspaper me-2"></i>Blog</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesPricing'); ?>"><i class="fas fa-tags me-2"></i>Pricing</a></li>
+          <?php if(!$user_id && get_settings('allow_instructor') == 1): ?>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('sign_up?instructor=yes'); ?>"><i class="fas fa-chalkboard-user me-2"></i>Become a Tutor</a></li>
           <?php endif; ?>
 
           <?php if($admin_login): ?>
@@ -129,12 +140,29 @@
               <a href="<?php echo site_url('admin/system_settings'); ?>" class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500"> <i class="fas fa-cog me-2"></i> <?php echo get_phrase('Settings'); ?></a>
             </li>
           <?php elseif($user_login): ?>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem me-2"></i><?php echo site_phrase('my_courses'); ?></a></li>
-
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart me-2"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope me-2"></i><?php echo site_phrase('my_messages'); ?></a></li>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart me-2"></i><?php echo site_phrase('purchase_history'); ?></a></li>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/profile/user_profile'); ?>"><i class="fas fa-user me-2"></i><?php echo site_phrase('user_profile'); ?></a></li>
+            <?php $mobile_dashboard_url = ((int)$this->session->userdata('is_instructor') === 1) ? site_url('user/dashboard') : site_url('home/student_dashboard'); ?>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo $mobile_dashboard_url; ?>"><i class="fas fa-tachometer-alt me-2"></i><?php echo site_phrase('dashboard'); ?></a></li>
+            <?php if((int)$this->session->userdata('is_instructor') !== 1): ?>
+              <?php if (get_settings('allow_instructor') == 1) : ?>
+                <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/become_an_instructor'); ?>"><i class="fas fa-columns me-2"></i><?php echo site_phrase('Become an instructor'); ?></a></li>
+              <?php endif; ?>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_courses'); ?>"><i class="far fa-gem me-2"></i><?php echo site_phrase('my_courses'); ?></a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('student_batch/invites'); ?>"><i class="fas fa-envelope-open-text me-2"></i>Batch Invites</a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('student_batch/my_batches'); ?>"><i class="fas fa-users me-2"></i>My Batches</a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('notifications'); ?>"><i class="far fa-bell me-2"></i>Notifications</a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_wishlist'); ?>"><i class="far fa-heart me-2"></i><?php echo site_phrase('my_wishlist'); ?></a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/my_messages'); ?>"><i class="far fa-envelope me-2"></i><?php echo site_phrase('my_messages'); ?></a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/purchase_history'); ?>"><i class="fas fa-shopping-cart me-2"></i><?php echo site_phrase('purchase_history'); ?></a></li>
+              <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/profile/user_profile'); ?>"><i class="fas fa-user me-2"></i><?php echo site_phrase('user_profile'); ?></a></li>
+            <?php else: ?>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/tutor_teaching_profile'); ?>"><i class="fas fa-chalkboard-teacher me-2"></i>Teaching Profile</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/student_requests'); ?>"><i class="fas fa-user-check me-2"></i>Student Requests</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('tutor_batch'); ?>"><i class="fas fa-users me-2"></i>Batch Management</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/courses'); ?>"><i class="fas fa-book-open me-2"></i>Course Manager</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/content_nodes'); ?>"><i class="fas fa-file-alt me-2"></i>Content (Docs)</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/message'); ?>"><i class="far fa-envelope me-2"></i><?php echo site_phrase('message'); ?></a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('user/manage_profile'); ?>"><i class="fas fa-user me-2"></i><?php echo site_phrase('manage_profile'); ?></a></li>
+            <?php endif; ?>
             <?php if (addon_status('affiliate_course') ) :
                 if ($x == 0 && get_settings('affiliate_addon_active_status') == 1) : ?>
                     <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('addons/affiliate_course/become_an_affiliator'); ?>"><i class="fas fa-user-plus me-2"></i><?php echo site_phrase('Become_an_Affiliator'); ?></a></li>

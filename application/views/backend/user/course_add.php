@@ -29,7 +29,21 @@
 
                 <div class="row">
                     <div class="col-xl-12">
-                        <form class="required-form" action="<?php echo site_url('user/course_actions/add'); ?>" method="post" enctype="multipart/form-data">
+                                        <div class="alert alert-light border mb-3" role="status">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div>
+                            <strong>Course builder checklist</strong>
+                            <span class="ml-2"><span class="badge badge-warning-lighten mr-1" data-course-check="course_title">Missing</span>Title</span>
+                            <span class="ml-2"><span class="badge badge-warning-lighten mr-1" data-course-check="sub_category_id">Missing</span>Category</span>
+                            <span class="ml-2"><span class="badge badge-warning-lighten mr-1" data-course-check="description">Missing</span>Description</span>
+                        </div>
+                        <small id="courseBuilderAutosaveStatus" class="text-muted">Autosave ready</small>
+                    </div>
+                    <div class="progress mt-2" style="height: 6px;" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                        <div id="courseBuilderProgress" class="progress-bar" style="width: 0%;"></div>
+                    </div>
+                </div>
+<form class="required-form" data-course-id="new" action="<?php echo site_url('user/course_actions/add'); ?>" method="post" enctype="multipart/form-data">
                             <div class="scrollable-tab-section" id="basicwizard">
 
                                 <button type="button" class="scrollable-tab-btn-left" ><i class="mdi mdi-arrow-left"></i></button>
@@ -110,19 +124,19 @@
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="course_title"><?php echo get_phrase('course_title'); ?> <span class="required">*</span> </label>
                                                     <div class="col-md-10">
-                                                        <input type="text" class="form-control" id="course_title" name = "title" placeholder="<?php echo get_phrase('enter_course_title'); ?>" required>
+                                                        <input type="text" class="form-control" id="course_title" maxlength="120" name = "title" placeholder="<?php echo get_phrase('enter_course_title'); ?>" required>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="short_description"><?php echo get_phrase('short_description'); ?></label>
                                                     <div class="col-md-10">
-                                                        <textarea name="short_description" id = "short_description" class="form-control"></textarea>
+                                                        <textarea name="short_description" id = "short_description" class="form-control" maxlength="220"></textarea>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
                                                     <label class="col-md-2 col-form-label" for="description"><?php echo get_phrase('description'); ?></label>
                                                     <div class="col-md-10">
-                                                        <textarea name="description" id = "description" class="form-control"></textarea>
+                                                        <textarea name="description" id = "description" class="form-control" required aria-describedby="courseDescriptionHelp"></textarea><small id="courseDescriptionHelp" class="text-muted">Add enough detail for students to understand the course before publishing.</small>
                                                     </div>
                                                 </div>
                                                 <div class="form-group row mb-3">
@@ -152,6 +166,7 @@
                                                     </select>
                                                 </div>
                                             </div>
+                                            <?php include APPPATH . 'views/backend/course_delivery_fields.php'; ?>
                                             <div class="form-group row mb-3">
                                                 <label class="col-md-2 col-form-label" for="language_made_in"><?php echo get_phrase('language_made_in'); ?></label>
                                                 <div class="col-md-10">
@@ -501,7 +516,124 @@ function calculateDiscountPercentage(discounted_price) {
   }
 }
 </script>
+<script type="text/javascript">
+(function () {
+  var form = document.querySelector('form.required-form');
+  if (!form) return;
 
+  var courseId = form.getAttribute('data-course-id') || 'new';
+  var storageKey = 'lvalues_course_builder_draft_' + courseId;
+  var statusEl = document.getElementById('courseBuilderAutosaveStatus');
+  var requiredMap = [
+    { selector: '#course_title', label: 'Title' },
+    { selector: '#sub_category_id', label: 'Category' },
+    { selector: '#description', label: 'Description' }
+  ];
+
+  function fieldValue(selector) {
+    var el = form.querySelector(selector);
+    if (!el) return '';
+    if (window.CKEDITOR && el.id && CKEDITOR.instances[el.id]) {
+      return CKEDITOR.instances[el.id].getData();
+    }
+    if (window.jQuery && jQuery(el).data('summernote')) {
+      return jQuery(el).summernote('code');
+    }
+    return el.value || '';
+  }
+
+  function setFieldValue(selector, value) {
+    var el = form.querySelector(selector);
+    if (!el || value === undefined || value === null) return;
+    if (window.jQuery && jQuery(el).hasClass('select2')) {
+      jQuery(el).val(value).trigger('change');
+      return;
+    }
+    el.value = value;
+  }
+
+  function collectDraft() {
+    var data = {};
+    ['#course_title', '#short_description', '#description', '#sub_category_id', '#level', '#language_made_in', '#price', '#discounted_price', '#course_overview_url', '#meta_keywords', 'textarea[name="meta_description"]'].forEach(function (selector) {
+      var el = form.querySelector(selector);
+      if (el) data[selector] = fieldValue(selector);
+    });
+    data.savedAt = new Date().toISOString();
+    return data;
+  }
+
+  function updateChecklist() {
+    var complete = 0;
+    requiredMap.forEach(function (item) {
+      var el = form.querySelector(item.selector);
+      var badge = document.querySelector('[data-course-check="' + item.selector.replace('#', '') + '"]');
+      var value = fieldValue(item.selector).replace(/<[^>]*>/g, '').trim();
+      var done = !!value;
+      if (done) complete++;
+      if (badge) {
+        badge.className = 'badge badge-' + (done ? 'success' : 'warning') + '-lighten mr-1';
+        badge.textContent = done ? 'Done' : 'Missing';
+      }
+      if (el) {
+        el.setAttribute('aria-invalid', done ? 'false' : 'true');
+      }
+    });
+    var progress = Math.round((complete / requiredMap.length) * 100);
+    var progressEl = document.getElementById('courseBuilderProgress');
+    if (progressEl) {
+      progressEl.style.width = progress + '%';
+      progressEl.parentNode.setAttribute('aria-valuenow', progress);
+    }
+  }
+
+  function saveDraft() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(collectDraft()));
+      if (statusEl) {
+        statusEl.textContent = 'Draft saved in this browser at ' + new Date().toLocaleTimeString();
+      }
+    } catch (e) {}
+    updateChecklist();
+  }
+
+  function restoreDraftIfWanted() {
+    var raw = null;
+    try { raw = localStorage.getItem(storageKey); } catch (e) {}
+    if (!raw) {
+      updateChecklist();
+      return;
+    }
+    var data = null;
+    try { data = JSON.parse(raw); } catch (e) {}
+    if (!data || !data.savedAt) {
+      updateChecklist();
+      return;
+    }
+
+    var restore = courseId === 'new'
+      ? confirm('A local autosaved course draft was found. Restore it?')
+      : false;
+
+    if (restore) {
+      Object.keys(data).forEach(function (selector) {
+        if (selector === 'savedAt') return;
+        setFieldValue(selector, data[selector]);
+      });
+      if (statusEl) statusEl.textContent = 'Restored local draft from ' + new Date(data.savedAt).toLocaleString();
+    }
+    updateChecklist();
+  }
+
+  form.addEventListener('input', saveDraft);
+  form.addEventListener('change', saveDraft);
+  form.addEventListener('submit', function () {
+    try { localStorage.removeItem(storageKey); } catch (e) {}
+  });
+
+  setTimeout(restoreDraftIfWanted, 700);
+  setInterval(saveDraft, 30000);
+})();
+</script>
 <style media="screen">
 body {
   overflow-x: hidden;

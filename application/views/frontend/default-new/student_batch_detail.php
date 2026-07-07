@@ -7,6 +7,20 @@ $assignment_percent = isset($progress_summary['assignment_percent']) ? (float)$p
 $test_percent = isset($progress_summary['test_percent']) ? (float)$progress_summary['test_percent'] : 0;
 $attendance = isset($progress_summary['attendance_percent']) ? (float)$progress_summary['attendance_percent'] : 0;
 $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summary['overall_percent'] : 0;
+$now_ts = time();
+$upcoming_sessions = [];
+$available_recordings = [];
+foreach (($batch['sessions'] ?? []) as $session_item) {
+    $session_date_value = trim((string)($session_item['session_date'] ?? ''));
+    $session_start_value = trim((string)($session_item['start_time'] ?? ''));
+    $session_start_ts = strtotime(trim($session_date_value . ' ' . $session_start_value));
+    if ($session_start_ts && $session_start_ts >= strtotime(date('Y-m-d 00:00:00')) && (($session_item['session_status'] ?? '') !== 'cancelled')) {
+        $upcoming_sessions[] = $session_item;
+    }
+    if (($session_item['recording_status'] ?? '') === 'available' && !empty($session_item['recording_url']) && (empty($session_item['recording_expires_at']) || strtotime($session_item['recording_expires_at']) > $now_ts)) {
+        $available_recordings[] = $session_item;
+    }
+}
 
 ?>
 <?php include 'breadcrumb.php'; ?>
@@ -23,7 +37,10 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                             <h4 class="mb-1"><?php echo html_escape($batch['title'] ?? $batch['batch_title'] ?? 'Batch Detail'); ?></h4>
                             <p class="text-muted mb-0"><?php echo html_escape($batch['description'] ?? $batch['batch_description'] ?? ''); ?></p>
                         </div>
-                        <a href="<?php echo site_url('student_batch/my_batches'); ?>" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0">Back to My Batches</a>
+                        <div class="mt-2 mt-md-0">
+                            <a href="<?php echo site_url('student_batch/export_progress_pdf/' . (int)($batch['id'] ?? $batch['batch_id'] ?? 0)); ?>" class="btn btn-outline-primary btn-sm">Export PDF</a>
+                            <a href="<?php echo site_url('student_batch/my_batches'); ?>" class="btn btn-outline-secondary btn-sm">Back to My Batches</a>
+                        </div>
                     </div>
 
                     <div class="row mb-4">
@@ -83,7 +100,27 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
 						</div>
 					</div>
 
-                    <h5 class="mb-3">Live Sessions</h5>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="mb-1">Online Classes</h5>
+                            <p class="text-muted mb-0">Join opens shortly before class time. Recordings are available only for enrolled students.</p>
+                        </div>
+                        <span class="badge badge-info"><?php echo count($upcoming_sessions); ?> upcoming</span>
+                    </div>
+                    <?php if (!empty($upcoming_sessions)): ?>
+                        <div class="row mb-4">
+                            <?php foreach (array_slice($upcoming_sessions, 0, 3) as $upcoming): ?>
+                                <div class="col-md-4 mb-2">
+                                    <div class="border rounded p-3 h-100">
+                                        <small class="text-muted d-block"><?php echo html_escape(date('d M Y', strtotime((string)$upcoming['session_date']))); ?></small>
+                                        <strong><?php echo html_escape($upcoming['title'] ?? 'Online class'); ?></strong>
+                                        <div class="text-muted small"><?php echo html_escape(substr((string)($upcoming['start_time'] ?? ''), 0, 5) . ' - ' . substr((string)($upcoming['end_time'] ?? ''), 0, 5)); ?></div>
+                                        <span class="badge badge-light mt-2"><?php echo ucfirst(html_escape($upcoming['session_status'] ?? 'scheduled')); ?></span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                     <div class="table-responsive mb-4">
                         <table class="table table-striped align-middle">
                             <thead>
@@ -133,6 +170,7 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                                         <td><?php echo ucfirst(html_escape($session['session_status'] ?? 'scheduled')); ?></td>
                                         <td>
                                             <?php if ($can_join): ?>
+                                                <?php if(!empty($session['recording_consent_required'])):?><form method="post" action="<?php echo site_url('live-learning/consent/'.(int)$session['id']);?>" class="recordingConsentForm d-inline"><input type="hidden" name="consent_status" value="granted"><label class="small mr-2"><input type="checkbox" required> I consent to recording</label><button type="submit" class="btn btn-outline-info btn-sm">Confirm</button></form><?php endif;?>
                                                 <a href="<?php echo site_url('student_batch/join_session/' . (int)$session['id']); ?>"
                                                    target="_blank"
                                                    rel="noopener"
@@ -153,33 +191,30 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                                     <tr><td colspan="5" class="text-center text-muted">No sessions scheduled.</td></tr>
                                 <?php endif; ?>
                             </tbody>
-                        </table>
+                            </table>
+                            <script>document.querySelectorAll('.recordingConsentForm').forEach(function(form){form.addEventListener('submit',function(e){e.preventDefault();var data=new FormData(form);fetch(form.action,{method:'POST',body:data,credentials:'same-origin'}).then(function(r){return r.json();}).then(function(r){if(r.status){form.innerHTML='<span class="badge badge-success">Consent saved</span>';}});});});</script>
                     </div>
 
-                    <h5 class="mb-3">Class Recordings</h5>
+                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                        <div>
+                            <h5 class="mb-1">Class Recordings</h5>
+                            <p class="text-muted mb-0">Watch any available recording any number of times while you remain enrolled and the recording is active.</p>
+                        </div>
+                        <span class="badge badge-success"><?php echo count($available_recordings); ?> available</span>
+                    </div>
                     <div class="row mb-4">
-                        <?php
-                            $has_recording = false;
-                            foreach (($batch['sessions'] ?? []) as $session) {
-                                if (($session['recording_status'] ?? '') === 'available' && !empty($session['recording_url'])) {
-                                    $has_recording = true;
-                                    break;
-                                }
-                            }
-                        ?>
-
-                        <?php foreach (($batch['sessions'] ?? []) as $session): ?>
-                            <?php if (($session['recording_status'] ?? '') === 'available' && !empty($session['recording_url'])): ?>
-                                <?php $recording_url = $session['recording_url']; ?>
+                        <?php foreach ($available_recordings as $session): ?>
+                                <?php $recording_url = site_url('live-learning/recording/' . (int)$session['id']); ?>
                                 <div class="col-md-6 mb-3">
                                     <div class="border rounded p-3 h-100">
                                         <h6><?php echo html_escape($session['title'] ?? 'Session Recording'); ?></h6>
 
                                         <?php if (preg_match('/\.(mp4|webm|ogg)(\?.*)?$/i', $recording_url)): ?>
-                                            <video width="100%" controls controlsList="nodownload" oncontextmenu="return false;">
-                                                <source src="<?php echo html_escape($recording_url); ?>">
-                                                Your browser does not support video playback.
-                                            </video>
+                                            <video width="100%" controls controlsList="nodownload" oncontextmenu="return false;" class="liveRecordingPlayer" data-session-id="<?php echo (int)$session['id']; ?>">
+                                                    <source src="<?php echo html_escape($recording_url); ?>">
+                                                    <?php if(!empty($session['captions_url'])):?><track kind="captions" src="<?php echo html_escape($session['captions_url']);?>" srclang="en" label="Captions" default><?php endif;?>
+                                                    Your browser does not support video playback.
+                                                </video>
                                         <?php else: ?>
                                             <div class="embed-responsive embed-responsive-16by9">
                                                 <iframe class="embed-responsive-item"
@@ -189,16 +224,23 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                                                 </iframe>
                                             </div>
                                         <?php endif; ?>
+                                        <?php if(!empty($session['recording_expires_at'])):?><small class="text-muted d-block mt-2">Available until <?php echo html_escape(date('d M Y, h:i A',strtotime($session['recording_expires_at'])));?></small><?php endif;?>
 
                                         <small class="d-block text-muted mt-2">
-                                            Download option is disabled in the student interface.
+                                            Access is checked through your enrollment before playback. Download option is disabled in the student interface.
                                         </small>
+                                        <a href="<?php echo html_escape($recording_url); ?>" target="_blank" rel="noopener" class="btn btn-outline-primary btn-sm mt-2">Open recording</a>
                                     </div>
                                 </div>
-                            <?php endif; ?>
                         <?php endforeach; ?>
+                        <script>
+                        document.querySelectorAll('.liveRecordingPlayer').forEach(function(video){
+                            function track(type){var data=new FormData();data.append('event_type',type);data.append('position_seconds',Math.floor(video.currentTime||0));data.append('duration_seconds',Math.floor(video.duration||0));data.append('playback_rate',video.playbackRate||1);var csrf=document.querySelector('input[type="hidden"][name*="csrf"]');if(csrf)data.append(csrf.name,csrf.value);fetch('<?php echo site_url('live-learning/playback/'); ?>'+video.dataset.sessionId,{method:'POST',body:data,credentials:'same-origin'});}
+                            video.addEventListener('play',function(){track(video.currentTime>1?'resume':'start');});video.addEventListener('pause',function(){track('pause');});video.addEventListener('ended',function(){track('complete');});
+                        });
+                        </script>
 
-                        <?php if (!$has_recording && !empty($batch['recordings'])): ?>
+                        <?php if (empty($available_recordings) && !empty($batch['recordings'])): ?>
                             <?php foreach (($batch['recordings'] ?? []) as $recording): ?>
                                 <?php $recording_url = !empty($recording['embed_url']) ? $recording['embed_url'] : ($recording['playback_url'] ?? ''); ?>
                                 <div class="col-md-6 mb-3">
@@ -228,7 +270,7 @@ $progress = isset($progress_summary['overall_percent']) ? (float)$progress_summa
                             <?php endforeach; ?>
                         <?php endif; ?>
 
-                        <?php if (!$has_recording && empty($batch['recordings'])): ?>
+                        <?php if (empty($available_recordings) && empty($batch['recordings'])): ?>
                             <div class="col-12">
                                 <div class="border rounded p-3 text-muted">No recordings available yet.</div>
                             </div>

@@ -146,14 +146,12 @@
 
     function stripe_checkout(stripe_public_key, payout_id){
         var createCheckoutSession = function (stripe) {
+            var checkoutData = new FormData();
+            checkoutData.append('checkoutSession', '1');
             return fetch("<?= site_url('admin/stripe_checkout_for_instructor_revenue/'); ?>"+payout_id, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    checkoutSession: 1,
-                }),
+                body: checkoutData,
+                credentials: "same-origin",
             }).then(function (result) {
                 return result.json();
             });

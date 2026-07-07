@@ -2,9 +2,10 @@
     <div class="col-xl-12">
         <div class="card">
             <div class="card-body">
-                <h4 class="page-title"> <i class="mdi mdi-apple-keyboard-command title_icon"></i> <?php echo get_phrase('courses'); ?>
-                    <a href="<?php echo site_url('user/course_form/add_course'); ?>" class="btn btn-outline-primary btn-rounded alignToTitle"><i class="mdi mdi-plus"></i><?php echo get_phrase('add_new_course'); ?></a>
+                <h4 class="page-title"> <i class="mdi mdi-apple-keyboard-command title_icon"></i> Video Courses
+                    <a href="<?php echo site_url('user/course_form/add_course'); ?>" class="btn btn-outline-primary btn-rounded alignToTitle"><i class="mdi mdi-plus"></i>Add New Video Course</a>
                 </h4>
+                <p class="text-muted mb-0">Use this area for structured video/LMS courses. Use <strong>Publish Books</strong> for books, notes, uploaded notes, and articles.</p>
             </div> <!-- end card body-->
         </div> <!-- end card -->
     </div><!-- end col-->
@@ -13,18 +14,23 @@
     <div class="col-12">
         <div class="card widget-inline">
             <div class="card-body p-0">
+                <?php
+                    $counter_category_query = isset($selected_category_id) ? $selected_category_id : 'all';
+                    $counter_instructor_id = $this->session->userdata('user_id');
+                    $course_manager_counts = $this->crud_model->get_course_manager_counts_for_instructor($counter_instructor_id, $counter_category_query);
+                    $active_count = (int)($course_manager_counts['active'] ?? 0);
+                    $pending_count = (int)($course_manager_counts['pending'] ?? 0);
+                    $draft_count = (int)($course_manager_counts['draft'] ?? 0);
+                    $free_count = (int)($course_manager_counts['free'] ?? 0);
+                    $paid_count = (int)($course_manager_counts['paid'] ?? 0);
+                ?>
                 <div class="row no-gutters">
                     <div class="col">
-                        <a href="<?php echo site_url('user/courses'); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('user/courses?category_id=' . rawurlencode($counter_category_query) . '&status=active&price=all&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0">
                                 <div class="card-body text-center">
                                     <i class="dripicons-link text-muted" style="font-size: 24px;"></i>
-                                    <h3><span>
-                                        <?php
-                                            $active_courses = $this->crud_model->get_status_wise_courses_for_instructor('active');
-                                            echo $active_courses->num_rows();
-                                         ?>
-                                    </span></h3>
+                                    <h3><span><?php echo $active_count; ?></span></h3>
                                     <p class="text-muted font-15 mb-0"><?php echo get_phrase('active_courses'); ?></p>
                                 </div>
                             </div>
@@ -32,16 +38,11 @@
                     </div>
 
                     <div class="col">
-                        <a href="<?php echo site_url('user/courses'); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('user/courses?category_id=' . rawurlencode($counter_category_query) . '&status=pending&price=all&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0 border-left">
                                 <div class="card-body text-center">
                                     <i class="dripicons-link-broken text-muted" style="font-size: 24px;"></i>
-                                    <h3><span>
-                                        <?php
-                                            $pending_courses = $this->crud_model->get_status_wise_courses_for_instructor('pending');
-                                            echo $pending_courses->num_rows();
-                                         ?>
-                                    </span></h3>
+                                    <h3><span><?php echo $pending_count; ?></span></h3>
                                     <p class="text-muted font-15 mb-0"><?php echo get_phrase('pending_courses'); ?></p>
                                 </div>
                             </div>
@@ -49,16 +50,11 @@
                     </div>
 
                     <div class="col">
-                        <a href="<?php echo site_url('user/courses'); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('user/courses?category_id=' . rawurlencode($counter_category_query) . '&status=draft&price=all&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0 border-left">
                                 <div class="card-body text-center">
                                     <i class="dripicons-bookmark text-muted" style="font-size: 24px;"></i>
-                                    <h3><span>
-                                        <?php
-                                            $draft_courses = $this->crud_model->get_status_wise_courses_for_instructor('draft');
-                                            echo $draft_courses->num_rows();
-                                         ?>
-                                    </span></h3>
+                                    <h3><span><?php echo $draft_count; ?></span></h3>
                                     <p class="text-muted font-15 mb-0"><?php echo get_phrase('draft_courses'); ?></p>
                                 </div>
                             </div>
@@ -66,11 +62,11 @@
                     </div>
 
                     <div class="col">
-                        <a href="<?php echo site_url('user/courses'); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('user/courses?category_id=' . rawurlencode($counter_category_query) . '&status=all&price=free&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0 border-left">
                                 <div class="card-body text-center">
                                     <i class="dripicons-star text-muted" style="font-size: 24px;"></i>
-                                    <h3><span><?php echo $this->crud_model->get_free_and_paid_courses('free', $this->session->userdata('user_id'))->num_rows(); ?></span></h3>
+                                    <h3><span><?php echo $free_count; ?></span></h3>
                                     <p class="text-muted font-15 mb-0"><?php echo get_phrase('free_courses'); ?></p>
                                 </div>
                             </div>
@@ -78,11 +74,11 @@
                     </div>
 
                     <div class="col">
-                        <a href="<?php echo site_url('user/courses'); ?>" class="text-secondary">
+                        <a href="<?php echo site_url('user/courses?category_id=' . rawurlencode($counter_category_query) . '&status=all&price=paid&button='); ?>" class="text-secondary">
                             <div class="card shadow-none m-0 border-left">
                                 <div class="card-body text-center">
                                     <i class="dripicons-tags text-muted" style="font-size: 24px;"></i>
-                                    <h3><span><?php echo $this->crud_model->get_free_and_paid_courses('paid', $this->session->userdata('user_id'))->num_rows(); ?></span></h3>
+                                    <h3><span><?php echo $paid_count; ?></span></h3>
                                     <p class="text-muted font-15 mb-0"><?php echo get_phrase('paid_courses'); ?></p>
                                 </div>
                             </div>

@@ -103,7 +103,7 @@ $config['charset'] = 'UTF-8';
 | setting this variable to TRUE (boolean).  See the user guide for details.
 |
 */
-$config['enable_hooks'] = FALSE;
+$config['enable_hooks'] = TRUE;
 
 /*
 |--------------------------------------------------------------------------
@@ -327,7 +327,7 @@ $config['cache_query_string'] = FALSE;
 | https://codeigniter.com/user_guide/libraries/encryption.html
 |
 */
-$config['encryption_key'] = '';
+$config['encryption_key'] = getenv('LVALUES_ENCRYPTION_KEY') ?: (ENVIRONMENT === 'development' ? 'local-development-key-change-me' : '');
 
 /*
 |--------------------------------------------------------------------------
@@ -410,7 +410,7 @@ $config['cookie_prefix']	= '';
 $config['cookie_domain']	= '';
 $config['cookie_path']		= '/';
 $config['cookie_secure']	= ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == "on") ? TRUE : FALSE);
-$config['cookie_httponly'] 	= FALSE;
+$config['cookie_httponly'] 	= TRUE;
 
 
 //Auto Logout
@@ -462,12 +462,18 @@ $config['global_xss_filtering'] = TRUE;
 | 'csrf_regenerate' = Regenerate token on every submission
 | 'csrf_exclude_uris' = Array of URIs which ignore CSRF checks
 */
-$config['csrf_protection'] = FALSE;
-$config['csrf_token_name'] = 'csrf_test_name';
-$config['csrf_cookie_name'] = 'csrf_cookie_name';
+$config['csrf_protection'] = TRUE;
+$config['csrf_token_name'] = 'lvalues_csrf_token';
+$config['csrf_cookie_name'] = 'lvalues_csrf_cookie';
 $config['csrf_expire'] = 7200;
-$config['csrf_regenerate'] = TRUE;
-$config['csrf_exclude_uris'] = array();
+$config['csrf_regenerate'] = FALSE;
+$config['csrf_exclude_uris'] = array(
+    'api/.*',
+    'api_instructor/.*',
+    'payment/.*',
+    'webhook/.*',
+    'cron/.*',
+);
 
 /*
 |--------------------------------------------------------------------------
@@ -535,3 +541,13 @@ $config['rewrite_short_tags'] = FALSE;
 | Array:		array('10.0.1.200', '192.168.5.0/24')
 */
 $config['proxy_ips'] = '';
+
+$environment_profile = APPPATH . 'config/environments/' . ENVIRONMENT . '.php';
+if (!is_file($environment_profile)) {
+	throw new RuntimeException('Missing application configuration profile for environment: ' . ENVIRONMENT);
+}
+require $environment_profile;
+
+if (in_array(ENVIRONMENT, ['staging', 'production'], true) && $config['encryption_key'] === '') {
+	throw new RuntimeException('LVALUES_ENCRYPTION_KEY must be configured for ' . ENVIRONMENT . '.');
+}

@@ -5,7 +5,7 @@ $latest_docs = isset($latest_docs) && is_array($latest_docs) ? $latest_docs : []
 <?php if(!empty($latest_docs)): ?>
 <section class="courses blog py-5">
     <div class="container">
-        <h1 class="text-center pt-0"><span><?php echo site_phrase('Visit our latest blogs')?></span></h1>
+        <h2 class="text-center pt-0"><span><?php echo site_phrase('Visit our latest blogs')?></span></h2>
         <p class="text-center"><?php echo site_phrase('Visit our valuable articles to get more information.')?></p>
 
         <div class="courses-card">

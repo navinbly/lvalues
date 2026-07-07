@@ -5,6 +5,7 @@ $unreaded_message = $this->db->get('message')->num_rows();
 
 $notification_count = 0;
 $logged_user_id = (int)$this->session->userdata('user_id');
+$profile_dashboard_url = !empty($user_details['is_instructor']) ? site_url('dashboard') : site_url('home/student_dashboard');
 
 if ($this->db->table_exists('lms_notifications')) {
     $notification_count = (int)$this->db
@@ -23,7 +24,7 @@ if ($this->db->table_exists('lms_notifications')) {
     <div class="row">
         <div class="col-md-12">
             <div class="student-profile-info">
-                <a href="<?php echo site_url('dashboard'); ?>"><img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>"></a>
+                <a href="<?php echo $profile_dashboard_url; ?>"><img loading="lazy" class="profile-image" src="<?php echo $this->user_model->get_user_image_url($this->session->userdata('user_id')); ?>"></a>
                 <h4><?php echo $user_details['first_name'].' '.$user_details['last_name']; ?></h4>
                 <span><?php echo $user_details['email']; ?></span>
             </div>
@@ -31,6 +32,11 @@ if ($this->db->table_exists('lms_notifications')) {
     </div>
 
     <div class="wish-list-course">
+        <a class="btn-profile-menu <?php if($page_name == 'student_dashboard') echo 'active'; ?>" href="<?php echo $profile_dashboard_url; ?>">
+            <i class="fa-solid fa-gauge-high me-2"></i>
+            <?php echo get_phrase('Dashboard'); ?>
+        </a>
+
         <a class="btn-profile-menu <?php if($page_name == 'my_courses') echo 'active'; ?>" href="<?php echo site_url('home/my_courses'); ?>">
             <i class="fa-solid fa-book-open-reader me-2"></i>
             <?php echo get_phrase('My Courses'); ?>
@@ -89,8 +95,18 @@ if ($this->db->table_exists('lms_notifications')) {
             <?php echo get_phrase('My Batches'); ?>
         </a>
 
+        <a class="btn-profile-menu <?php if($page_name == 'my_practice_tests') echo 'active'; ?>" href="<?php echo site_url('home/my_practice_tests'); ?>">
+            <i class="fa-solid fa-file-circle-check me-2"></i>
+            <?php echo get_phrase('Mock Tests & Progress'); ?>
+        </a>
+
+        <a class="btn-profile-menu <?php if($page_name == 'my_tutor_requests') echo 'active'; ?>" href="<?php echo site_url('home/my_tutor_requests'); ?>">
+            <i class="fa-solid fa-chalkboard-user me-2"></i>
+            <?php echo get_phrase('My Tutor Requests'); ?>
+        </a>
+
         <!-- NEW: LMS Notifications -->
-        <a class="btn-profile-menu <?php if($page_name == 'notifications') echo 'active'; ?>" href="<?php echo site_url('notifications'); ?>">
+        <a class="btn-profile-menu <?php if(in_array($page_name, array('notifications', 'notifications_page'), true)) echo 'active'; ?>" href="<?php echo site_url('notifications'); ?>">
             <i class="far fa-bell me-2"></i>
             <?php echo get_phrase('Notifications'); ?>
             <?php if($notification_count > 0): ?>
@@ -118,6 +134,11 @@ if ($this->db->table_exists('lms_notifications')) {
             <?php endif; ?>
         </a>
 
+        <a class="btn-profile-menu <?php if($page_name == 'communication_preferences') echo 'active'; ?>" href="<?php echo site_url('communication/preferences'); ?>">
+            <i class="fas fa-bell-slash me-2"></i>
+            <?php echo get_phrase('Communication Preferences'); ?>
+        </a>
+
         <?php if (addon_status('affiliate_course')) :
             $CI    = &get_instance();
             $CI->load->model('addons/affiliate_course_model');
@@ -133,7 +154,7 @@ if ($this->db->table_exists('lms_notifications')) {
         <?php endif;?>
 
         <?php if($is_affilator == 1 || $user_details['is_instructor'] == 1): ?>
-            <a class="btn-profile-menu <?php if ($page_name == 'payment_settings') echo 'active'; ?>" href="<?php echo site_url('home/payout_settings'); ?>">
+            <a class="btn-profile-menu <?php if (in_array($page_name, array('payment_settings', 'payout_settings'), true)) echo 'active'; ?>" href="<?php echo site_url('home/payout_settings'); ?>">
                 <i class="fa-solid fa-gear me-2"></i>
                 <?php echo site_phrase('Payout Settings'); ?>
             </a>
@@ -147,6 +168,12 @@ if ($this->db->table_exists('lms_notifications')) {
         <a class="btn-profile-menu <?php if($page_name == 'user_profile') echo 'active'; ?>" href="<?php echo site_url('home/profile/user_profile'); ?>">
             <i class="fa-regular fa-user me-2"></i>
             <?php echo get_phrase('Profile'); ?>
+        </a>
+
+        <!-- NEW: Login Activity -->
+        <a class="btn-profile-menu <?php if($page_name == 'login_activity') echo 'active'; ?>" href="<?php echo site_url('user/login_activity'); ?>">
+            <i class="fas fa-shield-alt me-2"></i>
+            <?php echo get_phrase('Login Activity'); ?>
         </a>
 
         <a class="btn-profile-menu <?php if($page_name == 'user_credentials') echo 'active'; ?>" href="<?php echo site_url('home/profile/user_credentials'); ?>">

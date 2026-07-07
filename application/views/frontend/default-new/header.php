@@ -31,21 +31,21 @@
             <ul class="nav justify-content-end">
               <?php if($facebook): ?>
                 <li class="nav-item">
-                  <a target="_blank" href="<?php echo $facebook; ?>"><i class="fa-brands fa-facebook-f"></i></a>
+                  <a target="_blank" rel="noopener" href="<?php echo $facebook; ?>" aria-label="Lvalues on Facebook"><i class="fa-brands fa-facebook-f"></i><span class="visually-hidden">Facebook</span></a>
                 </li>
               <?php endif; ?>
               <?php if($twitter): ?>
                 <li class="nav-item">
-                  <a target="_blank" href="<?php echo $twitter; ?>"><i class="fa-brands fa-twitter"></i></a>
+                  <a target="_blank" rel="noopener" href="<?php echo $twitter; ?>" aria-label="Lvalues on Twitter"><i class="fa-brands fa-twitter"></i><span class="visually-hidden">Twitter</span></a>
                 </li>
               <?php endif; ?>
-              <?php if($linkedin): ?>
+              <?php if($linkedin && stripos($linkedin, '/admin') === false): ?>
                 <li class="nav-item">
-                  <a target="_blank" href="<?php echo $linkedin; ?>"><i class="fa-brands fa-linkedin"></i></a>
+                  <a target="_blank" rel="noopener" href="<?php echo $linkedin; ?>" aria-label="Lvalues on LinkedIn"><i class="fa-brands fa-linkedin"></i><span class="visually-hidden">LinkedIn</span></a>
                 </li>
               <?php endif; ?>
 
-              <a href="#" class="invisible" onclick="actionTo('<?php echo site_url('home/dark_and_light_mode') ?>')"><i class="fas fa-moon"></i></a>
+              <a href="#" class="invisible" aria-label="Toggle dark mode" onclick="actionTo('<?php echo site_url('home/dark_and_light_mode') ?>')"><i class="fas fa-moon"></i><span class="visually-hidden">Toggle dark mode</span></a>
 
               <li class="nav-item align-items-center d-flex">
                 <form action="#" method="POST" class="language-control select-box">

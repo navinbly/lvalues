@@ -14,7 +14,7 @@ $selected_subject_id  = isset($_GET['subject_id']) ? (int) $_GET['subject_id'] :
     <div class="course-all-category">
         <div class="course-category">
             <h3><?php echo get_phrase('Category'); ?></h3>
-            <select class="form-control" name="category_id" id="tutor_filter_category" onchange="syncTutorFilterTaxonomy(); filterTutor();">
+            <select class="form-control" name="category_id" id="tutor_filter_category" onchange="handleTutorCategoryChange();">
                 <option value="0">All categories</option>
                 <?php foreach ($taxonomy_tree as $category): ?>
                     <option value="<?php echo (int)$category['id']; ?>" <?php if($selected_category_id === (int)$category['id']) echo 'selected'; ?>><?php echo html_entity_decode($category['name'], ENT_QUOTES, 'UTF-8'); ?></option>
@@ -23,11 +23,11 @@ $selected_subject_id  = isset($_GET['subject_id']) ? (int) $_GET['subject_id'] :
         </div>
         <div class="course-category mt-3">
             <h3><?php echo get_phrase('Class / Course Group'); ?></h3>
-            <select class="form-control" name="class_id" id="tutor_filter_class" onchange="syncTutorFilterTaxonomy(); filterTutor();"></select>
+            <select class="form-control" name="class_id" id="tutor_filter_class" onchange="handleTutorClassChange();"></select>
         </div>
         <div class="course-category mt-3">
             <h3><?php echo get_phrase('Subject'); ?></h3>
-            <select class="form-control" name="subject_id" id="tutor_filter_subject" onchange="filterTutor();"></select>
+            <select class="form-control" name="subject_id" id="tutor_filter_subject" onchange="handleTutorSubjectChange();"></select>
         </div>
         <div class="course-price course-category mt-3">
             <h3><?php echo get_phrase('Mode'); ?></h3>
@@ -47,21 +47,81 @@ window.tutorFilterTree = <?php echo json_encode($taxonomy_tree); ?>;
 window.selectedTutorCategoryId = <?php echo (int)$selected_category_id; ?>;
 window.selectedTutorClassId = <?php echo (int)$selected_class_id; ?>;
 window.selectedTutorSubjectId = <?php echo (int)$selected_subject_id; ?>;
+function getTutorFilterCategory(categoryId) {
+    return (window.tutorFilterTree || []).find(function(item) {
+        return parseInt(item.id, 10) === categoryId;
+    }) || null;
+}
+
+function populateTutorClasses(categoryId, selectedClassId) {
+    const classEl = document.getElementById('tutor_filter_class');
+    if (!classEl) return;
+    classEl.innerHTML = '<option value="0">All classes / groups</option>';
+    const category = getTutorFilterCategory(categoryId);
+    if (!category) return;
+    (category.classes || []).forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        option.selected = parseInt(item.id, 10) === selectedClassId;
+        classEl.appendChild(option);
+    });
+}
+
+function populateTutorSubjects(categoryId, classId, selectedSubjectId) {
+    const subjectEl = document.getElementById('tutor_filter_subject');
+    if (!subjectEl) return;
+    subjectEl.innerHTML = '<option value="0">All subjects</option>';
+    const category = getTutorFilterCategory(categoryId);
+    if (!category || classId <= 0) return;
+    const selectedClass = (category.classes || []).find(function(item) {
+        return parseInt(item.id, 10) === classId;
+    });
+    if (!selectedClass) return;
+    (selectedClass.subjects || []).forEach(function(item) {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        option.selected = parseInt(item.id, 10) === selectedSubjectId;
+        subjectEl.appendChild(option);
+    });
+}
+
 function syncTutorFilterTaxonomy(){
     const categoryEl = document.getElementById('tutor_filter_category');
     const classEl = document.getElementById('tutor_filter_class');
     const subjectEl = document.getElementById('tutor_filter_subject');
     if(!categoryEl || !classEl || !subjectEl) return;
     const categoryId = parseInt(categoryEl.value || '0', 10);
-    classEl.innerHTML = '<option value="0">All classes / groups</option>';
-    subjectEl.innerHTML = '<option value="0">All subjects</option>';
-    let categoryObj = null;
-    (window.tutorFilterTree || []).forEach(function(item){ if(parseInt(item.id,10) === categoryId) categoryObj = item; });
-    if(categoryObj){ (categoryObj.classes || []).forEach(function(item){ const opt=document.createElement('option'); opt.value=item.id; opt.textContent=item.name; if(parseInt(item.id,10)===window.selectedTutorClassId) opt.selected=true; classEl.appendChild(opt); }); }
+    populateTutorClasses(categoryId, window.selectedTutorClassId);
     const classId = parseInt(classEl.value || '0', 10);
-    if(categoryObj){ (categoryObj.classes || []).forEach(function(item){ if(parseInt(item.id,10)!==classId) return; (item.subjects || []).forEach(function(sub){ const opt=document.createElement('option'); opt.value=sub.id; opt.textContent=sub.name; if(parseInt(sub.id,10)===window.selectedTutorSubjectId) opt.selected=true; subjectEl.appendChild(opt); }); }); }
+    populateTutorSubjects(categoryId, classId, window.selectedTutorSubjectId);
     window.selectedTutorClassId = parseInt(classEl.value || '0', 10);
     window.selectedTutorSubjectId = parseInt(subjectEl.value || '0', 10);
+}
+
+function handleTutorCategoryChange() {
+    const categoryId = parseInt(document.getElementById('tutor_filter_category').value || '0', 10);
+    window.selectedTutorCategoryId = categoryId;
+    window.selectedTutorClassId = 0;
+    window.selectedTutorSubjectId = 0;
+    populateTutorClasses(categoryId, 0);
+    populateTutorSubjects(categoryId, 0, 0);
+    filterTutor();
+}
+
+function handleTutorClassChange() {
+    const categoryId = parseInt(document.getElementById('tutor_filter_category').value || '0', 10);
+    const classId = parseInt(document.getElementById('tutor_filter_class').value || '0', 10);
+    window.selectedTutorClassId = classId;
+    window.selectedTutorSubjectId = 0;
+    populateTutorSubjects(categoryId, classId, 0);
+    filterTutor();
+}
+
+function handleTutorSubjectChange() {
+    window.selectedTutorSubjectId = parseInt(document.getElementById('tutor_filter_subject').value || '0', 10);
+    filterTutor();
 }
 document.addEventListener('DOMContentLoaded', syncTutorFilterTaxonomy);
 </script>

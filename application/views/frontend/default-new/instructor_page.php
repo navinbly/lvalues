@@ -74,15 +74,15 @@ $total_students = $this->db->get('enrol')->num_rows();
                         <h3><?php echo get_phrase('Statistics') ?></h3>
                         <div class="skill-point">
                             <div class="skill-point-1">
-                                <h1><?php echo $total_students; ?></h1>
+                                <div class="h1"><?php echo $total_students; ?></div>
                                 <h4><?php echo get_phrase('Total Students') ?></h4>
                             </div>
                             <div class="skill-point-1">
-                                <h1><?php echo sizeof($course_ids); ?></h1>
+                                <div class="h1"><?php echo sizeof($course_ids); ?></div>
                                 <h4><?php echo get_phrase('Courses'); ?></h4>
                             </div>
                             <div class="skill-point-1">
-                                <h1><?php echo $number_of_ratings; ?></h1>
+                                <div class="h1"><?php echo $number_of_ratings; ?></div>
                                 <h4><?php echo get_phrase('Reviews'); ?></h4>
                             </div>
                         </div>
