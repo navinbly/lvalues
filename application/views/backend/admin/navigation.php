@@ -1,13 +1,11 @@
 <?php
-$status_wise_courses = $this->crud_model->get_status_wise_courses();
-$pending_courses = isset($status_wise_courses['pending']) ? $status_wise_courses['pending']->num_rows() : 0;
-$pending_tutor_applications = $this->user_model->get_pending_applications()->num_rows();
-$pending_content_items = 0;
-if (isset($this->content_docs_model)) {
-    $pending_content_items += count($this->content_docs_model->get_pending_nodes());
-}
-$pending_content_items += $this->crud_model->get_instructors_pending_blog()->num_rows();
-$navigation_pending_payout_count = $this->crud_model->get_pending_payouts()->num_rows();
+// Sidebar badge counts come from a single cached COUNT(*) helper (60s TTL)
+// instead of full-table queries on every admin page load.
+$nav_counts = $this->crud_model->get_admin_nav_counts();
+$pending_courses = (int)($nav_counts['pending_courses'] ?? 0);
+$pending_tutor_applications = (int)($nav_counts['pending_tutor_applications'] ?? 0);
+$pending_content_items = (int)($nav_counts['pending_content_items'] ?? 0);
+$navigation_pending_payout_count = (int)($nav_counts['pending_payouts'] ?? 0);
 
 if (!function_exists('lv_admin_nav_active')) {
     function lv_admin_nav_active($page_name, $pages) {
@@ -75,82 +73,12 @@ if (!function_exists('lv_admin_nav_group_active')) {
             </li>
         <?php endif; ?>
 
-        <?php if (has_permission('enrolment') || has_permission('student')) : ?>
-            <?php $learning_pages = array('enrol_student', 'enrol_history', 'student_success', 'learning_certificates', 'learning_cohorts', 'student_academic_progress', 'student_academic_quiz_result'); ?>
-            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $learning_pages); ?>">
-                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $learning_pages); ?>" aria-label="Learning operations menu">
-                    <i class="dripicons-graduation"></i>
-                    <span>Learning Operations</span>
-                    <span class="menu-arrow"></span>
-                </a>
-                <ul class="side-nav-second-level" aria-expanded="false">
-                    <?php if (has_permission('enrolment')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('enrol_student', 'enrol_history')); ?>"><a href="<?php echo site_url('admin/enrol_history'); ?>">Enrollments</a></li><?php endif; ?>
-                    <?php if (has_permission('student')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('student_success')); ?>"><a href="<?php echo site_url('admin/student_success'); ?>">Progress</a></li><?php endif; ?>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('learning_certificates')); ?>"><a href="<?php echo site_url('admin/navigation_alias/learning_certificates'); ?>">Certificates</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('learning_cohorts')); ?>"><a href="<?php echo site_url('admin/navigation_alias/learning_cohorts'); ?>">Cohorts/Batches</a></li>
-                </ul>
-            </li>
-        <?php endif; ?>
-
-        <?php if (has_permission('instructor') || has_permission('contact')) : ?>
-            <?php $marketplace_pages = array('application_list', 'tutor_performance', 'marketplace_availability', 'marketplace_reviews'); ?>
-            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $marketplace_pages); ?>">
-                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $marketplace_pages); ?>" aria-label="Marketplace menu">
-                    <i class="dripicons-store"></i>
-                    <span>Marketplace</span>
-                    <span class="menu-arrow"></span>
-                </a>
-                <ul class="side-nav-second-level" aria-expanded="false">
-                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('application_list')); ?>"><a href="<?php echo site_url('admin/instructor_application'); ?>">Tutor Applications <span class="badge badge-danger-lighten"><?php echo $pending_tutor_applications; ?></span></a></li><?php endif; ?>
-                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('tutor_performance')); ?>"><a href="<?php echo site_url('admin/tutor_performance'); ?>">Tutor Performance</a></li><?php endif; ?>
-                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('marketplace_availability')); ?>"><a href="<?php echo site_url('admin/navigation_alias/marketplace_availability'); ?>">Availability</a></li><?php endif; ?>
-                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('marketplace_reviews')); ?>"><a href="<?php echo site_url('admin/navigation_alias/marketplace_reviews'); ?>">Reviews & Complaints</a></li><?php endif; ?>
-                </ul>
-            </li>
-        <?php endif; ?>
-
-        <?php if (has_permission('revenue')) : ?>
-            <?php $finance_pages = array('admin_revenue', 'instructor_revenue', 'purchase_history', 'finance_ops', 'finance_commission_rules', 'instructor_payout'); ?>
-            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $finance_pages); ?>">
-                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $finance_pages); ?>" aria-label="Finance menu">
-                    <i class="dripicons-wallet"></i>
-                    <span>Finance</span>
-                    <span class="menu-arrow"></span>
-                </a>
-                <ul class="side-nav-second-level" aria-expanded="false">
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('admin_revenue', 'instructor_revenue')); ?>"><a href="<?php echo site_url('admin/admin_revenue'); ?>">Revenue</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('purchase_history')); ?>"><a href="<?php echo site_url('admin/purchase_history'); ?>">Payments</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('finance_ops')); ?>"><a href="<?php echo site_url('admin/finance_ops'); ?>">Refunds</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('instructor_payout')); ?>"><a href="<?php echo site_url('admin/instructor_payout'); ?>">Payouts <span class="badge badge-warning-lighten"><?php echo $navigation_pending_payout_count; ?></span></a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('finance_commission_rules')); ?>"><a href="<?php echo site_url('admin/navigation_alias/finance_commission_rules'); ?>">Commission Rules</a></li>
-                </ul>
-            </li>
-        <?php endif; ?>
-
-        <?php if (has_permission('contact') || has_permission('user')) : ?>
-            <?php $support_pages = array('contact', 'support_tickets', 'support_complaints', 'support_escalations', 'communication_center'); ?>
-            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $support_pages); ?>">
-                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $support_pages); ?>" aria-label="Support menu">
-                    <i class="dripicons-help"></i>
-                    <span>Support</span>
-                    <span class="menu-arrow"></span>
-                </a>
-                <ul class="side-nav-second-level" aria-expanded="false">
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('communication_center')); ?>"><a href="<?php echo site_url('admin/communication-center'); ?>">Communication Center</a></li>
-                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('support_tickets')); ?>"><a href="<?php echo site_url('admin/support_tickets'); ?>">Tickets</a></li><?php endif; ?>
-                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('support_complaints')); ?>"><a href="<?php echo site_url('admin/navigation_alias/support_complaints'); ?>">Complaints</a></li><?php endif; ?>
-                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('support_escalations')); ?>"><a href="<?php echo site_url('admin/navigation_alias/support_escalations'); ?>">Escalations</a></li><?php endif; ?>
-                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('contact')); ?>"><a href="<?php echo site_url('admin/contact'); ?>">Knowledge Base</a></li><?php endif; ?>
-                </ul>
-            </li>
-        <?php endif; ?>
-
         <?php if (has_permission('blog')) : ?>
-            <?php $content_pages_nav = array('content_nodes', 'content_nodes_pending', 'content_pages', 'content_seo', 'question_bank', 'content_public_exams', 'content_exam_builder', 'exam_pattern_builder', 'assessment_workflow', 'exam_analytics', 'moderation_center', 'blog', 'blog_add', 'blog_edit', 'blog_category', 'custom_page'); ?>
-            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $content_pages_nav); ?>">
-                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $content_pages_nav); ?>" aria-label="Publish books menu">
+            <?php $content_studio_pages = array('content_nodes', 'content_nodes_pending', 'content_pages'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $content_studio_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $content_studio_pages); ?>" aria-label="Content studio menu">
                     <i class="mdi mdi-book-open-page-variant"></i>
-                    <span>Publish Books</span>
+                    <span>Content Studio</span>
                     <span class="menu-arrow"></span>
                 </a>
                 <ul class="side-nav-second-level" aria-expanded="false">
@@ -165,30 +93,102 @@ if (!function_exists('lv_admin_nav_group_active')) {
                     </li>
                     <li class="<?php echo ($page_name === 'content_nodes_pending' && $content_review_filter === 'book') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/content_nodes_pending?review_filter=book'); ?>">Books Review <span class="badge badge-warning-lighten"><?php echo $pending_content_items; ?></span></a></li>
                     <li class="<?php echo ($page_name === 'content_nodes_pending' && $content_review_filter === 'article') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/content_nodes_pending?review_filter=article'); ?>">Articles Review</a></li>
-                    <li class="<?php echo ($page_name === 'content_nodes_pending' && $content_review_filter === 'recycle') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/content_nodes_pending?review_filter=recycle'); ?>">Recycle Bin</a></li>
                     <li class="<?php echo ($page_name === 'content_nodes_pending' && $content_review_filter === 'published') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/content_nodes_pending?review_filter=published'); ?>">Published Content</a></li>
+                    <li class="<?php echo ($page_name === 'content_nodes_pending' && $content_review_filter === 'recycle') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/content_nodes_pending?review_filter=recycle'); ?>">Recycle Bin</a></li>
                     <li class="<?php echo lv_admin_nav_active($page_name, array('content_pages')); ?>"><a href="<?php echo site_url('admin/content_pages'); ?>">Content Governance</a></li>
+                </ul>
+            </li>
+
+            <?php $exam_pages = array('question_bank', 'content_public_exams', 'content_exam_builder', 'exam_pattern_builder', 'assessment_workflow', 'exam_analytics', 'moderation_center'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $exam_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $exam_pages); ?>" aria-label="Exams and mock tests menu">
+                    <i class="mdi mdi-clipboard-text-outline"></i>
+                    <span>Exams & Mock Tests</span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <ul class="side-nav-second-level" aria-expanded="false">
                     <?php $qb_tab = $this->input->get('qb_tab') ?: 'create_exam'; ?>
                     <li class="<?php echo ($page_name === 'question_bank') ? 'active lv-expanded' : ''; ?> lv-question-bank-nav">
                         <a href="javascript:void(0);" class="lv-question-bank-toggle"><i class="mdi mdi-database-search mr-1"></i>Question Bank <span class="menu-arrow"></span></a>
                         <ul class="side-nav-third-level lv-question-bank-children" aria-expanded="<?php echo ($page_name === 'question_bank') ? 'true' : 'false'; ?>" style="padding-left:18px; list-style:none; display:<?php echo ($page_name === 'question_bank') ? 'block' : 'none'; ?>;">
-                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'create_exam') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=create_exam'); ?>">Create Q Bank</a></li>
-                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'upload') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=upload'); ?>">Upload/Download Question</a></li>
-                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'search') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=search'); ?>">Search Question</a></li>
+                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'create_exam') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=create_exam'); ?>">1. Setup Exams &amp; Sections</a></li>
+                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'upload') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=upload'); ?>">2. Add Questions (Single &amp; Bulk)</a></li>
+                            <li class="<?php echo ($page_name === 'question_bank' && $qb_tab === 'search') ? 'active' : ''; ?>"><a href="<?php echo site_url('admin/question_bank?qb_tab=search'); ?>">3. Manage Questions</a></li>
                         </ul>
                     </li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('content_public_exams', 'content_exam_builder', 'exam_pattern_builder')); ?>"><a href="<?php echo site_url('admin/content_public_exams'); ?>"><i class="mdi mdi-clipboard-text-outline mr-1"></i>Exam Pattern Builder</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('content_public_exams', 'content_exam_builder', 'exam_pattern_builder')); ?>"><a href="<?php echo site_url('admin/content_public_exams'); ?>">Exam Pattern Builder</a></li>
                     <li class="<?php echo lv_admin_nav_active($page_name, array('assessment_workflow')); ?>"><a href="<?php echo site_url('assessment-center'); ?>">Assessment Center</a></li>
                     <li class="<?php echo lv_admin_nav_active($page_name, array('moderation_center')); ?>"><a href="<?php echo site_url('admin/moderation_center'); ?>">Admin Review Center</a></li>
                     <li class="<?php echo lv_admin_nav_active($page_name, array('exam_analytics')); ?>"><a href="<?php echo site_url('admin/exam_analytics'); ?>">Exam Analytics</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('blog', 'blog_add', 'blog_edit')); ?>"><a href="<?php echo site_url('admin/blog'); ?>">Blogs</a></li>
-                    <li class="<?php echo lv_admin_nav_active($page_name, array('content_seo')); ?>"><a href="<?php echo site_url('admin/navigation_alias/content_seo'); ?>">SEO</a></li>
                 </ul>
             </li>
         <?php endif; ?>
 
-        <?php if (has_permission('revenue') || has_permission('course') || has_permission('student') || has_permission('instructor') || has_permission('admin')) : ?>
-            <?php $analytics_pages = array('analytics_growth', 'analytics_course', 'analytics_student_success', 'analytics_tutor', 'analytics_operations', 'operational_quality', 'ai_readiness', 'scalability_review', 'implementation_roadmap'); ?>
+        <?php if (has_permission('enrolment') || has_permission('student')) : ?>
+            <?php $learning_pages = array('enrol_student', 'enrol_history', 'student_success', 'student_academic_progress', 'student_academic_quiz_result'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $learning_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $learning_pages); ?>" aria-label="Learning operations menu">
+                    <i class="dripicons-graduation"></i>
+                    <span>Learning Operations</span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <ul class="side-nav-second-level" aria-expanded="false">
+                    <?php if (has_permission('enrolment')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('enrol_student', 'enrol_history')); ?>"><a href="<?php echo site_url('admin/enrol_history'); ?>">Enrollments</a></li><?php endif; ?>
+                    <?php if (has_permission('student')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('student_success')); ?>"><a href="<?php echo site_url('admin/student_success'); ?>">Progress</a></li><?php endif; ?>
+                </ul>
+            </li>
+        <?php endif; ?>
+
+        <?php if (has_permission('instructor') || has_permission('contact')) : ?>
+            <?php $marketplace_pages = array('application_list', 'tutor_performance'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $marketplace_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $marketplace_pages); ?>" aria-label="Marketplace menu">
+                    <i class="dripicons-store"></i>
+                    <span>Marketplace</span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <ul class="side-nav-second-level" aria-expanded="false">
+                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('application_list')); ?>"><a href="<?php echo site_url('admin/instructor_application'); ?>">Tutor Applications <span class="badge badge-danger-lighten"><?php echo $pending_tutor_applications; ?></span></a></li><?php endif; ?>
+                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('tutor_performance')); ?>"><a href="<?php echo site_url('admin/tutor_performance'); ?>">Tutor Performance</a></li><?php endif; ?>
+                </ul>
+            </li>
+        <?php endif; ?>
+
+        <?php if (has_permission('revenue')) : ?>
+            <?php $finance_pages = array('admin_revenue', 'instructor_revenue', 'purchase_history', 'finance_ops', 'instructor_payout'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $finance_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $finance_pages); ?>" aria-label="Finance menu">
+                    <i class="dripicons-wallet"></i>
+                    <span>Finance</span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <ul class="side-nav-second-level" aria-expanded="false">
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('admin_revenue', 'instructor_revenue')); ?>"><a href="<?php echo site_url('admin/admin_revenue'); ?>">Revenue</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('purchase_history')); ?>"><a href="<?php echo site_url('admin/purchase_history'); ?>">Payments</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('finance_ops')); ?>"><a href="<?php echo site_url('admin/finance_ops'); ?>">Refunds</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('instructor_payout')); ?>"><a href="<?php echo site_url('admin/instructor_payout'); ?>">Payouts <span class="badge badge-warning-lighten"><?php echo $navigation_pending_payout_count; ?></span></a></li>
+                </ul>
+            </li>
+        <?php endif; ?>
+
+        <?php if (has_permission('contact') || has_permission('user')) : ?>
+            <?php $support_pages = array('contact', 'support_tickets', 'communication_center'); ?>
+            <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $support_pages); ?>">
+                <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $support_pages); ?>" aria-label="Support menu">
+                    <i class="dripicons-help"></i>
+                    <span>Support</span>
+                    <span class="menu-arrow"></span>
+                </a>
+                <ul class="side-nav-second-level" aria-expanded="false">
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('communication_center')); ?>"><a href="<?php echo site_url('admin/communication-center'); ?>">Communication Center</a></li>
+                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('support_tickets')); ?>"><a href="<?php echo site_url('admin/support_tickets'); ?>">Tickets</a></li><?php endif; ?>
+                    <?php if (has_permission('contact')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('contact')); ?>"><a href="<?php echo site_url('admin/contact'); ?>">Knowledge Base</a></li><?php endif; ?>
+                </ul>
+            </li>
+        <?php endif; ?>
+
+        <?php if (has_permission('admin')) : ?>
+            <?php $analytics_pages = array('analytics_operations', 'operational_quality', 'ai_readiness', 'scalability_review', 'implementation_roadmap'); ?>
             <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $analytics_pages); ?>">
                 <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $analytics_pages); ?>" aria-label="Analytics menu">
                     <i class="dripicons-graph-bar"></i>
@@ -196,20 +196,16 @@ if (!function_exists('lv_admin_nav_group_active')) {
                     <span class="menu-arrow"></span>
                 </a>
                 <ul class="side-nav-second-level" aria-expanded="false">
-                    <?php if (has_permission('revenue')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('analytics_growth')); ?>"><a href="<?php echo site_url('admin/navigation_alias/analytics_growth'); ?>">Growth</a></li><?php endif; ?>
-                    <?php if (has_permission('course')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('analytics_course')); ?>"><a href="<?php echo site_url('admin/navigation_alias/analytics_course'); ?>">Course Analytics</a></li><?php endif; ?>
-                    <?php if (has_permission('student')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('analytics_student_success')); ?>"><a href="<?php echo site_url('admin/navigation_alias/analytics_student_success'); ?>">Student Success</a></li><?php endif; ?>
-                    <?php if (has_permission('instructor')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('analytics_tutor')); ?>"><a href="<?php echo site_url('admin/navigation_alias/analytics_tutor'); ?>">Tutor Analytics</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('analytics_operations','operational_quality')); ?>"><a href="<?php echo site_url('admin/operational_quality'); ?>">Operational Quality</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('implementation_roadmap')); ?>"><a href="<?php echo site_url('admin/implementation_roadmap'); ?>">Roadmap</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('ai_readiness')); ?>"><a href="<?php echo site_url('admin/ai_readiness'); ?>">AI Readiness</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('scalability_review')); ?>"><a href="<?php echo site_url('admin/scalability_review'); ?>">Scalability Review</a></li><?php endif; ?>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('analytics_operations','operational_quality')); ?>"><a href="<?php echo site_url('admin/operational_quality'); ?>">Operational Quality</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('implementation_roadmap')); ?>"><a href="<?php echo site_url('admin/implementation_roadmap'); ?>">Roadmap</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('ai_readiness')); ?>"><a href="<?php echo site_url('admin/ai_readiness'); ?>">AI Readiness</a></li>
+                    <li class="<?php echo lv_admin_nav_active($page_name, array('scalability_review')); ?>"><a href="<?php echo site_url('admin/scalability_review'); ?>">Scalability Review</a></li>
                 </ul>
             </li>
         <?php endif; ?>
 
         <?php if (has_permission('settings') || has_permission('admin')) : ?>
-            <?php $settings_pages = array('system_settings', 'payment_settings', 'social_login', 'settings_security', 'audit_activity', 'notification_settings', 'settings_ai_guardrails', 'settings_scale_readiness', 'settings_roadmap', 'security_login_alerts'); ?>
+            <?php $settings_pages = array('system_settings', 'payment_settings', 'social_login', 'audit_activity', 'notification_settings', 'security_login_alerts'); ?>
             <li class="side-nav-item <?php echo lv_admin_nav_group_active($page_name, $settings_pages); ?>">
                 <a href="javascript:void(0);" class="side-nav-link <?php echo lv_admin_nav_group_active($page_name, $settings_pages); ?>" aria-label="Settings menu">
                     <i class="dripicons-gear"></i>
@@ -218,13 +214,9 @@ if (!function_exists('lv_admin_nav_group_active')) {
                 </a>
                 <ul class="side-nav-second-level" aria-expanded="false">
                     <?php if (has_permission('settings')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('system_settings')); ?>"><a href="<?php echo site_url('admin/system_settings'); ?>">Platform</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('settings_security')); ?>"><a href="<?php echo site_url('admin/navigation_alias/settings_security'); ?>">Security Review</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('security_login_alerts')); ?>"><a href="<?php echo site_url('admin/security_login_alerts'); ?>">Login Alerts</a></li><?php endif; ?>
                     <?php if (has_permission('settings')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('payment_settings', 'social_login')); ?>"><a href="<?php echo site_url('admin/payment_settings'); ?>">Integrations</a></li><?php endif; ?>
+                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('security_login_alerts')); ?>"><a href="<?php echo site_url('admin/security_login_alerts'); ?>">Login Alerts</a></li><?php endif; ?>
                     <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('audit_activity')); ?>"><a href="<?php echo site_url('admin/audit_activity'); ?>">Audit Logs</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('settings_roadmap')); ?>"><a href="<?php echo site_url('admin/navigation_alias/settings_roadmap'); ?>">Roadmap</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('settings_ai_guardrails')); ?>"><a href="<?php echo site_url('admin/navigation_alias/settings_ai_guardrails'); ?>">AI Guardrails</a></li><?php endif; ?>
-                    <?php if (has_permission('admin')) : ?><li class="<?php echo lv_admin_nav_active($page_name, array('settings_scale_readiness')); ?>"><a href="<?php echo site_url('admin/navigation_alias/settings_scale_readiness'); ?>">Scale Readiness</a></li><?php endif; ?>
                 </ul>
             </li>
         <?php endif; ?>

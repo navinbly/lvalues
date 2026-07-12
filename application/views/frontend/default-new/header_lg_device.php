@@ -126,11 +126,13 @@
         <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('home/courses?query=school'); ?>">School</a></li>
         <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('home/courses?query=IT%20Training'); ?>">IT Training</a></li>
         <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesCorporateTraining'); ?>">Corporate</a></li>
-        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesAudiencePaths'); ?>">For Parents</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('parents'); ?>">For Parents</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('books'); ?>">Books</a></li>
+        <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('mock-tests'); ?>">Mock Tests</a></li>
         <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('blog'); ?>">Blog</a></li>
         <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('#lvaluesPricing'); ?>">Pricing</a></li>
         <?php if(!$user_id && get_settings('allow_instructor') == 1): ?>
-          <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('sign_up?instructor=yes'); ?>">Become a Tutor</a></li>
+          <li class="nav-item"><a class="nav-link bg-white text-dark fw-600 text-nowrap" href="<?php echo site_url('tutor-earnings'); ?>">Become a Tutor</a></li>
         <?php endif; ?>
       </ul>
 

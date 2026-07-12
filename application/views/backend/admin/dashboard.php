@@ -1,12 +1,14 @@
 <?php
-    $status_wise_courses = $this->crud_model->get_status_wise_courses();
-    $number_of_courses = $status_wise_courses['pending']->num_rows() + $status_wise_courses['active']->num_rows();
-    $number_of_lessons = $this->crud_model->get_lessons()->num_rows();
-    $number_of_enrolment = $this->crud_model->enrol_history()->num_rows();
-    $number_of_students = $this->user_model->get_user()->num_rows();
+    // Dashboard metrics use COUNT(*) so no full table is ever fetched just to count rows.
+    $pending_course_count = (int)$this->db->where('status', 'pending')->count_all_results('course');
+    $active_course_count = (int)$this->db->where('status', 'active')->count_all_results('course');
+    $number_of_courses = $pending_course_count + $active_course_count;
+    $number_of_lessons = (int)$this->db->count_all('lesson');
+    $number_of_enrolment = (int)$this->db->count_all('enrol');
+    $number_of_students = (int)$this->db->where('role_id', 2)->count_all_results('users');
 
     // phase4_admin_quality_metrics
-    $pending_tutor_applications = $this->user_model->get_pending_applications()->num_rows();
+    $pending_tutor_applications = (int)$this->db->where('status', 0)->count_all_results('applications');
     $active_tutor_profiles = $this->db->table_exists('tutor_profiles') ? (int)$this->db->where('status', 'active')->count_all_results('tutor_profiles') : 0;
     $pending_tutor_profiles = $this->db->table_exists('tutor_profiles') ? (int)$this->db->where('status !=', 'active')->count_all_results('tutor_profiles') : 0;
     $pending_content_nodes = $this->db->table_exists('content_nodes') ? (int)$this->db->where('status', 'pending')->count_all_results('content_nodes') : 0;
@@ -44,15 +46,11 @@
         $this->db->group_end();
         $exam_pattern_draft = (int)$this->db->count_all_results('content_exams');
     }
-    $pending_payouts = $this->crud_model->get_pending_payouts()->result_array();
-    $pending_payout_count = count($pending_payouts);
-    $pending_payout_total = 0;
-    foreach ($pending_payouts as $pending_payout) {
-        $pending_payout_total += (float)$pending_payout['amount'];
-    }
+    $payout_summary = $this->db->select('COUNT(*) AS pending_count, COALESCE(SUM(amount), 0) AS pending_total', false)
+        ->where('status', 0)->get('payout')->row_array();
+    $pending_payout_count = (int)($payout_summary['pending_count'] ?? 0);
+    $pending_payout_total = (float)($payout_summary['pending_total'] ?? 0);
     $pending_payout_total_label = $pending_payout_total > 0 ? currency($pending_payout_total) : '0';
-    $pending_course_count = $status_wise_courses['pending']->num_rows();
-    $active_course_count = $status_wise_courses['active']->num_rows();
     $course_completeness_rate = $number_of_courses > 0 ? round(($number_of_lessons / $number_of_courses) * 100, 1) : 0;
     $student_activation_rate = $number_of_students > 0 ? round(($number_of_enrolment / $number_of_students) * 100, 1) : 0;
     $today_task_count = $pending_tutor_applications + $pending_tutor_profiles + $pending_content_nodes + $pending_course_count + $pending_payout_count + $question_bank_draft + $exam_pattern_draft;
@@ -487,14 +485,14 @@
                     <div class="col-6">
                         <i class="mdi mdi-trending-up text-success mt-3 h3"></i>
                         <h3 class="font-weight-normal">
-                            <span><?php echo $status_wise_courses['active']->num_rows(); ?></span>
+                            <span><?php echo $active_course_count; ?></span>
                         </h3>
                         <p class="text-muted mb-0"><?php echo get_phrase('active_courses'); ?></p>
                     </div>
                     <div class="col-6">
                         <i class="mdi mdi-trending-down text-warning mt-3 h3"></i>
                         <h3 class="font-weight-normal">
-                            <span><?php echo $status_wise_courses['pending']->num_rows(); ?></span>
+                            <span><?php echo $pending_course_count; ?></span>
                         </h3>
                         <p class="text-muted mb-0"> <?php echo get_phrase('pending_courses'); ?></p>
                     </div>

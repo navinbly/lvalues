@@ -253,7 +253,7 @@ $current_url = current_url() . (!empty($_SERVER['QUERY_STRING']) ? '?' . $_SERVE
             <div class="modal fade" id="<?php echo $request_modal_id; ?>" tabindex="-1" aria-hidden="true">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                        <form action="<?php echo site_url('home/send_tutor_request'); ?>" method="post">
+                        <form action="<?php echo site_url('home/send_tutor_request'); ?>" method="post" data-lv-event="send_request" data-lv-label="tutor_list_request">
                             <div class="modal-header">
                                 <h5 class="modal-title"><?php echo get_phrase('Book Demo / Send Request'); ?> - <?php echo html_escape($full_name ?: 'Tutor'); ?></h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="<?php echo get_phrase('Close'); ?>"></button>

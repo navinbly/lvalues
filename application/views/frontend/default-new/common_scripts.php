@@ -28,12 +28,59 @@
   <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {
+      'analytics_storage': 'granted',
+      'ad_storage': 'denied',
+      'ad_user_data': 'denied',
+      'ad_personalization': 'denied'
+    });
     gtag('js', new Date());
 
-    gtag('config', '<?php echo get_settings('google_analytics_id'); ?>');
+    gtag('config', '<?php echo html_escape(get_settings('google_analytics_id')); ?>', {'anonymize_ip': true});
   </script>
 <?php endif; ?>
 <!-- Ended Google analytics -->
+
+<script>
+  window.lvaluesTrackEvent = function(eventName, params) {
+    params = params || {};
+    if (!eventName) return;
+    if (typeof gtag === 'function') {
+      gtag('event', eventName, params);
+    }
+  };
+
+  document.addEventListener('click', function(event) {
+    var target = event.target.closest('[data-lv-event], a[href], button');
+    if (!target) return;
+    var href = target.href || '';
+    var label = target.getAttribute('data-lv-label') || (target.textContent || '').trim();
+    var eventName = target.getAttribute('data-lv-event') || '';
+    if (!eventName && href.indexOf('search_for=tutor') !== -1) eventName = 'tutor_search';
+    if (!eventName && href.indexOf('schedules_bookings') !== -1) eventName = 'tutor_profile_view';
+    if (!eventName && href.indexOf('sign_up') !== -1) eventName = href.indexOf('instructor=yes') !== -1 ? 'become_tutor' : 'register';
+    if (!eventName && href.indexOf('tutor-earnings') !== -1) eventName = 'become_tutor';
+    if (!eventName && href.indexOf('mock-tests/') !== -1) eventName = 'start_mock_test';
+    if (!eventName && (href.indexOf('contact_us') !== -1 || /support/i.test(label))) eventName = 'contact_support';
+    if (!eventName) return;
+    window.lvaluesTrackEvent(eventName, {
+      event_category: target.getAttribute('data-lv-category') || 'cta',
+      event_label: label,
+      link_url: href
+    });
+  });
+
+  document.addEventListener('submit', function(event) {
+    var form = event.target;
+    if (!form || !form.matches('[data-lv-event], #lvaluesHeroSearchForm, #startForm, #examForm')) return;
+    var eventName = form.getAttribute('data-lv-event') || (form.id === 'lvaluesHeroSearchForm' ? 'tutor_search' : (form.id === 'startForm' ? 'start_mock_test' : 'submit_mock_test'));
+    window.lvaluesTrackEvent(eventName, {
+      event_category: 'form',
+      event_label: form.getAttribute('data-lv-label') || form.id || 'public_form',
+      form_action: form.action || ''
+    });
+  }, true);
+</script>
 
 <!-- Meta pixel -->
 <?php if(!empty(get_settings('meta_pixel_id'))): ?>

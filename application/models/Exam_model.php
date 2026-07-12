@@ -360,14 +360,15 @@ class Exam_model extends CI_Model
         if ($configuredMode === 'real') $mode = 'real';
         $user_id=(int)($participant['user_id']??0);
         $email=trim((string)($participant['email']??''));
+        $mobile=trim((string)($participant['mobile']??''));
         $this->db->from('content_exam_attempts')->where('exam_id',(int)$exam_id);
-        if($user_id>0)$this->db->where('user_id',$user_id);elseif($email!=='')$this->db->where('participant_email',$email);else$this->db->where('id',0);
+        if($user_id>0)$this->db->where('user_id',$user_id);elseif($email!=='')$this->db->where('participant_email',$email);elseif($mobile!=='')$this->db->where('participant_mobile',$mobile);else$this->db->where('id',0);
         $attempt_count=(int)$this->db->count_all_results();
         $max_attempts=max(0,(int)($exam['max_attempts']??0));
         if ($mode === 'real') $max_attempts = 1;
         if($max_attempts>0&&$attempt_count>=$max_attempts)return ['attempt_id'=>0,'access_token'=>'','message'=>$mode === 'real' ? 'This real test allows only one attempt.' : 'The maximum number of attempts has been reached.'];
         $this->db->from('content_exam_attempts')->where('exam_id',(int)$exam_id);
-        if($user_id>0)$this->db->where('user_id',$user_id);else$this->db->where('participant_email',$email);
+        if($user_id>0)$this->db->where('user_id',$user_id);elseif($email!=='')$this->db->where('participant_email',$email);elseif($mobile!=='')$this->db->where('participant_mobile',$mobile);else$this->db->where('id',0);
         $latest=$this->db->order_by('started_at','DESC')->get()->row_array();
         $wait=max(0,(int)($exam['retake_wait_minutes']??0));
         if($latest&&$wait>0&&strtotime($latest['started_at'].' +'.$wait.' minutes')>time())return ['attempt_id'=>0,'access_token'=>'','message'=>'Please wait before starting another attempt.'];
@@ -439,7 +440,7 @@ class Exam_model extends CI_Model
         }
         $selected=[];
         foreach($groups as $sectionId=>$group){
-            if(!empty($exam['randomize_questions'])&&count($group)>1)shuffle($group);
+            if(count($group)>1)shuffle($group);
             $count=$sectionCounts[$sectionId]??count($group);
             foreach(array_slice($group,0,min($count,count($group))) as $question)$selected[]=$question;
         }

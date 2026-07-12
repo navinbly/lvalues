@@ -1576,10 +1576,31 @@ class User extends CI_Controller
         $page_data['exam'] = $exam;
         $page_data['sections'] = $exam ? $this->exam_pattern->get_sections($exam_id) : array();
         $user_id = (int)$this->session->userdata('user_id');
-        $page_data['bank_questions'] = $this->exam_pattern->get_active_bank_questions(1000, $user_id);
+        $page_data['bank_questions'] = array();
         $page_data['filter_options'] = $this->question_bank->get_filter_options($user_id);
         $page_data['workflow_action_token'] = $this->workflow_action_token;
         $this->load->view('backend/index', $page_data);
+    }
+
+    public function question_bank_pool()
+    {
+        $this->output->set_content_type('application/json');
+        if ($this->session->userdata('user_login') != true) {
+            $this->output->set_status_header(403)->set_output(json_encode(array('error' => 'Not authorized')));
+            return;
+        }
+        $this->_require_tutor_docs_access();
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $result = $this->exam_pattern->search_bank_questions(
+            (int)$this->session->userdata('user_id'),
+            trim((string)$this->input->get('exam')),
+            trim((string)$this->input->get('topic')),
+            trim((string)$this->input->get('difficulty')),
+            array(),
+            1
+        );
+        unset($result['questions']);
+        $this->output->set_output(json_encode($result, JSON_UNESCAPED_UNICODE));
     }
 
     public function exam_pattern_save($exam_id = 0)

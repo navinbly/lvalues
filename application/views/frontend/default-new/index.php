@@ -28,7 +28,33 @@ if($language_dirs){
 	$seo_image = base_url('uploads/system/' . get_current_banner('banner_image'));
 	$seo_type = 'website';
 	$seo_canonical = current_url();
-	$seo_json_ld = null;
+	$seo_json_ld = [];
+	$public_base_url = rtrim(site_url(), '/');
+	$public_host = strtolower((string)parse_url($public_base_url, PHP_URL_HOST));
+	if ($public_host === '' || $public_host === 'localhost' || $public_host === '127.0.0.1' || $public_host === '::1') {
+		$public_base_url = 'https://lvalues.com';
+	}
+	$canonical_path = trim((string)$this->uri->uri_string(), '/');
+	$seo_canonical = $public_base_url . ($canonical_path !== '' ? '/' . $canonical_path : '/');
+	$organization_json_ld = [
+		'@context' => 'https://schema.org',
+		'@type' => 'Organization',
+		'name' => $site_name,
+		'url' => $public_base_url . '/',
+		'logo' => base_url('uploads/system/' . get_frontend_settings('dark_logo')),
+		'email' => get_settings('system_email'),
+	];
+	$website_json_ld = [
+		'@context' => 'https://schema.org',
+		'@type' => 'WebSite',
+		'name' => $site_name,
+		'url' => $public_base_url . '/',
+		'potentialAction' => [
+			'@type' => 'SearchAction',
+			'target' => $public_base_url . '/home/courses?query={search_term_string}',
+			'query-input' => 'required name=search_term_string',
+		],
+	];
 
 	if ($page_name == 'course_page') {
 		$course_details = $this->crud_model->get_course_by_id($course_id)->row_array();
@@ -40,7 +66,7 @@ if($language_dirs){
 		$seo_keywords = (string)($course_details['meta_keywords'] ?? $seo_keywords);
 		$seo_image = $this->crud_model->get_course_thumbnail_url($course_id);
 		$seo_type = 'article';
-		$seo_json_ld = [
+		$seo_json_ld[] = [
 			'@context' => 'https://schema.org',
 			'@type' => 'Course',
 			'name' => $course_details['title'] ?? $page_title,
@@ -63,12 +89,44 @@ if($language_dirs){
 		$seo_image = base_url($blog_banner);
 		$seo_type = 'article';
 	} elseif ($page_name == 'blogs') {
-		$seo_title = trim((string)get_frontend_settings('blog_page_title')) . ' | ' . $site_name;
+		$blog_title = trim((string)get_frontend_settings('blog_page_title'));
+		$seo_title = ($blog_title !== '' ? $blog_title : 'Lvalues Blog') . ' | ' . $site_name;
 		$seo_description = trim((string)get_frontend_settings('blog_page_subtitle'));
 		$seo_image = site_url('uploads/blog/page-banner/' . get_frontend_settings('blog_page_banner'));
+	} elseif ($page_name == 'content_page') {
+		$selected_title = !empty($selected_node['title']) ? (string)$selected_node['title'] : 'Books and Articles';
+		$seo_title = ($selected_title === 'Books and Articles' ? 'Books and Articles' : $selected_title) . ' | ' . $site_name;
+		$seo_description = !empty($selected_page['meta_description']) ? (string)$selected_page['meta_description'] : 'Read Lvalues books, articles, notes, and structured learning content.';
 	} elseif ($page_name == 'home' || $page_name == 'home_1' || $page_name == 'index') {
 		$seo_title = 'Lvalues Online Learning, Tutors, Courses and Career Skills';
 		$seo_description = 'Discover verified tutors, school support, IT training, online courses, live classes, certificates, and corporate learning programs with Lvalues.';
+	} elseif ($page_name == 'about_us') {
+		$seo_title = 'About Lvalues EdTech | ' . $site_name;
+		$seo_description = 'Learn about Lvalues EdTech, an education platform for students, parents, tutors, courses, books, mock tests, and live learning.';
+	} elseif ($page_name == 'website_faq') {
+		$seo_title = 'Lvalues FAQ | Courses, Tutors, Books and Mock Tests';
+		$seo_description = 'Find answers about Lvalues courses, tutor registration, books, mock tests, batches, payments, and student support.';
+		$seo_json_ld[] = [
+			'@context' => 'https://schema.org',
+			'@type' => 'FAQPage',
+			'mainEntity' => [
+				[
+					'@type' => 'Question',
+					'name' => 'What can students learn on Lvalues?',
+					'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Students can explore courses, books, tutor-led batches, mock tests, assignments, and progress tracking on Lvalues.'],
+				],
+				[
+					'@type' => 'Question',
+					'name' => 'Can tutors register on Lvalues?',
+					'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Tutors can register, complete their teaching profile, upload verification documents, and use tutor dashboard tools after admin approval.'],
+				],
+				[
+					'@type' => 'Question',
+					'name' => 'Are mock tests available publicly?',
+					'acceptedAnswer' => ['@type' => 'Answer', 'text' => 'Published mock tests are available from the Mock Tests section and may include timed exams, instant results, and review reports.'],
+				],
+			],
+		];
 	}
 
 	// Page-level SEO override support for modern public modules such as Mock Tests.
@@ -91,16 +149,26 @@ if($language_dirs){
 		$seo_canonical = (string)$seo_canonical_override;
 	}
 	if (!empty($seo_json_ld_override)) {
-		$seo_json_ld = $seo_json_ld_override;
+		$seo_json_ld[] = $seo_json_ld_override;
 	}
 
+	$seo_canonical_path = trim((string)parse_url($seo_canonical, PHP_URL_PATH), '/');
+	$local_base_path = trim((string)parse_url(site_url(), PHP_URL_PATH), '/');
+	if ($local_base_path !== '' && ($seo_canonical_path === $local_base_path || strpos($seo_canonical_path, $local_base_path . '/') === 0)) {
+		$seo_canonical_path = trim(substr($seo_canonical_path, strlen($local_base_path)), '/');
+	}
+	$seo_canonical = $public_base_url . ($seo_canonical_path !== '' ? '/' . $seo_canonical_path : '/');
 	$seo_description = trim(strip_tags((string)$seo_description));
 	$seo_description = $seo_description !== '' ? ellipsis($seo_description, 155) : ellipsis($default_description, 155);
+	$seo_graph = array_merge([$organization_json_ld, $website_json_ld], is_array($seo_json_ld) ? $seo_json_ld : []);
 	?>
 	<title><?php echo html_escape($seo_title); ?></title>
 	<meta name="keywords" content="<?php echo html_escape($seo_keywords); ?>"/>
 	<meta name="description" content="<?php echo html_escape($seo_description); ?>" />
 	<meta name="robots" content="index, follow, max-image-preview:large" />
+	<?php if (trim((string)get_settings('google_search_console_id')) !== ''): ?>
+	<meta name="google-site-verification" content="<?php echo html_escape(get_settings('google_search_console_id')); ?>" />
+	<?php endif; ?>
 	<link rel="canonical" href="<?php echo html_escape($seo_canonical); ?>" />
 
 	<meta property="og:site_name" content="<?php echo html_escape($site_name); ?>" />
@@ -113,9 +181,7 @@ if($language_dirs){
 	<meta name="twitter:title" content="<?php echo html_escape($seo_title); ?>" />
 	<meta name="twitter:description" content="<?php echo html_escape($seo_description); ?>" />
 	<meta name="twitter:image" content="<?php echo html_escape($seo_image); ?>" />
-	<?php if (!empty($seo_json_ld)): ?>
-		<script type="application/ld+json"><?php echo json_encode($seo_json_ld, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?></script>
-	<?php endif; ?>
+	<script type="application/ld+json"><?php echo json_encode(['@context' => 'https://schema.org', '@graph' => $seo_graph], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?></script>
 
 	<link rel="icon" href="<?php echo base_url('uploads/system/'.get_frontend_settings('favicon')); ?>" type="image/x-icon">
 	<link rel="apple-touch-icon" sizes="180x180" href="<?php echo base_url('uploads/system/'.get_frontend_settings('favicon')); ?>">

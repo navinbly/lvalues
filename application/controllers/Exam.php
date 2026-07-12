@@ -10,6 +10,7 @@ class Exam extends CI_Controller
         $this->load->library('session');
         $this->load->helper(['url','form','security']);
         $this->load->model('Exam_model', 'exam');
+        $this->load->model('Mock_test_lead_model', 'mock_test_lead');
     }
 
     public function public_list()
@@ -48,8 +49,11 @@ class Exam extends CI_Controller
 
     public function detail($slug = '')
     {
-        $exam = $this->exam->get_exam_by_slug($slug, true);
+        // Admins may preview unpublished (draft/in-review) exams with ?preview=1.
+        $is_admin_preview = (int)$this->input->get('preview') === 1 && $this->session->userdata('admin_login');
+        $exam = $this->exam->get_exam_by_slug($slug, !$is_admin_preview);
         if (!$exam) { show_404(); return; }
+        if (($exam['status'] ?? '') !== 'published' && (int)($exam['is_published'] ?? 0) !== 1 && !$is_admin_preview) { show_404(); return; }
         $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
         $title = trim((string)($exam['title'] ?? 'Mock Test'));
         $meta_description = trim(strip_tags((string)($exam['description'] ?? '')));
@@ -60,6 +64,7 @@ class Exam extends CI_Controller
             'page_name' => 'exam/exam_intro',
             'page_title' => $title,
             'exam' => $exam,
+            'is_admin_preview' => $is_admin_preview,
             'canonical_url' => $canonical,
             'seo_title_override' => 'Free ' . $title . ' Mock Test | ' . $site_name,
             'seo_description_override' => $meta_description,
@@ -92,24 +97,43 @@ class Exam extends CI_Controller
         if ($this->input->method(true) !== 'POST') { redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return; }
         $name = trim((string)$this->input->post('participant_name'));
         $email = trim((string)$this->input->post('participant_email'));
-        $mobile = trim((string)$this->input->post('participant_mobile'));
-        if ($name === '' || mb_strlen($name) > 120 || mb_strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            $this->session->set_flashdata('error_message', 'Enter a valid name and email address to start the exam.');
+        $phoneCountry = trim((string)$this->input->post('participant_country_code'));
+        $phoneNumber = trim((string)$this->input->post('participant_mobile'));
+        if ($name !== '' && mb_strlen($name) > 120) {
+            $this->session->set_flashdata('error_message', 'Name must be 120 characters or fewer.');
             redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return;
         }
-        if (mb_strlen($mobile) > 30) {
-            $this->session->set_flashdata('error_message', 'Mobile number must be 30 characters or fewer.');
+        if ($email !== '' && (mb_strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL))) {
+            $this->session->set_flashdata('error_message', 'Enter a valid email address or leave it blank.');
+            redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return;
+        }
+        $phone = $this->mock_test_lead->normalize_phone($phoneCountry, $phoneNumber);
+        if (empty($phone['ok'])) {
+            $this->session->set_flashdata('error_message', $phone['message']);
+            redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return;
+        }
+        $leadCheck = $this->mock_test_lead->can_start_exam($phone['phone_e164'], (int)$exam['id']);
+        if (empty($leadCheck['ok'])) {
+            $this->session->set_flashdata('error_message', $leadCheck['message']);
             redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return;
         }
         if (!$this->allow_attempt_start((int)$exam['id'])) {
             $this->session->set_flashdata('error_message', 'Too many exam starts were requested. Please wait a few minutes and try again.');
             redirect(site_url('mock-tests/'.$exam['slug']), 'refresh'); return;
         }
+        $leadId = $this->mock_test_lead->find_or_create($phone['phone_e164'], [
+            'country_code' => $phone['country_code'],
+            'national_number' => $phone['national_number'],
+            'name' => $name,
+            'email' => $email,
+            'consent' => $this->input->post('lead_consent') === '1',
+            'source' => 'free_mock_test',
+        ]);
         $requestedMode = (string)($this->input->post('attempt_mode') ?: ($exam['exam_mode'] ?? 'mock'));
         $created = $this->exam->create_attempt((int)$exam['id'], [
             'name'=>$name,
             'email'=>$email,
-            'mobile'=>$mobile,
+            'mobile'=>$phone['phone_e164'],
             'user_id'=>(int)$this->session->userdata('user_id'),
         ], $requestedMode);
         if (empty($created['attempt_id']) || empty($created['access_token'])) {
@@ -117,6 +141,7 @@ class Exam extends CI_Controller
             redirect(site_url('mock-tests/'.$exam['slug']),'refresh');
             return;
         }
+        $this->mock_test_lead->link_attempt($leadId, (int)$exam['id'], (int)$created['attempt_id'], $phone['phone_e164']);
         $this->remember_attempt_token((int)$created['attempt_id'], (string)$created['access_token']);
         redirect($this->attempt_question_url((int)$created['attempt_id'], (string)$created['access_token'], 0), 'refresh');
     }

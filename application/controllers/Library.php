@@ -14,7 +14,16 @@ class Library extends CI_Controller
     public function index()
     {
         $query = trim((string)$this->input->get('q', true));
-        $data = ['page_name'=>'library/index','page_title'=>'Books & Learning Library','books'=>$this->content_docs->get_public_books($query),'query'=>$query];
+        $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
+        $data = [
+            'page_name'=>'library/index',
+            'page_title'=>'Books & Learning Library',
+            'books'=>$this->content_docs->get_public_books($query),
+            'query'=>$query,
+            'seo_title_override'=>'Books & Learning Library | ' . $site_name,
+            'seo_description_override'=>'Read published Lvalues books, notes, and structured learning content for school, IT, cloud, and professional learning.',
+            'seo_canonical_override'=>site_url('books'),
+        ];
         $this->load->view('frontend/'.get_frontend_settings('theme').'/index', $data);
     }
 
@@ -32,7 +41,10 @@ class Library extends CI_Controller
         $data = [
             'page_name'=>'library/reader','page_title'=>$book['title'],'book'=>$book,'tree'=>$tree,'pages'=>$pages,
             'selected_page'=>$pages[$selectedIndex] ?? null,'selected_index'=>$selectedIndex,'query'=>$query,
-            'canonical_url'=>site_url('books/'.$book['slug']),'is_preview'=>$preview
+            'canonical_url'=>site_url('books/'.$book['slug']),'is_preview'=>$preview,
+            'seo_title_override'=>$book['title'] . ' | ' . (get_settings('system_name') ?: 'Lvalues EdTech'),
+            'seo_description_override'=>!empty($book['meta_description']) ? $book['meta_description'] : 'Read ' . $book['title'] . ' on Lvalues.',
+            'seo_canonical_override'=>site_url('books/'.$book['slug']),
         ];
         $this->load->view('frontend/'.get_frontend_settings('theme').'/index', $data);
     }

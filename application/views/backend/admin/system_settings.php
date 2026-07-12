@@ -135,6 +135,12 @@
                         </div>
 
                         <div class="form-group">
+                            <label for="google_search_console_id">Google Search Console verification ID</label>
+                            <input type="text" name="google_search_console_id" id="google_search_console_id" class="form-control" value="<?php echo get_settings('google_search_console_id'); ?>">
+                            <small>Paste only the content value from the Google site verification meta tag. Keep blank to disable it.</small>
+                        </div>
+
+                        <div class="form-group">
                             <label for="meta_pixel_id"><?php echo get_phrase('meta_pixel_id'); ?></label>
                             <input type="text" name = "meta_pixel_id" id = "meta_pixel_id" class="form-control" value="<?php echo get_settings('meta_pixel_id');  ?>">
                             <small><?php echo get_phrase('keep_it_blank_if_you_want_to_disable_it') ?></small>

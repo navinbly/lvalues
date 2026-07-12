@@ -34,24 +34,59 @@ class Exam_pattern_model extends CI_Model
             ->limit((int)$limit)->get()->result_array();
     }
 
-    private function pick_random_question_ids($exam_name, $sub_category, $difficulty, $count, $exclude_ids = array(), $owner_id = null)
+    /**
+     * Server-side question pool search for the exam pattern builder, so the full
+     * question bank is never embedded in the page. Returns the total matching
+     * count plus a limited page of rows; any $include_ids (already selected in
+     * the pattern) are always returned so their labels can render.
+     */
+    public function search_bank_questions($owner_id, $exam_type = '', $topic = '', $difficulty = '', $include_ids = array(), $limit = 300)
     {
-        $count = (int)$count;
-        if ($count <= 0) return array();
-        $this->db->select('id')->from('question_bank_questions')->where('status', 'active');
-        $this->apply_owner_filter('question_bank_questions', $owner_id);
-        if (trim((string)$exam_name) !== '') $this->db->where('exam_type', trim((string)$exam_name));
-        if (trim((string)$sub_category) !== '') {
-            $section=trim((string)$sub_category);
-            $this->db->group_start()->where('question_section',$section)
-                ->or_group_start()->where("(question_section IS NULL OR question_section='')",null,false)->where('topic',$section)->group_end()->group_end();
-        }
-        if (trim((string)$difficulty) !== '') $this->db->where('difficulty', trim((string)$difficulty));
-        if (!empty($exclude_ids)) $this->db->where_not_in('id', array_keys($exclude_ids));
-        $rows = $this->db->order_by('RAND()', '', false)->limit($count)->get()->result_array();
-        return array_map('intval', array_column($rows, 'id'));
-    }
+        $apply_filters = function() use ($owner_id, $exam_type, $topic, $difficulty) {
+            $this->db->where('status', 'active');
+            $this->apply_owner_filter('question_bank_questions', $owner_id);
+            if (trim((string)$exam_type) !== '') $this->db->where('exam_type', trim((string)$exam_type));
+            if (trim((string)$topic) !== '') {
+                $section = trim((string)$topic);
+                $this->db->group_start()->where('question_section', $section)
+                    ->or_group_start()->where("(question_section IS NULL OR question_section='')", null, false)->where('topic', $section)->group_end()->group_end();
+            }
+            if (trim((string)$difficulty) !== '') $this->db->where('difficulty', trim((string)$difficulty));
+        };
 
+        $apply_filters();
+        $total = (int)$this->db->count_all_results('question_bank_questions');
+
+        $apply_filters();
+        $rows = $this->db->select('id, question_code, question_text, question_type, exam_type, question_section, topic, difficulty, marks')
+            ->order_by('id', 'DESC')->limit((int)$limit)->get('question_bank_questions')->result_array();
+
+        $include_ids = array_values(array_unique(array_filter(array_map('intval', (array)$include_ids))));
+        if (!empty($include_ids)) {
+            $have = array_map('intval', array_column($rows, 'id'));
+            $missing = array_diff($include_ids, $have);
+            if (!empty($missing)) {
+                $extra = $this->db->select('id, question_code, question_text, question_type, exam_type, question_section, topic, difficulty, marks')
+                    ->where_in('id', array_values($missing))->get('question_bank_questions')->result_array();
+                $rows = array_merge($extra, $rows);
+            }
+        }
+
+        $questions = array_map(function($q) {
+            return array(
+                'id' => (int)$q['id'],
+                'code' => (string)$q['question_code'],
+                'text' => (string)$q['question_text'],
+                'type' => (string)$q['question_type'],
+                'exam' => (string)$q['exam_type'],
+                'topic' => trim((string)($q['question_section'] ?? '')) !== '' ? (string)$q['question_section'] : (string)$q['topic'],
+                'difficulty' => (string)$q['difficulty'],
+                'marks' => (float)$q['marks'],
+            );
+        }, $rows);
+
+        return array('total' => $total, 'questions' => $questions);
+    }
 
     private function get_matching_question_ids($exam_name, $sub_category, $difficulty, $exclude_ids = array(), $owner_id = null)
     {
@@ -106,44 +141,26 @@ class Exam_pattern_model extends CI_Model
         }
 
         $normalized = array();
-        $all_question_ids = array();
         $total_marks = 0;
         $question_count = 0;
         foreach ($sections as $section_index => $section) {
             $section_title = trim((string)($section['title'] ?? ''));
-            $question_ids = array_values(array_unique(array_filter(array_map('intval', $section['question_ids'] ?? array()))));
             $source_exam = trim((string)($section['source_exam_type'] ?? ''));
             $source_topic = trim((string)($section['source_topic'] ?? ''));
             $source_difficulty = trim((string)($section['source_difficulty'] ?? ''));
             if ($source_exam === '') return array('ok'=>false,'message'=>'Every section must select Exam Name from master.');
             if ($source_topic === '') return array('ok'=>false,'message'=>'Every section must select Sub Category / Section from master.');
             if (!$this->is_valid_master_pair($source_exam, $source_topic, (int)$admin_id)) return array('ok'=>false,'message'=>'Invalid Exam Name and Sub Category / Section combination in section "' . ($section_title ?: 'Untitled') . '". Create/select it in your own Question Bank master first.');
-            $random_count = max(0, (int)($section['random_count'] ?? 0));
-            $selection_mode = trim((string)($section['selection_mode'] ?? 'random_pool'));
-            if (!in_array($selection_mode, array('random_pool','manual','mixed'), true)) $selection_mode = 'random_pool';
-
-            // For real mock-test behavior we store the full matching pool, but keep selection_count
-            // as the number to draw on every student attempt. This prevents a fixed exam paper.
-            if ($selection_mode === 'random_pool') {
-                $question_ids = $this->get_matching_question_ids($source_exam, $source_topic, $source_difficulty, $all_question_ids, (int)$admin_id);
-            } elseif ($selection_mode === 'mixed' && $random_count > 0) {
-                $pool_ids = $this->get_matching_question_ids($source_exam, $source_topic, $source_difficulty, $all_question_ids, (int)$admin_id);
-                $question_ids = array_values(array_unique(array_merge($question_ids, $pool_ids)));
-            } elseif (empty($question_ids) && $random_count > 0) {
-                $question_ids = $this->get_matching_question_ids($source_exam, $source_topic, $source_difficulty, $all_question_ids, (int)$admin_id);
-            }
+            $random_count = max(1, (int)($section['random_count'] ?? 0));
+            $selection_mode = 'random_pool';
+            $question_ids = $this->get_matching_question_ids($source_exam, $source_topic, $source_difficulty, array(), (int)$admin_id);
             $default_marks = (float)($section['default_marks'] ?? 1);
             $default_negative = (float)($section['default_negative_marks'] ?? 0);
             if ($section_title === '') return array('ok'=>false,'message'=>'Every section requires a title.');
             if (empty($question_ids)) return array('ok'=>false,'message'=>'Section "' . $section_title . '" has no active questions in the selected Question Bank pool.');
-            $selection_count_for_validation = $random_count > 0 ? $random_count : count($question_ids);
-            if ($selection_count_for_validation > count($question_ids)) return array('ok'=>false,'message'=>'Section "' . $section_title . '" has only ' . count($question_ids) . ' matching active questions for the requested draw count of ' . $selection_count_for_validation . '.');
+            if ($random_count > count($question_ids)) return array('ok'=>false,'message'=>'Section "' . $section_title . '" has only ' . count($question_ids) . ' matching active questions for the requested draw count of ' . $random_count . '.');
             if ($default_marks <= 0 || $default_negative < 0 || $default_negative > $default_marks) {
                 return array('ok'=>false,'message'=>'Section "' . $section_title . '" has invalid marks or negative marks.');
-            }
-            foreach ($question_ids as $question_id) {
-                if (isset($all_question_ids[$question_id])) return array('ok'=>false,'message'=>'A question can appear only once in an exam.');
-                $all_question_ids[$question_id] = true;
             }
             $questions = array();
             foreach (array_chunk($question_ids, 500) as $question_id_chunk) {
@@ -155,8 +172,7 @@ class Exam_pattern_model extends CI_Model
             if (count($questions) !== count($question_ids)) return array('ok'=>false,'message'=>'One or more selected questions are unavailable.');
             $question_map = array();
             foreach ($questions as $question) $question_map[(int)$question['id']] = $question;
-            $selection_count = $random_count > 0 ? $random_count : count($question_ids);
-            if ($selection_count > count($question_ids)) return array('ok'=>false,'message'=>'Section "'.$section_title.'" requests more questions than its available pool.');
+            $selection_count = $random_count;
             $section_time_minutes = max(0, (int)($section['section_time_minutes'] ?? 0));
             $section_marks = $default_marks * $selection_count;
             $normalized[] = array(
@@ -183,9 +199,9 @@ class Exam_pattern_model extends CI_Model
 
         $now = date('Y-m-d H:i:s');
         $status = (string)($post['status'] ?? 'draft');
-        if (!in_array($status,array('draft','in_review','archived'),true)) $status='draft';
-        if ($status === 'in_review' && trim(strip_tags((string)($post['instructions'] ?? ''))) === '') {
-            return array('ok'=>false,'message'=>'Candidate instructions are required before review.');
+        if (!in_array($status,array('draft','in_review','published','archived'),true)) $status='draft';
+        if (in_array($status, array('in_review','published'), true) && trim(strip_tags((string)($post['instructions'] ?? ''))) === '') {
+            return array('ok'=>false,'message'=>'Candidate instructions are required before review or publish.');
         }
         $review_status = $status === 'in_review' ? 'in_review' : $status;
         $managed_by_admin = (int)$managed_by_admin === 1 ? 1 : 0;
@@ -219,11 +235,14 @@ class Exam_pattern_model extends CI_Model
             'ends_at'=>$ends_at !== '' ? date('Y-m-d H:i:s', strtotime($ends_at)) : null,
             'status'=>$status === 'in_review' ? 'draft' : $status,
             'review_status'=>$review_status,
-            'is_published'=>0,
+            'is_published'=>$status === 'published' ? 1 : 0,
             'submitted_for_review_at'=>$status === 'in_review' ? $now : null,
             'updated_by'=>(int)$admin_id,
             'updated_at'=>$now,
         );
+        if ($status === 'published') {
+            $exam_data['published_at'] = $now;
+        }
 
         if ($this->db->field_exists('exam_mode', 'content_exams')) {
             $mode = strtolower(trim((string)($post['exam_mode'] ?? 'mock')));
@@ -237,6 +256,10 @@ class Exam_pattern_model extends CI_Model
 
         $this->db->trans_start();
         if ((int)$exam_id > 0) {
+            // Keep the public URL stable: never regenerate the slug of an existing exam.
+            if (trim((string)($existing['slug'] ?? '')) !== '') {
+                $exam_data['slug'] = $existing['slug'];
+            }
             $exam_data['pattern_version'] = (int)($existing['pattern_version'] ?? 1) + 1;
             $this->db->where('id',(int)$exam_id)->update('content_exams',$exam_data);
             $this->db->where('exam_id',(int)$exam_id)->delete('content_exam_sections');
@@ -271,10 +294,17 @@ class Exam_pattern_model extends CI_Model
                 ));
             }
         }
+        if ($status === 'published') {
+            $this->materialize_exam((int)$exam_id, (int)$admin_id);
+        }
         $this->db->trans_complete();
-        return $this->db->trans_status()
-            ? array('ok'=>true,'message'=>$status==='in_review'?'Exam pattern submitted for admin review.':'Exam pattern saved successfully.','exam_id'=>$exam_id)
-            : array('ok'=>false,'message'=>'Exam pattern could not be saved.');
+        if (!$this->db->trans_status()) {
+            return array('ok'=>false,'message'=>'Exam pattern could not be saved.');
+        }
+        if ($status === 'published') {
+            return array('ok'=>true,'message'=>'Exam pattern published. It is live on the mock tests page now.','exam_id'=>$exam_id);
+        }
+        return array('ok'=>true,'message'=>$status==='in_review'?'Exam pattern submitted for admin review.':'Exam pattern saved successfully.','exam_id'=>$exam_id);
     }
 
     public function materialize_exam($exam_id, $admin_id)
@@ -286,6 +316,7 @@ class Exam_pattern_model extends CI_Model
             ->from('content_exam_question_bank_map m')
             ->join('question_bank_questions q','q.id=m.question_bank_id')
             ->where('m.exam_id',(int)$exam_id)
+            ->where('q.status','active')
             ->order_by('m.section_id','ASC')->order_by('m.sort_order','ASC')->get()->result_array();
         $optionsByQuestion = array();
         $bankQuestionIds = array_values(array_unique(array_map(function($map) {
@@ -335,6 +366,60 @@ class Exam_pattern_model extends CI_Model
             'status'=>'archived','is_published'=>0,'updated_by'=>(int)$admin_id,'updated_at'=>$now
         ));
         return array('ok'=>true,'message'=>'Exam archived.');
+    }
+
+    public function publish_pattern($admin_id, $exam_id)
+    {
+        $exam = $this->get_exam($exam_id);
+        if (!$exam) return array('ok'=>false,'message'=>'Exam not found.');
+        if ((int)$exam['time_limit_minutes'] <= 0) return array('ok'=>false,'message'=>'Time limit must be positive before publishing.');
+        $validation = $this->validate_pools_for_publish((int)$exam_id);
+        if (empty($validation['ok'])) return $validation;
+        $now = date('Y-m-d H:i:s');
+        $this->db->trans_start();
+        $this->db->where('id',(int)$exam_id)->update('content_exams',array(
+            'status'=>'published','review_status'=>'published','is_published'=>1,'visibility'=>'public',
+            'published_at'=>$now,'reviewed_by'=>(int)$admin_id,'reviewed_at'=>$now,
+            'updated_by'=>(int)$admin_id,'updated_at'=>$now
+        ));
+        $this->materialize_exam((int)$exam_id,(int)$admin_id);
+        $this->db->trans_complete();
+        return $this->db->trans_status()
+            ? array('ok'=>true,'message'=>'Exam published. It is live on the mock tests page now.')
+            : array('ok'=>false,'message'=>'Exam could not be published.');
+    }
+
+    public function validate_pools_for_publish($exam_id)
+    {
+        $sections = $this->db->where('exam_id', (int)$exam_id)
+            ->order_by('sort_order', 'ASC')->get('content_exam_sections')->result_array();
+        if (empty($sections)) return array('ok'=>false,'message'=>'Exam must contain at least one section before publishing.');
+        foreach ($sections as $section) {
+            $available = (int)$this->db->select('COUNT(DISTINCT m.question_bank_id) AS total', false)
+                ->from('content_exam_question_bank_map m')
+                ->join('question_bank_questions q', 'q.id=m.question_bank_id')
+                ->where('m.section_id', (int)$section['id'])
+                ->where('q.status', 'active')
+                ->get()->row()->total;
+            $required = max(1, (int)($section['selection_count'] ?? $section['question_count'] ?? 0));
+            if ($available < $required) {
+                return array(
+                    'ok'=>false,
+                    'message'=>'Section "' . (string)$section['title'] . '" has only ' . $available . ' active question(s) available, but ' . $required . ' are required before publishing.'
+                );
+            }
+        }
+        return array('ok'=>true,'message'=>'Question pools are ready.');
+    }
+
+    public function unpublish_pattern($admin_id, $exam_id)
+    {
+        if (!$this->get_exam($exam_id)) return array('ok'=>false,'message'=>'Exam not found.');
+        $this->db->where('id',(int)$exam_id)->update('content_exams',array(
+            'status'=>'draft','review_status'=>'draft','is_published'=>0,
+            'updated_by'=>(int)$admin_id,'updated_at'=>date('Y-m-d H:i:s')
+        ));
+        return array('ok'=>true,'message'=>'Exam unpublished and moved back to draft.');
     }
 
     private function unique_slug($title, $exam_id=0)

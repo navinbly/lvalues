@@ -1509,8 +1509,45 @@ class Home extends CI_Controller
 
     public function about_us()
     {
+        $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
         $page_data['page_name'] = 'about_us';
-        $page_data['page_title'] = site_phrase('about_us');
+        $page_data['page_title'] = 'About Lvalues EdTech';
+        $page_data['seo_title_override'] = 'About Lvalues EdTech | ' . $site_name;
+        $page_data['seo_description_override'] = 'Learn about Lvalues EdTech, an education platform for students, parents, tutors, courses, books, mock tests, and live learning.';
+        $page_data['seo_canonical_override'] = site_url('home/about_us');
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
+    public function tutor_verification()
+    {
+        $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
+        $page_data['page_name'] = 'tutor_verification';
+        $page_data['page_title'] = 'Tutor Verification';
+        $page_data['seo_title_override'] = 'Tutor Verification Process | ' . $site_name;
+        $page_data['seo_description_override'] = 'Learn how Lvalues reviews tutor profiles, documents, admin approval, and verified tutor badges before public listing.';
+        $page_data['seo_canonical_override'] = site_url('tutor-verification');
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
+    public function parents()
+    {
+        $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
+        $page_data['page_name'] = 'parents';
+        $page_data['page_title'] = 'For Parents';
+        $page_data['seo_title_override'] = 'For Parents | Find Tutors and Track Learning | ' . $site_name;
+        $page_data['seo_description_override'] = 'A parent-friendly guide to finding tutors, comparing learning modes, reviewing fees, and tracking student learning on Lvalues.';
+        $page_data['seo_canonical_override'] = site_url('parents');
+        $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
+    }
+
+    public function tutor_earnings()
+    {
+        $site_name = get_settings('system_name') ?: 'Lvalues EdTech';
+        $page_data['page_name'] = 'tutor_earnings';
+        $page_data['page_title'] = 'Tutor Earnings';
+        $page_data['seo_title_override'] = 'Tutor Earnings | Teach Online and Offline | ' . $site_name;
+        $page_data['seo_description_override'] = 'See how tutors can create a teaching profile, set fees, publish books and notes, create batches, schedule sessions, and grow on Lvalues.';
+        $page_data['seo_canonical_override'] = site_url('tutor-earnings');
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
     }
 
@@ -2229,7 +2266,8 @@ class Home extends CI_Controller
     function faq()
     {
         $page_data['page_name'] = 'website_faq';
-        $page_data['page_title'] = strtoupper(get_phrase('FAQ'));
+        $page_data['page_title'] = 'Lvalues FAQ';
+        $page_data['seo_canonical_override'] = site_url('home/faq');
         $this->load->view('frontend/' . get_frontend_settings('theme') . '/index', $page_data);
     }
 

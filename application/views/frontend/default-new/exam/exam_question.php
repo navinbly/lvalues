@@ -45,6 +45,19 @@ if (!empty($attempt['started_at']) && !empty($currentSection['time'])) {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <title><?php echo html_escape($page_title); ?></title>
+    <?php if(function_exists('get_settings') && trim((string)get_settings('google_analytics_id')) !== ''): ?>
+        <script async src="https://www.googletagmanager.com/gtag/js?id=<?php echo html_escape(get_settings('google_analytics_id')); ?>"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('consent', 'default', {'analytics_storage':'granted','ad_storage':'denied','ad_user_data':'denied','ad_personalization':'denied'});
+            gtag('js', new Date());
+            gtag('config', '<?php echo html_escape(get_settings('google_analytics_id')); ?>', {'anonymize_ip': true});
+            window.lvaluesTrackEvent = function(eventName, params){ if (eventName && typeof gtag === 'function') gtag('event', eventName, params || {}); };
+        </script>
+    <?php else: ?>
+        <script>window.lvaluesTrackEvent = function(){};</script>
+    <?php endif; ?>
     <style>
         *{box-sizing:border-box}
         body{margin:0;background:#eaf0f7;color:#162033;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55}
@@ -181,7 +194,7 @@ if (!empty($attempt['started_at']) && !empty($currentSection['time'])) {
                         <button class="btn btn-outline" name="nav_action" value="clear">Clear</button>
                         <button class="btn btn-warning" name="nav_action" value="review">Mark for Review</button>
                         <?php if($index < $total - 1): ?><button class="btn btn-primary" name="nav_action" value="next">Save &amp; Next</button><?php endif; ?>
-                        <button class="btn btn-success" name="nav_action" value="submit" onclick="return confirm('Submit this attempt now?');">Submit Test</button>
+                        <button class="btn btn-success" name="nav_action" value="submit" data-lv-event="submit_mock_test" data-lv-label="<?php echo html_escape($exam['title']); ?>" onclick="return confirm('Submit this attempt now?');">Submit Test</button>
                     </div>
                 </div>
             </form>
@@ -225,7 +238,13 @@ if (!empty($attempt['started_at']) && !empty($currentSection['time'])) {
             .catch(function(){saveState.textContent = 'Save failed';});
     }
     form.querySelectorAll('input[name="option_ids[]"]').forEach(function(input){input.addEventListener('change', autosave);});
-    form.addEventListener('submit', function(){submitting = true; window.onbeforeunload = null;});
+    form.addEventListener('submit', function(event){
+        var submitter = event.submitter || document.activeElement;
+        if (submitter && submitter.getAttribute && submitter.getAttribute('name') === 'nav_action' && submitter.value === 'submit') {
+            window.lvaluesTrackEvent('submit_mock_test', {event_category: 'form', event_label: <?php echo json_encode((string)$exam['title']); ?>});
+        }
+        submitting = true; window.onbeforeunload = null;
+    });
     window.onbeforeunload = function(){if(!submitting) return 'Your attempt is still in progress.';};
     function fmt(left){var m = Math.floor(left / 60), s = left % 60; return m + ':' + String(s).padStart(2,'0');}
     <?php if($is_timed): ?>var left = <?php echo (int)$seconds_left; ?>, timer = document.getElementById('timer'); function tick(){timer.textContent = fmt(left); if(left <= 0){submitting = true; window.onbeforeunload = null; var a = document.createElement('input'); a.type = 'hidden'; a.name = 'nav_action'; a.value = 'submit'; form.appendChild(a); form.submit(); return;} left--;} setInterval(tick,1000); tick();<?php endif; ?>

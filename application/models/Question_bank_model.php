@@ -74,6 +74,34 @@ class Question_bank_model extends CI_Model
         );
     }
 
+    /**
+     * Question counts per exam and per section (non-archived), used by the
+     * "Created Exam Structure" card so institutes can see bank coverage.
+     * Returns array('exams' => [exam => count], 'sections' => [exam => [section => count]]).
+     */
+    public function get_taxonomy_counts($owner_id = null)
+    {
+        $this->db->select("exam_type, COALESCE(NULLIF(question_section,''), topic) AS section_name, COUNT(*) AS question_count", false)
+            ->from('question_bank_questions')
+            ->where('status !=', 'archived')
+            ->where("exam_type IS NOT NULL AND exam_type != ''", null, false);
+        $this->apply_owner_filter('question_bank_questions', $owner_id);
+        $this->db->group_by("exam_type, COALESCE(NULLIF(question_section,''), topic)", false);
+        $rows = $this->db->get()->result_array();
+
+        $counts = array('exams' => array(), 'sections' => array());
+        foreach ($rows as $row) {
+            $exam = (string)$row['exam_type'];
+            $section = (string)($row['section_name'] ?? '');
+            $count = (int)$row['question_count'];
+            $counts['exams'][$exam] = ($counts['exams'][$exam] ?? 0) + $count;
+            if ($section !== '') {
+                $counts['sections'][$exam][$section] = ($counts['sections'][$exam][$section] ?? 0) + $count;
+            }
+        }
+        return $counts;
+    }
+
     public function save_exam_master($admin_id, $exam_name, $description = '')
     {
         $exam_name = trim((string)$exam_name);
@@ -477,9 +505,13 @@ class Question_bank_model extends CI_Model
         }
         $cognitive=strtolower(trim((string)($post['cognitive_level']??'understand')));
         if(!in_array($cognitive,array('remember','understand','apply','analyze','evaluate','create'),true))$cognitive='understand';
+        $master_ids = array();
+        if ($this->db->field_exists('exam_master_id', 'question_bank_questions')) {
+            $master_ids = $this->resolve_master_ids($exam_name, $section_name, $owner_id);
+        }
         return array(
             'ok'=>true,
-            'data'=>array(
+            'data'=>array_merge($master_ids, array(
                 'question_text'=>$text,
                 'question_type'=>$type,
                 'category_id'=>max(0,(int)($post['category_id']??0)),
@@ -498,9 +530,36 @@ class Question_bank_model extends CI_Model
                 'explanation'=>(string)($post['explanation'] ?? ''),
                 'status'=>$status,
                 'admin_remark'=>trim((string)($post['admin_remark'] ?? '')),
-            ),
+            )),
             'options'=>$options,
         );
+    }
+
+    /**
+     * Resolve exam/section master IDs from their names. Part of the ID-based
+     * taxonomy foundation: questions store both the name (legacy, still used
+     * by all read paths) and the master ID (rename-safe reference).
+     */
+    private function resolve_master_ids($exam_name, $section_name, $owner_id = null)
+    {
+        $ids = array('exam_master_id' => null, 'section_master_id' => null);
+        if (!$this->db->table_exists('question_bank_exam_masters')) return $ids;
+
+        $this->db->where('exam_name', trim((string)$exam_name))->where('status', 'active');
+        $this->apply_owner_filter('question_bank_exam_masters', $owner_id);
+        $exam = $this->db->get('question_bank_exam_masters')->row_array();
+        if (!$exam) return $ids;
+        $ids['exam_master_id'] = (int)$exam['id'];
+
+        if ($this->db->table_exists('question_bank_section_masters')) {
+            $this->db->where('exam_master_id', (int)$exam['id'])
+                ->where('section_name', trim((string)$section_name))
+                ->where('status', 'active');
+            $this->apply_owner_filter('question_bank_section_masters', $owner_id);
+            $section = $this->db->get('question_bank_section_masters')->row_array();
+            if ($section) $ids['section_master_id'] = (int)$section['id'];
+        }
+        return $ids;
     }
 
     private function next_code()

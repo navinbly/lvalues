@@ -53,6 +53,8 @@ defined('BASEPATH') or exit('No direct script access allowed');
 $route['default_controller'] = 'home';
 $route['dashboard'] = 'home/smart_dashboard';
 $route['404_override'] = 'home/page_not_found';
+$route['sitemap.xml'] = 'seo/sitemap';
+$route['robots.txt'] = 'seo/robots';
 $route['certificate/(:any)']        = "addons/certificate/generate_certificate/$1";
 
 //course bundles
@@ -84,6 +86,9 @@ $route['blog'] = "blog/content";
 // exam pretty (must be before blog catch-all)
 $route['blog/(.+)-exam'] = 'exam/by_pretty/$1';
 
+// legacy blog details (must be before blog catch-all)
+$route['blog/details/(:any)/(:num)'] = "blog/details/$1/$2";
+
 // blog catch-all (unlimited)
 $route['blog/(.+)'] = 'blog/content/$1';
 
@@ -100,6 +105,9 @@ $route['books/state'] = 'library/state';
 $route['books/(:any)'] = 'library/book/$1';
 $route['mock-tests'] = 'exam/public_list';
 $route['mock-tests/(:any)'] = 'exam/detail/$1';
+$route['tutor-verification'] = 'home/tutor_verification';
+$route['parents'] = 'home/parents';
+$route['tutor-earnings'] = 'home/tutor_earnings';
 // Backward-compatible old public exam URLs
 $route['public-exams'] = 'exam/public_list';
 $route['public-exams/(:any)'] = 'exam/detail/$1';

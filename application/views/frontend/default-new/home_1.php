@@ -129,7 +129,7 @@
         .lvalues-floating-card h6{margin:0 0 5px;color:#17213a;font-weight:800;font-size:15px;}
         .lvalues-floating-card p{margin:0;color:#6b7280;font-size:12px;line-height:1.45;}
         .lvalues-search-panel{
-            display:none;
+            display:block;
             margin-top:42px;
             background:#ffffff;
             border:1px solid #e9ecf5;
@@ -207,6 +207,7 @@
             background:#6c4df6 !important;
             border-color:#6c4df6 !important;
         }
+        .lvalues-hero-filter-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:10px;align-items:end;}
         .lvalues-popular-tags{margin-top:16px;}
         .lvalues-popular-tags span,
         .lvalues-popular-tags button{display:inline-block;margin:0 8px 8px 0;}
@@ -237,6 +238,13 @@
             width:42px;height:42px;line-height:42px;text-align:center;border-radius:13px;
             background:#f4f1ff;color:#6c4df6;margin-bottom:12px;font-size:18px;
         }
+        .lvalues-results-section{margin-top:30px;background:#17213a;border-radius:24px;padding:28px;color:#ffffff;box-shadow:0 20px 55px rgba(23,33,58,.18);}
+        .lvalues-results-section h2{margin:0 0 8px;font-size:26px;font-weight:900;color:#ffffff;}
+        .lvalues-results-section p{color:rgba(255,255,255,.78);line-height:1.7;margin:0;}
+        .lvalues-result-card{height:100%;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);border-radius:16px;padding:18px;}
+        .lvalues-result-card b{display:block;color:#ffffff;font-size:16px;margin-bottom:8px;}
+        .lvalues-result-card span{display:block;color:rgba(255,255,255,.75);font-size:13px;line-height:1.65;}
+        .lvalues-result-kicker{display:inline-flex;margin-bottom:12px;padding:7px 11px;border-radius:999px;background:#ffffff;color:#5f46e8;font-weight:900;font-size:12px;}
         .lvalues-section-heading{max-width:760px;margin:0 auto 30px;text-align:center;}
         .lvalues-section-heading h2{margin:0;color:#17213a;font-size:34px;line-height:1.25;font-weight:800;}
         .lvalues-section-heading p{margin:12px 0 0;color:#65708a;font-size:16px;line-height:1.7;}
@@ -289,6 +297,7 @@
             .lvalues-search-panel{padding:18px;border-radius:18px;}
             .lvalues-mode-buttons{display:flex;width:100%;}
             .lvalues-mode-buttons button{min-width:0;flex:1 1 50%;padding:0 10px;font-size:14px;}
+            .lvalues-hero-filter-grid{grid-template-columns:1fr 1fr;}
             .lvalues-search-submit{margin-top:10px;}
             .lvalues-section-heading h2{font-size:26px;}
             .lvalues-audience-section,.lvalues-work-section{padding:40px 0;}
@@ -344,14 +353,13 @@
 
         <div class="row" id="lvaluesStartSearch">
             <div class="col-lg-11 mx-auto">
-                <div class="lvalues-search-panel">
-                    <a href="#lvaluesHomeTop" class="lvalues-search-back" id="lvaluesSearchBack">← Back to main page</a>
+                <div class="lvalues-search-panel is-visible">
                     <div class="row align-items-center">
-                        <div class="col-lg-4 col-md-12">
-                            <h4 id="lvaluesSearchTitle">Start your search</h4>
-                            <p id="lvaluesSearchDescription">Find school courses, IT and professional courses, online classes, offline tuition, hybrid batches, tutors, and skill-based training.</p>
+                        <div class="col-lg-3 col-md-12">
+                            <h4 id="lvaluesSearchTitle">Find a tutor</h4>
+                            <p id="lvaluesSearchDescription">Search by subject, class, mode, and location. Online and offline learning are both supported.</p>
                         </div>
-                        <div class="col-lg-8 col-md-12">
+                        <div class="col-lg-9 col-md-12">
                             <form action="<?php echo site_url('home/search'); ?>" method="get" id="lvaluesHeroSearchForm">
                                 <input type="hidden" name="search_for" id="lvaluesSearchFor" value="tutor">
 
@@ -360,13 +368,17 @@
                                     <button type="button" class="btn" data-mode="course">Find a course</button>
                                 </div>
 
-                                <div class="row">
-                                    <div class="col-md-8 col-sm-12">
-                                        <input type="text" name="query" id="lvaluesHeroQuery" class="form-control lvalues-search-input" placeholder="Search Math tutor, English tutor, Java tutor, home tutor">
-                                    </div>
-                                    <div class="col-md-4 col-sm-12">
-                                        <button class="btn btn-primary w-100 lvalues-search-submit" type="submit">Search</button>
-                                    </div>
+                                <div class="lvalues-hero-filter-grid">
+                                    <input type="text" name="query" id="lvaluesHeroQuery" class="form-control lvalues-search-input" placeholder="Subject, e.g. Math, English, Java">
+                                    <input type="text" name="class_level" class="form-control lvalues-search-input" placeholder="Class / Level">
+                                    <select name="mode" class="form-control lvalues-search-input">
+                                        <option value="">Teaching Mode</option>
+                                        <option value="online">Online</option>
+                                        <option value="offline">Offline</option>
+                                        <option value="hybrid">Hybrid</option>
+                                    </select>
+                                    <input type="text" name="location" class="form-control lvalues-search-input" placeholder="City / Pincode">
+                                    <button class="btn btn-primary lvalues-search-submit" type="submit" data-lv-event="tutor_search" data-lv-label="homepage_hero">Search Tutors</button>
                                 </div>
 
                                 <div class="lvalues-popular-tags">
@@ -388,16 +400,14 @@
             <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
                 <div class="lvalues-proof-card">
                     <div class="lvalues-proof-icon"><i class="fa-solid fa-user-graduate"></i></div>
-                    <?php $all_students = $this->db->get_where('users', ['role_id !=' => 1]); ?>
-                    <h5><?php echo nice_number($all_students->num_rows()); ?>+ Learners</h5>
+                    <h5>Learner Support</h5>
                     <p>Students can search tutors, join batches, attend sessions, and track progress.</p>
                 </div>
             </div>
             <div class="col-lg-3 col-md-6 col-sm-6 mb-3">
                 <div class="lvalues-proof-card">
                     <div class="lvalues-proof-icon"><i class="fa-solid fa-chalkboard-user"></i></div>
-                    <?php $all_instructor = $this->db->get_where('users', ['is_instructor' => 1]); ?>
-                    <h5><?php echo nice_number($all_instructor->num_rows()); ?>+ Tutors</h5>
+                    <h5>Tutor Tools</h5>
                     <p>Tutors can find students, manage batches, schedule classes, and assign work.</p>
                 </div>
             </div>
@@ -416,13 +426,36 @@
                 </div>
             </div>
         </div>
+
+        <div class="lvalues-results-section" id="lvaluesStudentResults">
+            <div class="row align-items-end mb-3">
+                <div class="col-lg-7">
+                    <span class="lvalues-result-kicker">Student Results</span>
+                    <h2>Learning support that feels clear to students and parents</h2>
+                    <p>Use tutor matching, structured batches, mock tests, assignments, and progress reports to make learning easier to follow.</p>
+                </div>
+                <div class="col-lg-5 mt-3 mt-lg-0">
+                    <p>Results vary by learner, but the platform is designed around visible next steps: what to study, who can help, and how progress is moving.</p>
+                </div>
+            </div>
+            <div class="row g-3">
+                <div class="col-lg-4 col-md-6">
+                    <div class="lvalues-result-card"><b>School support</b><span>Students can find subject tutors by class, mode, and location, then continue through batches, sessions, assignments, and tests.</span></div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="lvalues-result-card"><b>Mock-test readiness</b><span>Free mock tests give immediate results and help learners identify weak topics before planning their next study session.</span></div>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <div class="lvalues-result-card"><b>Parent visibility</b><span>Parents can review tutor fit, learning mode, fees, and student progress signals before choosing ongoing support.</span></div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var form = document.getElementById('lvaluesHeroSearchForm');
             var searchPanel = document.querySelector('.lvalues-search-panel');
-            var searchBack = document.getElementById('lvaluesSearchBack');
             if (!form) return;
 
             var modeInput = document.getElementById('lvaluesSearchFor');
@@ -443,16 +476,6 @@
                 }
             }
 
-            function hideSearchPanel() {
-                if (searchPanel) {
-                    searchPanel.className = searchPanel.className.replace(/\bis-visible\b/g, '').replace(/\s+$/,'');
-                }
-                var top = document.getElementById('lvaluesHomeTop');
-                if (top && top.scrollIntoView) {
-                    top.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }
-
             function setMode(mode) {
                 if (!modeInput || !queryInput) return;
 
@@ -467,13 +490,13 @@
                 if (mode === 'course') {
                     modeInput.value = 'course';
                     form.action = '<?php echo site_url('home/courses'); ?>';
-                    queryInput.placeholder = 'Search courses like Google Cloud, Python, Data Science, Physics';
+                    queryInput.placeholder = 'Course, e.g. Google Cloud, Python, Physics';
                     if (title) title.innerHTML = 'Find a course';
                     if (description) description.innerHTML = 'Search courses for school learning, IT skills, cloud, data science, professional training, and more.';
                 } else {
                     modeInput.value = 'tutor';
                     form.action = '<?php echo site_url('home/search'); ?>';
-                    queryInput.placeholder = 'Search Math tutor, English tutor, Java tutor, home tutor';
+                    queryInput.placeholder = 'Subject, e.g. Math, English, Java';
                     if (title) title.innerHTML = 'Find a tutor';
                     if (description) description.innerHTML = 'Search tutors by subject, class, skill, location, online classes, offline tuition, or hybrid learning.';
                 }
@@ -498,14 +521,6 @@
                     if (e && e.preventDefault) e.preventDefault();
                     setMode(this.getAttribute('data-mode'));
                     showSearchPanel();
-                    return false;
-                };
-            }
-
-            if (searchBack) {
-                searchBack.onclick = function (e) {
-                    if (e && e.preventDefault) e.preventDefault();
-                    hideSearchPanel();
                     return false;
                 };
             }

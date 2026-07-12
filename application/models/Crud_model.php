@@ -687,6 +687,16 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $this->db->where('key', 'google_analytics_id');
         $this->db->update('settings', $data);
 
+        $data['value'] = html_escape($this->input->post('google_search_console_id'));
+        $this->db->where('key', 'google_search_console_id');
+        $row = $this->db->get('settings');
+        if ($row->num_rows() > 0) {
+            $this->db->where('key', 'google_search_console_id');
+            $this->db->update('settings', $data);
+        } else {
+            $this->db->insert('settings', ['key' => 'google_search_console_id', 'value' => $data['value']]);
+        }
+
         $data['value'] = html_escape($this->input->post('meta_pixel_id'));
         $this->db->where('key', 'meta_pixel_id');
         $this->db->update('settings', $data);
@@ -4218,6 +4228,52 @@ log_message('error', 'FILES: ' . print_r($_FILES, true));
         $this->db->order_by('id', 'DESC');
         $this->db->where('status', 0);
         return $this->db->get('payout');
+    }
+
+    /**
+     * Lightweight COUNT(*) badge counts for the admin sidebar, cached for 60 seconds
+     * so navigation does not run queue queries on every admin page load.
+     */
+    public function get_admin_nav_counts()
+    {
+        $this->load->driver('cache', array('adapter' => 'file'));
+        $counts = $this->cache->get('lv_admin_nav_counts');
+        if (is_array($counts)) {
+            return $counts;
+        }
+
+        $counts = array(
+            'pending_courses' => (int)$this->db->where('status', 'pending')->count_all_results('course'),
+            'pending_tutor_applications' => (int)$this->db->where('status', 0)->count_all_results('applications'),
+            'pending_payouts' => (int)$this->db->where('status', 0)->count_all_results('payout'),
+            'pending_content_items' => 0,
+        );
+
+        if ($this->db->table_exists('content_nodes')) {
+            $this->db->where('COALESCE(is_deleted,0)', 0, false);
+            $this->db->where_in('status', array('pending', 'on_hold', 'update_required', 'rejected'));
+            $this->db->group_start();
+            $this->db->where('parent_id IS NULL', null, false);
+            $this->db->or_group_start();
+            $this->db->not_like('root_key', 'book_', 'after');
+            $this->db->not_like('root_key', 'article_', 'after');
+            $this->db->group_end();
+            $this->db->group_end();
+            $counts['pending_content_items'] += (int)$this->db->count_all_results('content_nodes');
+        }
+        if ($this->db->table_exists('blogs')) {
+            $this->db->group_start();
+            $this->db->where('status', 'pending');
+            $this->db->or_where('status', 0);
+            $this->db->or_where('status', '0');
+            $this->db->or_where('status', '');
+            $this->db->or_where('status IS NULL', null, false);
+            $this->db->group_end();
+            $counts['pending_content_items'] += (int)$this->db->count_all_results('blogs');
+        }
+
+        $this->cache->save('lv_admin_nav_counts', $counts, 60);
+        return $counts;
     }
 
     // GET TOTAL PAYOUT AMOUNT OF AN INSTRUCTOR

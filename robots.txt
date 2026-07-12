@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: http://localhost/lvalues/sitemap.xml
+Sitemap: https://lvalues.com/sitemap.xml

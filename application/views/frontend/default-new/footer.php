@@ -12,7 +12,10 @@
                 <h2 class="h5"><?php echo site_phrase('Learners'); ?></h2>
                 <ul>
                     <li><a href="<?php echo site_url('home/courses'); ?>"><?php echo site_phrase('all_courses'); ?></a></li>
+                    <li><a href="<?php echo site_url('books'); ?>">Books</a></li>
+                    <li><a href="<?php echo site_url('mock-tests'); ?>">Mock Tests</a></li>
                     <li><a href="<?php echo site_url('home/search?search_for=tutor'); ?>">Find a Tutor</a></li>
+                    <li><a href="<?php echo site_url('parents'); ?>">For Parents</a></li>
                     <li><a href="<?php echo site_url('home/courses?query=school'); ?>">School Courses</a></li>
                     <li><a href="<?php echo site_url('home/courses?query=IT%20Training'); ?>">IT Training</a></li>
                     <li><a href="<?php echo site_url('sign_up'); ?>"><?php echo site_phrase('sign_up'); ?></a></li>
@@ -25,6 +28,8 @@
                         <li><a href="<?php echo site_url('sign_up?instructor=yes'); ?>">Become a Tutor</a></li>
                         <li><a href="<?php echo site_url('home/become_an_instructor'); ?>">Tutor Application</a></li>
                     <?php endif; ?>
+                    <li><a href="<?php echo site_url('tutor-earnings'); ?>">Tutor Earnings</a></li>
+                    <li><a href="<?php echo site_url('tutor-verification'); ?>">Tutor Verification</a></li>
                     <li><a href="<?php echo site_url('login'); ?>">Tutor Login</a></li>
                     <li><a href="<?php echo site_url('#lvaluesHowItWorks'); ?>">How Lvalues Works</a></li>
                 </ul>

@@ -4496,10 +4496,38 @@ public function content_page_pdf_upload()
         $page_data['exam'] = $exam;
         $page_data['sections'] = $exam ? $this->exam_pattern->get_sections($exam_id) : array();
         $admin_id = (int)$this->session->userdata('user_id');
-        $page_data['bank_questions'] = $this->exam_pattern->get_active_bank_questions(1000, $admin_id);
+        // Question pool is now loaded on demand via admin/question_bank_pool (AJAX),
+        // so the page no longer embeds the whole question bank.
+        $page_data['bank_questions'] = array();
         $page_data['filter_options'] = $this->question_bank->get_filter_options($admin_id);
         $page_data['workflow_action_token'] = $this->workflow_action_token;
         $this->load->view('backend/index', $page_data);
+    }
+
+    /**
+     * JSON endpoint used by the exam pattern builder to search the question
+     * bank on demand instead of embedding the whole bank in the page.
+     */
+    public function question_bank_pool()
+    {
+        $this->output->set_content_type('application/json');
+        if ($this->session->userdata('admin_login') != true) {
+            $this->output->set_status_header(403)->set_output(json_encode(array('error' => 'Not authorized')));
+            return;
+        }
+        check_permission('blog');
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $include_ids = array_filter(array_map('intval', explode(',', (string)$this->input->get('include_ids'))));
+        $result = $this->exam_pattern->search_bank_questions(
+            (int)$this->session->userdata('user_id'),
+            trim((string)$this->input->get('exam')),
+            trim((string)$this->input->get('topic')),
+            trim((string)$this->input->get('difficulty')),
+            $include_ids,
+            1
+        );
+        unset($result['questions']);
+        $this->output->set_output(json_encode($result, JSON_UNESCAPED_UNICODE));
     }
 
     public function moderation_center()
@@ -4564,6 +4592,10 @@ public function content_page_pdf_upload()
             $targetId = (int)($result['exam_id'] ?? $exam_id);
             $this->moderation->record('exam', $targetId, 'submit', $before['review_status'] ?? 'draft', 'in_review', '', (int)$this->session->userdata('user_id'), (int)($before['created_by'] ?? $this->session->userdata('user_id')));
         }
+        if (!empty($result['ok']) && (string)$this->input->post('status') === 'published') {
+            $targetId = (int)($result['exam_id'] ?? $exam_id);
+            $this->moderation->record('exam', $targetId, 'approve', $before['review_status'] ?? 'draft', 'published', 'Published directly by admin from Exam Pattern Builder.', (int)$this->session->userdata('user_id'), (int)($before['created_by'] ?? $this->session->userdata('user_id')));
+        }
         $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
         $target = !empty($result['exam_id']) ? (int)$result['exam_id'] : (int)$exam_id;
         redirect($target > 0 ? site_url('admin/exam_pattern_builder/'.$target) : site_url('admin/exam_pattern_builder'), 'refresh');
@@ -4583,6 +4615,50 @@ public function content_page_pdf_upload()
             show_error('You can archive only admin-owned exam patterns in this builder.', 403);
         }
         $result = $this->exam_pattern->archive_exam((int)$this->session->userdata('user_id'), (int)$exam_id);
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/content_public_exams'), 'refresh');
+    }
+
+    public function exam_pattern_publish($exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $this->load->model('Moderation_model', 'moderation');
+        $exam = $this->exam_pattern->get_exam((int)$exam_id);
+        if (!$exam || (int)($exam['managed_by_admin'] ?? 0) !== 1 || (int)($exam['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can publish only admin-owned exam patterns in this builder.', 403);
+        }
+        $result = $this->exam_pattern->publish_pattern((int)$this->session->userdata('user_id'), (int)$exam_id);
+        if (!empty($result['ok'])) {
+            $this->moderation->record('exam', (int)$exam_id, 'approve', $exam['review_status'] ?: $exam['status'], 'published', 'Published directly by admin from exam list.', (int)$this->session->userdata('user_id'), (int)$exam['created_by']);
+        }
+        $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
+        redirect(site_url('admin/content_public_exams'), 'refresh');
+    }
+
+    public function exam_pattern_unpublish($exam_id = 0)
+    {
+        if ($this->session->userdata('admin_login') != true) {
+            redirect(site_url('login'), 'refresh');
+        }
+        check_permission('blog');
+        if ($this->input->method(true) !== 'POST') show_error('Method not allowed', 405);
+        $this->require_workflow_action();
+        $this->load->model('Exam_pattern_model', 'exam_pattern');
+        $this->load->model('Moderation_model', 'moderation');
+        $exam = $this->exam_pattern->get_exam((int)$exam_id);
+        if (!$exam || (int)($exam['managed_by_admin'] ?? 0) !== 1 || (int)($exam['created_by'] ?? 0) !== (int)$this->session->userdata('user_id')) {
+            show_error('You can unpublish only admin-owned exam patterns in this builder.', 403);
+        }
+        $result = $this->exam_pattern->unpublish_pattern((int)$this->session->userdata('user_id'), (int)$exam_id);
+        if (!empty($result['ok'])) {
+            $this->moderation->record('exam', (int)$exam_id, 'unpublish', $exam['review_status'] ?: $exam['status'], 'draft', 'Unpublished by admin from exam list.', (int)$this->session->userdata('user_id'), (int)$exam['created_by']);
+        }
         $this->session->set_flashdata(!empty($result['ok']) ? 'flash_message' : 'error_message', $result['message']);
         redirect(site_url('admin/content_public_exams'), 'refresh');
     }
@@ -4615,14 +4691,21 @@ public function content_page_pdf_upload()
         $admin_id = (int)$this->session->userdata('user_id');
         $result = $this->question_bank->search($filters, $per_page, ($page - 1) * $per_page, $admin_id);
 
+        $qb_tab = (string)$this->input->get('qb_tab');
+        $qb_titles = array(
+            'create_exam' => 'Question Bank — Setup Exams & Sections',
+            'upload' => 'Question Bank — Add Questions',
+            'search' => 'Question Bank — Manage Questions',
+        );
         $page_data['page_name'] = 'question_bank';
-        $page_data['page_title'] = 'Question Bank';
+        $page_data['page_title'] = $qb_titles[$qb_tab] ?? 'Question Bank';
         $page_data['questions'] = $result['rows'];
         $page_data['total_questions'] = $result['total'];
         $page_data['summary'] = $this->question_bank->get_summary($admin_id);
         $page_data['quality_summary'] = $this->question_bank->get_quality_summary($admin_id);
         $page_data['recent_imports'] = $this->question_bank->get_recent_imports(10, $admin_id);
         $page_data['filter_options'] = $this->question_bank->get_filter_options($admin_id);
+        $page_data['taxonomy_counts'] = $this->question_bank->get_taxonomy_counts($admin_id);
         $page_data['filters'] = $filters;
         $page_data['current_page'] = $page;
         $page_data['per_page'] = $per_page;

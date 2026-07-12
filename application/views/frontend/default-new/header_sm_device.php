@@ -122,11 +122,13 @@
           <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/courses?query=school'); ?>"><i class="fas fa-school me-2"></i>School</a></li>
           <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('home/courses?query=IT%20Training'); ?>"><i class="fas fa-laptop-code me-2"></i>IT Training</a></li>
           <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesCorporateTraining'); ?>"><i class="fas fa-building me-2"></i>Corporate Training</a></li>
-          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesAudiencePaths'); ?>"><i class="fas fa-people-roof me-2"></i>For Parents</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('parents'); ?>"><i class="fas fa-people-roof me-2"></i>For Parents</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('books'); ?>"><i class="fas fa-book-open me-2"></i>Books</a></li>
+          <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('mock-tests'); ?>"><i class="fas fa-file-circle-check me-2"></i>Mock Tests</a></li>
           <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('blog'); ?>"><i class="fas fa-newspaper me-2"></i>Blog</a></li>
           <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('#lvaluesPricing'); ?>"><i class="fas fa-tags me-2"></i>Pricing</a></li>
           <?php if(!$user_id && get_settings('allow_instructor') == 1): ?>
-            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('sign_up?instructor=yes'); ?>"><i class="fas fa-chalkboard-user me-2"></i>Become a Tutor</a></li>
+            <li class="bg-light"><a class="btn btn-toggle-list d-inline-flex align-items-center rounded border-0 text-dark text-16px fw-500" href="<?php echo site_url('tutor-earnings'); ?>"><i class="fas fa-chalkboard-user me-2"></i>Become a Tutor</a></li>
           <?php endif; ?>
 
           <?php if($admin_login): ?>

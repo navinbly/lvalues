@@ -182,7 +182,10 @@ public function content($a=null, $b=null, $c=null, $d=null)
     }
 
     $page_data['page_name']  = 'content_page';
-    $page_data['page_title'] = 'Docs';
+    $page_data['page_title'] = $selected_node ? $selected_node['title'] : 'Books and Articles';
+    $page_data['seo_title_override'] = ($selected_node ? $selected_node['title'] : 'Books and Articles') . ' | ' . (get_settings('system_name') ?: 'Lvalues EdTech');
+    $page_data['seo_description_override'] = !empty($selected_page['meta_description']) ? $selected_page['meta_description'] : 'Read Lvalues books, articles, notes, and structured learning content.';
+    $page_data['seo_canonical_override'] = site_url($full_path ? 'blog/' . trim($full_path, '/') : 'blog');
 
     // data for views
     $page_data['nodes'] = $nodes;
